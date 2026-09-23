@@ -1,0 +1,325 @@
+import React, { useState } from 'react';
+import { User, Mail, Phone, Globe, Building, MessageSquare, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
+import { CustomerInfo } from '../../types/booking';
+import { COUNTRY_DIAL_CODES } from '../../data/bookingData';
+
+interface StepCustomerInfoProps {
+  customer: CustomerInfo;
+  onCustomerChange: (customer: CustomerInfo) => void;
+  onNext: () => void;
+  onBack: () => void;
+}
+
+export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
+  customer,
+  onCustomerChange,
+  onNext,
+  onBack,
+}) => {
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  };
+
+  const validatePhone = (phone: string) => {
+    const digits = phone.replace(/\D+/g, '');
+    return digits.length >= 6;
+  };
+
+  const errors = {
+    firstName: !customer.firstName.trim() ? 'First name is required' : '',
+    lastName: !customer.lastName.trim() ? 'Last name is required' : '',
+    email: !customer.email.trim()
+      ? 'Email is required'
+      : !validateEmail(customer.email)
+      ? 'Please enter a valid email address'
+      : '',
+    phoneNumber: !customer.phoneNumber.trim()
+      ? 'Phone number is required'
+      : !validatePhone(customer.phoneNumber)
+      ? 'Please enter a valid phone number (min 6 digits)'
+      : '',
+    country: !customer.country.trim() ? 'Country of residence is required' : '',
+  };
+
+  const isValid = !errors.firstName && !errors.lastName && !errors.email && !errors.phoneNumber && !errors.country;
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const handleChange = (field: keyof CustomerInfo, value: string) => {
+    onCustomerChange({
+      ...customer,
+      [field]: value,
+    });
+  };
+
+  const handleCountryDialSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const found = COUNTRY_DIAL_CODES.find((c) => c.dial === e.target.value);
+    onCustomerChange({
+      ...customer,
+      countryCode: e.target.value,
+      country: found ? found.country : customer.country,
+    });
+  };
+
+  const handleSubmitAttempt = () => {
+    setTouched({
+      firstName: true,
+      lastName: true,
+      email: true,
+      phoneNumber: true,
+      country: true,
+    });
+
+    if (isValid) {
+      onNext();
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-200">
+      
+      {/* Header */}
+      <div className="bg-white border border-[#E8E3DA] rounded-sm p-5 space-y-4">
+        <div>
+          <h2 className="font-display text-base sm:text-lg font-bold text-[#0E1B2A] flex items-center">
+            <User className="w-4 h-4 mr-2 text-[#0A6C74]" />
+            Lead Traveler Contact Information
+          </h2>
+          <p className="text-xs text-stone-600 mt-1">
+            Your excursion voucher and pickup coordinator messages will be sent to these contact details.
+          </p>
+        </div>
+
+        {/* First & Last Name */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="first-name" className="block text-xs font-bold text-stone-800 mb-1">
+              First Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="first-name"
+              type="text"
+              required
+              value={customer.firstName}
+              onBlur={() => handleBlur('firstName')}
+              onChange={(e) => handleChange('firstName', e.target.value)}
+              placeholder="e.g. Marcus"
+              className={`w-full px-3.5 py-2.5 rounded border text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6C74] ${
+                touched.firstName && errors.firstName
+                  ? 'border-red-400 bg-red-50/40'
+                  : 'border-stone-300 bg-stone-50/50'
+              }`}
+            />
+            {touched.firstName && errors.firstName && (
+              <span className="text-[11px] text-red-600 mt-1 flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
+                {errors.firstName}
+              </span>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="last-name" className="block text-xs font-bold text-stone-800 mb-1">
+              Last Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="last-name"
+              type="text"
+              required
+              value={customer.lastName}
+              onBlur={() => handleBlur('lastName')}
+              onChange={(e) => handleChange('lastName', e.target.value)}
+              placeholder="e.g. Weber"
+              className={`w-full px-3.5 py-2.5 rounded border text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6C74] ${
+                touched.lastName && errors.lastName
+                  ? 'border-red-400 bg-red-50/40'
+                  : 'border-stone-300 bg-stone-50/50'
+              }`}
+            />
+            {touched.lastName && errors.lastName && (
+              <span className="text-[11px] text-red-600 mt-1 flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
+                {errors.lastName}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Email & Phone */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          {/* Email */}
+          <div>
+            <label htmlFor="email" className="block text-xs font-bold text-stone-800 mb-1 flex items-center">
+              <Mail className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+              Email Address <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={customer.email}
+              onBlur={() => handleBlur('email')}
+              onChange={(e) => handleChange('email', e.target.value)}
+              placeholder="e.g. markus.weber@example.com"
+              className={`w-full px-3.5 py-2.5 rounded border text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6C74] ${
+                touched.email && errors.email
+                  ? 'border-red-400 bg-red-50/40'
+                  : 'border-stone-300 bg-stone-50/50'
+              }`}
+            />
+            {touched.email && errors.email ? (
+              <span className="text-[11px] text-red-600 mt-1 flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
+                {errors.email}
+              </span>
+            ) : (
+              <span className="text-[10px] text-stone-500 mt-1 block">
+                Your PDF confirmation voucher is dispatched here.
+              </span>
+            )}
+          </div>
+
+          {/* WhatsApp / Phone with Dial Selector */}
+          <div>
+            <label htmlFor="phone-number" className="block text-xs font-bold text-stone-800 mb-1 flex items-center">
+              <Phone className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+              WhatsApp / Mobile Phone <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <div className="flex space-x-2">
+              <select
+                aria-label="Country dial code"
+                value={customer.countryCode || '+20'}
+                onChange={handleCountryDialSelect}
+                className="w-28 px-2 py-2.5 rounded border border-stone-300 text-xs bg-stone-100 font-mono focus:outline-none focus:ring-2 focus:ring-[#0A6C74]"
+              >
+                {COUNTRY_DIAL_CODES.map((c) => (
+                  <option key={c.code} value={c.dial}>
+                    {c.flag} {c.dial} ({c.code})
+                  </option>
+                ))}
+              </select>
+
+              <input
+                id="phone-number"
+                type="tel"
+                required
+                value={customer.phoneNumber}
+                onBlur={() => handleBlur('phoneNumber')}
+                onChange={(e) => handleChange('phoneNumber', e.target.value)}
+                placeholder="170 1234567"
+                className={`flex-1 px-3.5 py-2.5 rounded border text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6C74] ${
+                  touched.phoneNumber && errors.phoneNumber
+                    ? 'border-red-400 bg-red-50/40'
+                    : 'border-stone-300 bg-stone-50/50'
+                }`}
+              />
+            </div>
+            {touched.phoneNumber && errors.phoneNumber ? (
+              <span className="text-[11px] text-red-600 mt-1 flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
+                {errors.phoneNumber}
+              </span>
+            ) : (
+              <span className="text-[10px] text-stone-500 mt-1 block">
+                Pier drivers use WhatsApp for live lobby arrival alerts.
+              </span>
+            )}
+          </div>
+
+        </div>
+
+        {/* Country of Residence & Room Number */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="country" className="block text-xs font-bold text-stone-800 mb-1 flex items-center">
+              <Globe className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+              Country of Residence <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              id="country"
+              type="text"
+              required
+              value={customer.country}
+              onBlur={() => handleBlur('country')}
+              onChange={(e) => handleChange('country', e.target.value)}
+              placeholder="e.g. Germany, UK, Egypt, etc."
+              className={`w-full px-3.5 py-2.5 rounded border text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6C74] ${
+                touched.country && errors.country
+                  ? 'border-red-400 bg-red-50/40'
+                  : 'border-stone-300 bg-stone-50/50'
+              }`}
+            />
+            {touched.country && errors.country && (
+              <span className="text-[11px] text-red-600 mt-1 flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
+                {errors.country}
+              </span>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="room-number" className="block text-xs font-bold text-stone-800 mb-1 flex items-center">
+              <Building className="w-3.5 h-3.5 mr-1 text-stone-400" />
+              Room Number (Optional)
+            </label>
+            <input
+              id="room-number"
+              type="text"
+              value={customer.roomNumber || ''}
+              onChange={(e) => handleChange('roomNumber', e.target.value)}
+              placeholder="e.g. Room 412 (can provide later)"
+              className="w-full px-3.5 py-2.5 rounded border border-stone-300 text-xs sm:text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-[#0A6C74]"
+            />
+            <span className="text-[10px] text-stone-500 mt-1 block">
+              Helps hotel concierge page your room if you're not in the lobby.
+            </span>
+          </div>
+        </div>
+
+        {/* Special Requests */}
+        <div className="pt-2 border-t border-stone-200">
+          <label htmlFor="special-requests" className="block text-xs font-bold text-stone-800 mb-1 flex items-center">
+            <MessageSquare className="w-3.5 h-3.5 mr-1 text-stone-400" />
+            Special Requests & Dietary Requirements (Optional)
+          </label>
+          <textarea
+            id="special-requests"
+            rows={2}
+            value={customer.specialRequests || ''}
+            onChange={(e) => handleChange('specialRequests', e.target.value)}
+            placeholder="e.g. Vegetarian meal on boat, celebrating honeymoon/birthday, non-swimmer in party..."
+            className="w-full px-3.5 py-2 rounded border border-stone-300 text-xs bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-[#0A6C74]"
+          />
+        </div>
+
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex items-center justify-between pt-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-5 py-2.5 border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs sm:text-sm font-semibold rounded-sm transition-colors flex items-center space-x-1.5"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSubmitAttempt}
+          className="px-7 py-3 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-sm transition-colors shadow-xs flex items-center space-x-2"
+        >
+          <span>Review Booking Details</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+
+    </div>
+  );
+};

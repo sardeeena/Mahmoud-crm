@@ -1,0 +1,273 @@
+import React, { useState } from 'react';
+import { 
+  CheckCircle2, 
+  Copy, 
+  Check, 
+  Printer, 
+  Calendar, 
+  MessageCircle, 
+  MapPin, 
+  Users, 
+  Clock, 
+  Sparkles, 
+  ShieldCheck, 
+  ArrowRight,
+  Download,
+  AlertCircle
+} from 'lucide-react';
+import { Booking } from '../types/booking';
+import { CurrencyConfig } from '../types';
+import { downloadCalendarEvent, getWhatsAppSupportUrl, triggerPrintVoucher } from '../services/exportService';
+
+interface BookingConfirmationPageProps {
+  booking: Booking;
+  currency: CurrencyConfig;
+  onNavigate: (page: string, param?: string) => void;
+}
+
+export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = ({
+  booking,
+  currency,
+  onNavigate,
+}) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyRef = () => {
+    navigator.clipboard.writeText(booking.bookingReference);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAF8F5] py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto space-y-6">
+        
+        {/* Success Header Banner */}
+        <div className="bg-white border border-[#E8E3DA] rounded-sm p-6 sm:p-8 text-center shadow-xs">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto mb-4 ring-8 ring-emerald-50">
+            <CheckCircle2 className="w-9 h-9" />
+          </div>
+
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-block mb-2">
+            Reservation Confirmed • Active Voucher
+          </span>
+
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0E1B2A] tracking-tight">
+            You're All Set for the Red Sea!
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto mt-2">
+            Your booking voucher has been generated and dispatched to{' '}
+            <strong className="text-stone-900">{booking.customer.email}</strong>.
+          </p>
+
+          {/* Reference Badge with Copy */}
+          <div className="mt-5 p-3.5 bg-[#FAF8F5] border border-[#E8E3DA] rounded inline-flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="text-center sm:text-left">
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">
+                Booking Reference Code
+              </span>
+              <span className="font-mono font-bold text-lg sm:text-xl text-[#0A6C74] tracking-wider">
+                {booking.bookingReference}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyRef}
+              className="px-3 py-1.5 bg-white hover:bg-stone-50 border border-stone-300 rounded text-xs font-semibold text-stone-700 flex items-center space-x-1.5 transition-colors shadow-2xs"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-stone-500" />
+                  <span>Copy Code</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Action Buttons Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 print:hidden">
+          <button
+            type="button"
+            onClick={triggerPrintVoucher}
+            className="p-3 bg-white hover:bg-stone-50 border border-[#E8E3DA] rounded text-xs font-semibold text-stone-800 flex items-center justify-center space-x-2 shadow-2xs transition-colors"
+          >
+            <Printer className="w-4 h-4 text-[#0A6C74]" />
+            <span>Print Voucher (PDF)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => downloadCalendarEvent(booking)}
+            className="p-3 bg-white hover:bg-stone-50 border border-[#E8E3DA] rounded text-xs font-semibold text-stone-800 flex items-center justify-center space-x-2 shadow-2xs transition-colors"
+          >
+            <Calendar className="w-4 h-4 text-[#0A6C74]" />
+            <span>Add to Calendar (.ics)</span>
+          </button>
+
+          <a
+            href={getWhatsAppSupportUrl(booking)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center justify-center space-x-2 shadow-2xs transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>WhatsApp Dispatcher</span>
+          </a>
+        </div>
+
+        {/* Printable Official Voucher Card */}
+        <div className="bg-white border border-[#E8E3DA] rounded-sm p-6 sm:p-8 space-y-6 shadow-xs print:border-none print:shadow-none print:p-0">
+          
+          <div className="flex items-start justify-between border-b border-stone-200 pb-4">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#0A6C74] block">
+                Official Boarding Voucher
+              </span>
+              <h2 className="font-display text-lg sm:text-xl font-bold text-[#0E1B2A]">
+                {booking.tourTitle}
+              </h2>
+              <div className="flex items-center space-x-3 text-xs text-stone-500 mt-1">
+                <span className="flex items-center">
+                  <MapPin className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+                  {booking.tourDestination}
+                </span>
+                <span>•</span>
+                <span className="flex items-center">
+                  <Clock className="w-3.5 h-3.5 mr-1 text-stone-400" />
+                  {booking.tourDuration}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-right shrink-0">
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">Status</span>
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                Confirmed
+              </span>
+            </div>
+          </div>
+
+          {/* Grid Information */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="p-3.5 bg-stone-50 border border-stone-200 rounded space-y-1">
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">Date of Excursion</span>
+              <span className="font-bold text-stone-900 text-sm">{booking.date}</span>
+              <span className="text-[11px] text-stone-500 block">
+                Vessel departure approx. 08:30 – 09:00 AM
+              </span>
+            </div>
+
+            <div className="p-3.5 bg-stone-50 border border-stone-200 rounded space-y-1">
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">Guests Reserved</span>
+              <span className="font-bold text-stone-900 text-sm">
+                {booking.guests.adults} Adult(s)
+                {booking.guests.children > 0 && `, ${booking.guests.children} Child(ren)`}
+                {booking.guests.infants > 0 && `, ${booking.guests.infants} Infant(s)`}
+              </span>
+              <span className="text-[11px] text-stone-500 block">
+                Marine park admission pass included
+              </span>
+            </div>
+
+            <div className="p-3.5 bg-stone-50 border border-stone-200 rounded space-y-1">
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">Pickup Location</span>
+              <span className="font-bold text-stone-900 text-sm">
+                {booking.pickup.hotelName || booking.pickup.locationName}
+              </span>
+              <span className="text-[11px] text-stone-500 block">
+                Region: {booking.pickup.area}
+                {booking.pickup.roomNumber && ` (Room ${booking.pickup.roomNumber})`}
+              </span>
+            </div>
+
+            <div className="p-3.5 bg-stone-50 border border-stone-200 rounded space-y-1">
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">Payment Terms</span>
+              <span className="font-bold text-stone-900 text-sm">
+                Pay on Hotel Pickup
+              </span>
+              <span className="text-[11px] text-stone-500 block">
+                Amount payable: <strong className="text-emerald-700">{booking.pricing.formattedTotal}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Selected Extras */}
+          {booking.extras && booking.extras.length > 0 && (
+            <div className="pt-2 border-t border-stone-200">
+              <span className="text-[10px] uppercase font-bold text-stone-400 block mb-2">
+                Included Booking Upgrades
+              </span>
+              <div className="space-y-1 text-xs">
+                {booking.extras.map((ex) => (
+                  <div key={ex.extraId} className="flex justify-between items-center text-stone-700">
+                    <span>• {ex.name}</span>
+                    <span className="font-semibold text-stone-900">€{ex.priceEur.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lead Traveler */}
+          <div className="pt-2 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">Lead Traveler</span>
+              <span className="font-semibold text-stone-900">
+                {booking.customer.firstName} {booking.customer.lastName} ({booking.customer.country})
+              </span>
+            </div>
+            <div className="text-stone-500">
+              <span>{booking.customer.email}</span> • <span>{booking.customer.countryCode} {booking.customer.phoneNumber}</span>
+            </div>
+          </div>
+
+          {/* What to Expect Next */}
+          <div className="p-4 bg-[#FAF8F5] border border-[#E8E3DA] rounded text-xs space-y-2 text-stone-700">
+            <span className="font-bold text-stone-900 block text-xs">
+              Important Next Steps for Departure Day:
+            </span>
+            <ul className="space-y-1 text-[11px] text-stone-600 list-disc list-inside">
+              <li>
+                <strong>WhatsApp Alert:</strong> Our operations desk will message you between 18:00 – 20:00 the evening before with the exact vehicle number and driver contact.
+              </li>
+              <li>
+                <strong>What to Bring:</strong> Passports (or hotel identity card for Coast Guard check), beach towels, swimwear, sunglasses, and sun cream.
+              </li>
+              <li>
+                <strong>Meeting Point:</strong> Please wait in your main hotel lobby 10 minutes before the pickup window.
+              </li>
+            </ul>
+          </div>
+
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 print:hidden">
+          <button
+            type="button"
+            onClick={() => onNavigate('my-booking', booking.bookingReference)}
+            className="text-xs font-semibold text-[#0A6C74] hover:text-[#08565C] hover:underline"
+          >
+            Manage this reservation in "My Booking"
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('excursions')}
+            className="px-6 py-2.5 bg-[#0E1B2A] hover:bg-[#16283D] text-white text-xs font-semibold rounded transition-colors flex items-center space-x-1.5"
+          >
+            <span>Explore More Excursions</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};
