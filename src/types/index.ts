@@ -19,6 +19,10 @@ export interface OptionalExtra {
   description?: string;
 }
 
+export type TourDifficulty = 'Easy' | 'Moderate' | 'Adventurous';
+export type TourDurationCategory = 'Half Day' | 'Full Day' | 'Multi Day';
+export type TourType = 'Shared' | 'Private';
+
 export interface Tour {
   id: string;
   slug: string;
@@ -26,8 +30,8 @@ export interface Tour {
   destination: string; // e.g. "Hurghada", "El Gouna", "Marsa Alam", "Safaga"
   category: string; // Primary category display
   categories: string[]; // e.g. ["Boat Trip", "Snorkeling", "Island"]
-  tourType: 'Shared' | 'Private';
-  durationCategory: 'Half Day' | 'Full Day' | 'Multi Day';
+  tourType: TourType;
+  durationCategory: TourDurationCategory;
   durationHours: number;
   durationLabel: string; // e.g. "7 Hours (Full Day)"
   shortDescription: string;
@@ -56,10 +60,9 @@ export interface Tour {
   cancellationPolicy: string;
   availableDays: string[];
   departureTime: string;
-  difficulty?: 'Easy' | 'Moderate' | 'Adventurous';
+  difficulty?: TourDifficulty;
   ageRestrictions?: string;
 }
-
 
 export interface Destination {
   id: string;
@@ -107,3 +110,7 @@ export interface SearchState {
 
 export type SearchFilters = SearchState;
 
+// Re-export specialized types
+export * from './routes';
+export * from './security';
+export * from './filters';

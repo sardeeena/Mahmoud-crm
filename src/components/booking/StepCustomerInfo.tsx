@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Mail, Phone, Globe, Building, MessageSquare, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import { CustomerInfo } from '../../types/booking';
 import { COUNTRY_DIAL_CODES } from '../../data/bookingData';
+import { isValidEmail, isValidPhoneNumber, sanitizeString } from '../../lib/security';
 
 interface StepCustomerInfoProps {
   customer: CustomerInfo;
@@ -18,29 +19,20 @@ export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
 }) => {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  };
-
-  const validatePhone = (phone: string) => {
-    const digits = phone.replace(/\D+/g, '');
-    return digits.length >= 6;
-  };
-
   const errors = {
-    firstName: !customer.firstName.trim() ? 'First name is required' : '',
-    lastName: !customer.lastName.trim() ? 'Last name is required' : '',
+    firstName: !customer.firstName.trim() ? 'Please enter your first name.' : '',
+    lastName: !customer.lastName.trim() ? 'Please enter your last name.' : '',
     email: !customer.email.trim()
-      ? 'Email is required'
-      : !validateEmail(customer.email)
-      ? 'Please enter a valid email address'
+      ? 'Please enter your email address.'
+      : !isValidEmail(customer.email)
+      ? 'Please enter a valid email address.'
       : '',
     phoneNumber: !customer.phoneNumber.trim()
-      ? 'Phone number is required'
-      : !validatePhone(customer.phoneNumber)
-      ? 'Please enter a valid phone number (min 6 digits)'
+      ? 'Please enter your phone number.'
+      : !isValidPhoneNumber(customer.phoneNumber)
+      ? 'Please enter a valid phone number with dial code.'
       : '',
-    country: !customer.country.trim() ? 'Country of residence is required' : '',
+    country: !customer.country.trim() ? 'Please select your country.' : '',
   };
 
   const isValid = !errors.firstName && !errors.lastName && !errors.email && !errors.phoneNumber && !errors.country;
@@ -52,7 +44,7 @@ export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
   const handleChange = (field: keyof CustomerInfo, value: string) => {
     onCustomerChange({
       ...customer,
-      [field]: value,
+      [field]: sanitizeString(value),
     });
   };
 
@@ -87,10 +79,10 @@ export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
         <div>
           <h2 className="font-display text-base sm:text-lg font-bold text-[#0E1B2A] flex items-center">
             <User className="w-4 h-4 mr-2 text-[#0A6C74]" />
-            Lead Traveler Contact Information
+            Your Contact Details
           </h2>
           <p className="text-xs text-stone-600 mt-1">
-            Your excursion voucher and pickup coordinator messages will be sent to these contact details.
+            We will send your booking confirmation and pickup details to this email and phone number.
           </p>
         </div>
 
@@ -315,7 +307,7 @@ export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
           onClick={handleSubmitAttempt}
           className="px-7 py-3 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-sm transition-colors shadow-xs flex items-center space-x-2"
         >
-          <span>Review Booking Details</span>
+          <span>Review Booking</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

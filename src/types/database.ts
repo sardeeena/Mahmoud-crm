@@ -304,6 +304,221 @@ export interface DbAuditLog {
   created_at: string;
 }
 
+export interface DbCoupon {
+  id: string;
+  code: string;
+  description: string | null;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  min_spend: number;
+  max_discount: number | null;
+  valid_from: string;
+  valid_until: string | null;
+  max_redemptions: number | null;
+  times_redeemed: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbBookingPassenger {
+  id: string;
+  booking_id: string;
+  full_name: string;
+  nationality: string;
+  passport_or_id_number: string | null;
+  date_of_birth: string | null;
+  passenger_type: 'adult' | 'child' | 'infant';
+  is_lead_passenger: boolean;
+  special_dietary_needs: string | null;
+  created_at: string;
+}
+
+export interface DbVessel {
+  id: string;
+  name: string;
+  vessel_type: 'motor_yacht' | 'speedboat' | 'catamaran' | 'glass_bottom' | 'semi_submarine' | 'safari_jeep';
+  registration_number: string | null;
+  port_marina: string;
+  passenger_capacity: number;
+  crew_capacity: number;
+  year_built: number | null;
+  safety_inspection_expiry: string | null;
+  amenities: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbGuide {
+  id: string;
+  full_name: string;
+  role: 'captain' | 'dive_master' | 'snorkel_guide' | 'safari_lead' | 'tour_guide';
+  languages: string[];
+  phone: string | null;
+  email: string | null;
+  license_number: string | null;
+  rating: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface DbInquiry {
+  id: string;
+  customer_name: string;
+  email: string;
+  phone: string | null;
+  whatsapp: string | null;
+  tour_id: string | null;
+  subject: string;
+  message: string;
+  status: 'new' | 'contacted' | 'resolved' | 'converted';
+  source: 'web' | 'whatsapp' | 'email' | 'phone';
+  ip_address: string | null;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbNewsletterSubscriber {
+  id: string;
+  email: string;
+  preferred_language: string;
+  source: string | null;
+  is_active: boolean;
+  subscribed_at: string;
+  unsubscribed_at: string | null;
+}
+
+export interface DbPaymentTransaction {
+  id: string;
+  booking_id: string;
+  gateway: 'stripe' | 'paypal' | 'paymob' | 'cash_at_pickup';
+  transaction_reference: string;
+  amount: number;
+  currency: string;
+  status: 'initiated' | 'succeeded' | 'failed' | 'refunded';
+  card_brand: string | null;
+  card_last4: string | null;
+  raw_response: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface DbFaq {
+  id: string;
+  category: 'general' | 'booking' | 'cancellation' | 'marine_safety' | 'transfers';
+  question: string;
+  answer: string;
+  sort_order: number;
+  is_published: boolean;
+  created_at: string;
+}
+
+export interface DbWeatherBulletin {
+  id: string;
+  harbor_location: string;
+  water_temperature_c: number;
+  air_temperature_c: number;
+  swell_height_m: number;
+  wind_speed_knots: number;
+  wind_direction: string;
+  visibility_meters: number;
+  coast_guard_cleared: boolean;
+  advisory_notes: string | null;
+  bulletin_date: string;
+  created_at: string;
+}
+
+// Database Views
+export interface DbViewToursCatalog {
+  id: string;
+  title: string;
+  slug: string;
+  short_description: string | null;
+  duration: string;
+  duration_type: DurationCategory;
+  duration_hours: number;
+  tour_type: TourType;
+  price: number;
+  child_price: number | null;
+  currency: string;
+  rating: number;
+  review_count: number;
+  badge: string | null;
+  featured: boolean;
+  departure_time: string | null;
+  cancellation_policy: string | null;
+  pickup_available: boolean;
+  destination_id: string | null;
+  destination_name: string | null;
+  destination_slug: string | null;
+  primary_image: string | null;
+  categories: string[];
+}
+
+export interface DbViewBookingsDetailed {
+  booking_id: string;
+  booking_reference: string;
+  booking_date: string;
+  booking_status: string;
+  payment_status: string;
+  payment_method: string;
+  adult_count: number;
+  child_count: number;
+  infant_count: number;
+  total_passengers: number;
+  subtotal: number;
+  extras_total: number;
+  discount: number;
+  total: number;
+  currency: string;
+  pickup_hotel_name: string | null;
+  pickup_room_number: string | null;
+  pickup_time_confirmed: string | null;
+  special_requests: string | null;
+  booked_at: string;
+  tour_id: string;
+  tour_title: string;
+  tour_slug: string;
+  destination_name: string | null;
+  customer_id: string | null;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  customer_whatsapp: string | null;
+  customer_country: string;
+  pickup_area_name: string | null;
+  coupon_applied: string | null;
+}
+
+export interface DbViewCoastGuardManifest {
+  booking_date: string;
+  excursion_name: string;
+  assigned_vessel: string | null;
+  vessel_registration: string | null;
+  departure_harbor: string | null;
+  booking_reference: string;
+  passenger_name: string;
+  nationality: string;
+  passport_or_id_number: string | null;
+  passenger_type: 'adult' | 'child' | 'infant';
+  is_lead_passenger: boolean;
+  pickup_hotel_name: string | null;
+  pickup_room_number: string | null;
+  contact_phone: string | null;
+}
+
+export interface DbViewDashboardKpis {
+  total_all_time_bookings: number;
+  confirmed_bookings: number;
+  departures_today: number;
+  total_revenue_eur: number;
+  pending_cancellations: number;
+  new_leads_count: number;
+  active_tours_count: number;
+  total_published_reviews: number;
+}
+
 // Complete aggregate tour structure for frontend rendering
 export interface TourWithRelations extends DbTour {
   destination?: DbDestination | null;

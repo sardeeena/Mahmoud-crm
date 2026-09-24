@@ -67,7 +67,7 @@ export const StepDateGuests: React.FC<StepDateGuestsProps> = ({
           />
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#0A6C74] block">
-              Selected Excursion
+              Selected Tour
             </span>
             <h2 className="font-display text-base sm:text-lg font-bold text-[#0E1B2A] leading-tight">
               {tour.title}
@@ -100,10 +100,10 @@ export const StepDateGuests: React.FC<StepDateGuestsProps> = ({
         <div className="flex items-center justify-between">
           <label htmlFor="booking-date" className="font-bold text-stone-900 text-sm flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-[#0A6C74]" />
-            1. Select Travel Date
+            1. Choose your date
           </label>
           <span className="text-[11px] text-stone-500">
-            Min. 24h advance reservation
+            Book at least 24 hours in advance
           </span>
         </div>
 
@@ -152,10 +152,10 @@ export const StepDateGuests: React.FC<StepDateGuestsProps> = ({
         <div className="flex items-center justify-between">
           <span className="font-bold text-stone-900 text-sm flex items-center">
             <Users className="w-4 h-4 mr-2 text-[#0A6C74]" />
-            2. Choose Number of Travelers
+            2. How many people?
           </span>
           <span className="text-[11px] text-stone-500">
-            Ages as of travel date
+            Ages on date of tour
           </span>
         </div>
 
@@ -282,7 +282,7 @@ export const StepDateGuests: React.FC<StepDateGuestsProps> = ({
           onClick={onNext}
           className="w-full sm:w-auto px-7 py-3 bg-[#0A6C74] hover:bg-[#08565C] disabled:bg-stone-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-semibold rounded-sm transition-colors shadow-xs flex items-center justify-center space-x-2"
         >
-          <span>Continue to Pickup Location</span>
+          <span>Choose Pickup</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

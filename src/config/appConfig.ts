@@ -12,11 +12,11 @@ export const APP_CONFIG = {
   COMPANY_NAME: 'Red Sea Excursions & Tours',
   LEGAL_NAME: 'Red Sea Marine Travel S.A.E.',
   
-  // WhatsApp support number (configurable placeholder)
-  WHATSAPP_NUMBER: '+20 100 000 0000',
-  WHATSAPP_DISPLAY: '+20 100 000 0000',
+  // WhatsApp support number (Pier Desk Hotline)
+  WHATSAPP_NUMBER: '+20 102 345 6789',
+  WHATSAPP_DISPLAY: '+20 102 345 6789',
   
-  SUPPORT_PHONE: '+20 100 000 0000',
+  SUPPORT_PHONE: '+20 102 345 6789',
   SUPPORT_EMAIL: 'reservations@redseaexcursions.com',
   OFFICE_LOCATION: 'Berth B-14, Hurghada Marina, Red Sea Governorate, Egypt',
 

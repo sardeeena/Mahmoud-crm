@@ -48,11 +48,11 @@ export function downloadCalendarEvent(booking: Booking): void {
   URL.revokeObjectURL(url);
 }
 
-export function getWhatsAppSupportUrl(booking?: Booking): string {
+export function getWhatsAppSupportUrl(booking?: Booking, customMessage?: string): string {
   const phoneDigits = APP_CONFIG.WHATSAPP_NUMBER.replace(/\D+/g, '');
-  let message = `Hello Red Sea Excursions, I have a query regarding excursion bookings.`;
+  let message = customMessage || `Hello Red Sea Excursions, I would like to inquire about excursion availability and hotel pickup.`;
 
-  if (booking) {
+  if (booking && !customMessage) {
     message = `Hello Red Sea Excursions, I am contacting you regarding booking reference: ${booking.bookingReference} for ${booking.tourTitle} on ${booking.date}.`;
   }
 

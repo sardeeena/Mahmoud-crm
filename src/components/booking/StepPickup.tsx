@@ -101,7 +101,7 @@ export const StepPickup: React.FC<StepPickupProps> = ({
         <div className="pt-3 border-t border-stone-200 space-y-2">
           <label htmlFor="hotel-input" className="block text-xs font-bold text-stone-900 flex items-center">
             <Building className="w-3.5 h-3.5 mr-1.5 text-[#0A6C74]" />
-            Hotel / Accommodation Name (Optional now, can confirm later)
+            Hotel name (Optional - can be provided later)
           </label>
           <input
             id="hotel-input"
@@ -112,7 +112,7 @@ export const StepPickup: React.FC<StepPickupProps> = ({
             className="w-full px-3.5 py-2.5 rounded border border-stone-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#0A6C74] bg-stone-50/50"
           />
           <span className="text-[11px] text-stone-500 block">
-            Don't have your room or hotel confirmed yet? You can leave this blank and update us via WhatsApp before departure.
+            Not sure about your hotel yet? You can leave this empty and tell us on WhatsApp before your tour.
           </span>
         </div>
 
@@ -123,7 +123,7 @@ export const StepPickup: React.FC<StepPickupProps> = ({
             <div>
               <span className="font-bold text-stone-900 block">Pickup location not listed?</span>
               <span className="text-stone-600 text-[11px]">
-                Staying in a private villa, yacht marina, or distant compound? Contact our dispatcher directly.
+                Staying in a private apartment or unlisted hotel? Contact us directly on WhatsApp.
               </span>
             </div>
           </div>
@@ -155,7 +155,7 @@ export const StepPickup: React.FC<StepPickupProps> = ({
           onClick={onNext}
           className="px-7 py-3 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-sm transition-colors shadow-xs flex items-center space-x-2"
         >
-          <span>Continue to Optional Extras</span>
+          <span>Continue</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

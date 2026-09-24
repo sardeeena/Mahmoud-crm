@@ -35,7 +35,7 @@ export const Footer: React.FC<FooterProps> = ({
               <MapPin className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-white font-medium block text-xs">Pier Operations Base</span>
+              <span className="text-white font-medium block text-xs">Hurghada Office</span>
               <span className="text-[11px] text-slate-400">Hurghada New Marina, Berth B-14, Red Sea, Egypt</span>
             </div>
           </div>
@@ -45,7 +45,7 @@ export const Footer: React.FC<FooterProps> = ({
               <Phone className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-white font-medium block text-xs">Direct Operations Hotline</span>
+              <span className="text-white font-medium block text-xs">Phone & Support</span>
               <span className="text-[11px] text-slate-400">+20 102 345 6789 (Daily 06:00 – 22:00)</span>
             </div>
           </div>
@@ -55,8 +55,8 @@ export const Footer: React.FC<FooterProps> = ({
               <MessageCircle className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-white font-medium block text-xs">WhatsApp Concierge</span>
-              <span className="text-[11px] text-slate-400">Instant response in EN, DE, FR</span>
+              <span className="text-white font-medium block text-xs">WhatsApp Support</span>
+              <span className="text-[11px] text-slate-400">Quick reply in English, German & Russian</span>
             </div>
           </div>
 
@@ -65,7 +65,7 @@ export const Footer: React.FC<FooterProps> = ({
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-white font-medium block text-xs">Ministry License</span>
+              <span className="text-white font-medium block text-xs">Licensed Operator</span>
               <span className="text-[11px] text-slate-400">Egyptian Tourism Chamber License #2491/ETB</span>
             </div>
           </div>
@@ -87,11 +87,11 @@ export const Footer: React.FC<FooterProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed mb-5 max-w-sm">
-              Professional maritime and desert excursion operator in the Egyptian Red Sea. Providing direct vessel charters, guided coral snorkeling, PADI scuba dives, and authentic safari experiences with hotel transfers and transparent pricing.
+              Local boat tour and safari operator based in Hurghada Marina. Daily snorkeling trips, island visits, and desert safaris with hotel pickup and clear pricing.
             </p>
             <div className="flex items-center space-x-2 text-[11px] text-slate-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Safety inspected marine fleet & Coast Guard verified</span>
+              <span>Safety inspected boats and licensed local guides</span>
             </div>
           </div>
 
@@ -152,7 +152,7 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Experience Types */}
           <div>
             <h3 className="font-bold text-white text-xs uppercase tracking-wider mb-3.5">
-              Excursion Types
+              Tour Categories
             </h3>
             <ul className="space-y-2 text-xs">
               <li>
@@ -224,7 +224,7 @@ export const Footer: React.FC<FooterProps> = ({
                   onClick={onOpenMyBooking}
                   className="text-[#60C3CC] hover:underline font-medium"
                 >
-                  Find My Booking Voucher
+                  My Booking
                 </button>
               </li>
               <li>
@@ -234,7 +234,7 @@ export const Footer: React.FC<FooterProps> = ({
                 <span className="text-slate-400">Weather & Refund Policy</span>
               </li>
               <li>
-                <span className="text-slate-400">Marine Equipment Sanitization</span>
+                <span className="text-slate-400">Snorkeling Gear Safety</span>
               </li>
               <li>
                 <span className="text-slate-400">Terms & Conditions</span>
@@ -250,7 +250,7 @@ export const Footer: React.FC<FooterProps> = ({
                     className="text-stone-400 hover:text-white flex items-center space-x-1.5 transition-colors"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-[#0A6C74]" />
-                    <span>Staff & Admin CMS</span>
+                    <span>Admin Dashboard</span>
                   </button>
                 </li>
               )}
@@ -266,7 +266,7 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
 
           <div className="flex items-center space-x-3 text-slate-400 text-[11px]">
-            <span className="text-slate-500">Accepted on site & online:</span>
+            <span className="text-slate-500">Accepted payment methods:</span>
             <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">Visa</span>
             <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">Mastercard</span>
             <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">Apple Pay</span>

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Tour, CurrencyConfig } from '../../types';
 import { TourCard } from './TourCard';
 import { SearchX, RotateCcw } from 'lucide-react';
+import { TourPreviewModal } from '../home/TourPreviewModal';
 
 interface TourGridProps {
   tours: Tour[];
@@ -18,9 +19,11 @@ export const TourGrid: React.FC<TourGridProps> = ({
   onBookNow,
   onClearFilters,
 }) => {
+  const [quickViewTour, setQuickViewTour] = useState<Tour | null>(null);
+
   if (tours.length === 0) {
     return (
-      <div className="bg-white rounded-sm border border-[#E8E3DA] p-12 text-center my-4">
+      <div className="bg-white rounded-lg border border-[#E8E3DA] p-12 text-center my-4">
         <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3 text-stone-500">
           <SearchX className="w-6 h-6" />
         </div>
@@ -34,7 +37,7 @@ export const TourGrid: React.FC<TourGridProps> = ({
           <button
             type="button"
             onClick={onClearFilters}
-            className="inline-flex items-center px-4 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-semibold rounded-sm transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-semibold rounded transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
             Reset All Filters
@@ -45,16 +48,31 @@ export const TourGrid: React.FC<TourGridProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-      {tours.map((tour) => (
-        <TourCard
-          key={tour.id}
-          tour={tour}
-          currency={currency}
-          onViewTour={onViewTour}
-          onBookNow={onBookNow}
-        />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {tours.map((tour) => (
+          <TourCard
+            key={tour.id}
+            tour={tour}
+            currency={currency}
+            onViewTour={onViewTour}
+            onBookNow={onBookNow}
+            onQuickView={(t) => setQuickViewTour(t)}
+          />
+        ))}
+      </div>
+
+      {/* Connected Quick View Modal */}
+      <TourPreviewModal
+        tour={quickViewTour}
+        currency={currency}
+        onClose={() => setQuickViewTour(null)}
+        onBookNow={(tour) => {
+          setQuickViewTour(null);
+          if (onBookNow) onBookNow(tour);
+          else onViewTour(tour);
+        }}
+      />
+    </>
   );
 };

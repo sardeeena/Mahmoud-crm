@@ -15,8 +15,11 @@ import {
   isSupabaseConfigured,
   getSupabaseConfig,
   updateSupabaseCredentials,
-  supabase
+  supabase,
+  isSchemaMissingError,
+  setSchemaMissing,
 } from '../../services/supabaseClient';
+import phase4Sql from '../../../supabase/migrations/20260922000000_phase4_schema.sql?raw';
 
 export const AdminSettings: React.FC = () => {
   const currentConfig = getSupabaseConfig();
@@ -25,6 +28,7 @@ export const AdminSettings: React.FC = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [showSqlPreview, setShowSqlPreview] = useState(false);
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -48,35 +52,47 @@ export const AdminSettings: React.FC = () => {
       const { data, error } = await supabase.from('destinations').select('id, name').limit(1);
 
       if (error) {
-        setTestResult({
-          success: false,
-          message: `Connection error: ${error.message} (Code: ${error.code || 'UNKNOWN'})`,
-        });
+        if (isSchemaMissingError(error)) {
+          setSchemaMissing(true);
+          setTestResult({
+            success: true,
+            message: `Connection established to Supabase! However, the database tables (e.g. destinations, tours) have not been created yet in PostgreSQL. Copy and execute the Phase 4 SQL Migration below in your Supabase SQL Editor to finish setup.`,
+          });
+        } else {
+          setTestResult({
+            success: false,
+            message: `Connection error: ${error.message} (Code: ${error.code || 'UNKNOWN'})`,
+          });
+        }
       } else {
+        setSchemaMissing(false);
         setTestResult({
           success: true,
           message: `Connection successful! Connected to remote PostgreSQL database. Verified query response: ${data?.length || 0} destination(s) retrieved.`,
         });
       }
     } catch (err: any) {
-      setTestResult({
-        success: false,
-        message: `Failed to connect: ${err.message || 'Unknown network error'}`,
-      });
+      if (isSchemaMissingError(err)) {
+        setSchemaMissing(true);
+        setTestResult({
+          success: true,
+          message: `Connection established to Supabase! Tables have not been created yet in PostgreSQL. Copy the SQL script below and run it in your Supabase SQL Editor.`,
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: `Failed to connect: ${err.message || 'Unknown network error'}`,
+        });
+      }
     } finally {
       setIsTesting(false);
     }
   };
 
   const copyMigrationSql = () => {
-    const sqlScript = `-- Red Sea Voyages Phase 4 PostgreSQL Migration
--- Run in Supabase SQL Editor:
--- Complete script located at /supabase/migrations/20260922000000_phase4_schema.sql
--- Seed script located at /supabase/seed.sql`;
-
-    navigator.clipboard.writeText(sqlScript);
+    navigator.clipboard.writeText(phase4Sql);
     setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
+    setTimeout(() => setCopiedSql(false), 2500);
   };
 
   return (
@@ -202,19 +218,40 @@ export const AdminSettings: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-2 flex items-center justify-between border-t border-stone-800/80">
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-stone-800/80">
           <span className="text-stone-400">
             Migration File: <code className="text-stone-300">/supabase/migrations/20260922000000_phase4_schema.sql</code>
           </span>
-          <button
-            type="button"
-            onClick={copyMigrationSql}
-            className="flex items-center space-x-1 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-stone-200 rounded border border-stone-700 text-xs font-medium transition-colors"
-          >
-            {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedSql ? 'Copied Path!' : 'Copy Script Path'}</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowSqlPreview(!showSqlPreview)}
+              className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-stone-300 rounded border border-stone-700 text-xs font-medium transition-colors"
+            >
+              {showSqlPreview ? 'Hide SQL Script' : 'View SQL Script'}
+            </button>
+            <button
+              type="button"
+              onClick={copyMigrationSql}
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#0A6C74] hover:bg-[#08545a] text-white rounded text-xs font-semibold shadow-sm transition-colors"
+            >
+              {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedSql ? 'Copied Full SQL!' : 'Copy SQL Migration'}</span>
+            </button>
+          </div>
         </div>
+
+        {showSqlPreview && (
+          <div className="mt-4 p-4 bg-stone-900 rounded border border-stone-800 space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-stone-800 text-stone-400 text-[11px]">
+              <span>Phase 4 Complete PostgreSQL Schema (~770 lines)</span>
+              <span>Execute in Supabase SQL Editor</span>
+            </div>
+            <pre className="max-h-72 overflow-y-auto p-3 bg-stone-950 rounded text-[11px] font-mono text-stone-300 leading-relaxed whitespace-pre select-all">
+              {phase4Sql}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );

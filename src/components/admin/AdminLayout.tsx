@@ -22,7 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
 
 export type AdminTab =
   | 'dashboard'
@@ -56,6 +56,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 }) => {
   const { user, signOut } = useAuth();
   const supabaseConnected = isSupabaseConfigured();
+  const [schemaMissing, setSchemaMissingState] = React.useState(isSchemaMissing());
+
+  React.useEffect(() => {
+    return subscribeSchemaMissing((missing) => {
+      setSchemaMissingState(missing);
+    });
+  }, []);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -84,7 +91,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   return (
     <div className="min-h-screen bg-stone-900 text-stone-100 flex flex-col antialiased selection:bg-[#0A6C74] selection:text-white">
       {/* Top Warning Banner if Supabase is in local fallback mode */}
-      {!supabaseConnected && (
+      {!supabaseConnected ? (
         <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-300 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
@@ -108,7 +115,23 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             Configure Keys
           </button>
         </div>
-      )}
+      ) : schemaMissing ? (
+        <div className="bg-sky-500/10 border-b border-sky-500/30 px-4 py-2 text-xs text-sky-200 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Database className="w-4 h-4 text-sky-400 shrink-0" />
+            <span>
+              <strong>Supabase Connected (Migration Pending):</strong> Tables not found in schema cache. Demo tours and bookings are active in local sandbox mode. Run the Phase 4 SQL migration script in your Supabase SQL Editor.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelectTab('settings')}
+            className="px-2.5 py-1 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 rounded font-medium text-[11px] transition-colors"
+          >
+            View SQL Migration
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}

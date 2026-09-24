@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Star, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { REVIEWS_DATA } from '../../data/toursData';
 
@@ -23,7 +24,12 @@ export const ReviewsSection: React.FC = () => {
           </div>
 
           {/* Aggregate Rating Badge */}
-          <div className="bg-white border border-[#E8E3DA] p-4 rounded-sm flex items-center space-x-4 self-start md:self-auto shadow-xs">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="bg-white border border-[#E8E3DA] p-4 rounded-xl flex items-center space-x-4 self-start md:self-auto shadow-xs"
+          >
             <div className="text-center">
               <span className="font-display text-3xl font-bold text-[#0E1B2A] block leading-none">4.9</span>
               <div className="flex text-[#C28D32] mt-1">
@@ -37,15 +43,20 @@ export const ReviewsSection: React.FC = () => {
               <span className="text-xs font-bold text-stone-900 block">4,800+ Verified Bookings</span>
               <span className="text-[11px] text-stone-500">98% recommendation rate</span>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Reviews Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {REVIEWS_DATA.map((rev) => (
-            <div
+          {REVIEWS_DATA.map((rev, idx) => (
+            <motion.div
               key={rev.id}
-              className="bg-white rounded-sm border border-[#E8E3DA] p-5 flex flex-col justify-between hover:border-stone-400 transition-colors shadow-xs"
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.4, delay: idx * 0.08 }}
+              whileHover={{ y: -4 }}
+              className="bg-white rounded-xl border border-[#E8E3DA] p-5 flex flex-col justify-between hover:border-stone-400 hover:shadow-md transition-all duration-200"
             >
               <div>
                 {/* Rating and Date */}
@@ -59,32 +70,35 @@ export const ReviewsSection: React.FC = () => {
                 </div>
 
                 {/* Excursion tag */}
-                <div className="mb-3">
-                  <span className="text-[11px] font-semibold text-[#0A6C74] bg-[#E8F3F4] px-2 py-0.5 rounded-xs inline-block">
-                    {rev.tourTitle}
-                  </span>
-                </div>
+                <span className="text-[11px] font-semibold text-[#0A6C74] block mb-2 line-clamp-1">
+                  {rev.tourTitle}
+                </span>
 
-                {/* Review text */}
-                <p className="text-xs text-stone-700 leading-relaxed italic mb-4">
+                {/* Review Text */}
+                <p className="text-xs text-stone-700 leading-relaxed mb-4 italic">
                   "{rev.comment}"
                 </p>
               </div>
 
-              {/* Author info */}
-              <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
+              {/* Guest Profile */}
+              <div className="pt-3 border-t border-stone-100 flex items-center justify-between">
                 <div>
-                  <span className="font-semibold text-stone-900 block">{rev.authorName}</span>
-                  <span className="text-[11px] text-stone-500">{rev.country} • {rev.travelerType}</span>
+                  <span className="text-xs font-bold text-stone-900 block">
+                    {rev.authorName}
+                  </span>
+                  <span className="text-[11px] text-stone-500">
+                    {rev.country} • {rev.travelerType}
+                  </span>
                 </div>
+
                 {rev.verifiedBooking && (
-                  <div className="flex items-center text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  <div className="flex items-center text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
                     <span>Verified</span>
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 

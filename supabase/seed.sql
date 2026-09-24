@@ -423,3 +423,137 @@ VALUES (
     'Please seat us on the upper sun deck. Vegetarian meal for 1 adult.'
 )
 ON CONFLICT (id) DO NOTHING;
+
+
+-- 13. DEMO PASSENGERS MANIFEST
+INSERT INTO public.booking_passengers (booking_id, full_name, nationality, passport_or_id_number, passenger_type, is_lead_passenger)
+VALUES 
+('b2000000-0000-0000-0000-000000000001', 'Markus Weber', 'Germany', 'C34K8992', 'adult', TRUE),
+('b2000000-0000-0000-0000-000000000001', 'Elena Weber', 'Germany', 'C34K8993', 'adult', FALSE),
+('b2000000-0000-0000-0000-000000000001', 'Lukas Weber', 'Germany', 'J7729101', 'child', FALSE)
+ON CONFLICT DO NOTHING;
+
+
+-- 14. PROMO CODES & COUPONS
+INSERT INTO public.coupons (code, description, discount_type, discount_value, min_spend, max_discount, is_active)
+VALUES
+('WELCOME10', 'Welcome discount 10% off for first-time Red Sea explorers', 'percentage', 10.00, 50.00, 30.00, TRUE),
+('SUMMER15', 'Summer holiday 15% special discount on all island trips', 'percentage', 15.00, 75.00, 50.00, TRUE),
+('FAMILY20', '€20 flat voucher for group and family bookings over €120', 'fixed', 20.00, 120.00, 20.00, TRUE)
+ON CONFLICT (code) DO NOTHING;
+
+
+-- 15. MARITIME VESSELS FLEET
+INSERT INTO public.vessels (id, name, vessel_type, registration_number, port_marina, passenger_capacity, amenities, is_active)
+VALUES
+(
+    'v1000000-0000-0000-0000-000000000001',
+    'Royal Sea Breeze I',
+    'motor_yacht',
+    'HRG-MAR-2024-08',
+    'Hurghada Marina',
+    45,
+    ARRAY['Flybridge Sundeck', 'Air-Conditioned Saloon', 'Snorkel Platform', 'Freshwater Showers', 'Full Galley Buffet'],
+    TRUE
+),
+(
+    'v1000000-0000-0000-0000-000000000002',
+    'Dolphin Star IV',
+    'speedboat',
+    'HRG-SPD-2023-14',
+    'Hurghada Marina',
+    12,
+    ARRAY['Twin Yamaha 300HP Engines', 'Bimini Sun Canopy', 'Swim Ladder', 'Padded Bucket Seating'],
+    TRUE
+),
+(
+    'v1000000-0000-0000-0000-000000000003',
+    'Lagoon Princess',
+    'catamaran',
+    'ELG-CAT-2025-01',
+    'Abu Tig Marina (El Gouna)',
+    30,
+    ARRAY['Twin Trampoline Nets', 'Shaded Cockpit Lounge', 'Bluetooth Sound System', 'Swim Deck'],
+    TRUE
+)
+ON CONFLICT (id) DO NOTHING;
+
+
+-- 16. TOUR VESSEL ASSIGNMENTS
+INSERT INTO public.tour_vessels (tour_id, vessel_id, is_default)
+VALUES
+('t1000000-0000-0000-0000-000000000001', 'v1000000-0000-0000-0000-000000000001', TRUE),
+('t1000000-0000-0000-0000-000000000002', 'v1000000-0000-0000-0000-000000000002', TRUE)
+ON CONFLICT (tour_id, vessel_id) DO NOTHING;
+
+
+-- 17. GUIDES & DIVE MASTERS
+INSERT INTO public.guides (full_name, role, languages, phone, rating, is_active)
+VALUES
+('Captain Mahmoud Hassan', 'captain', ARRAY['English', 'Arabic'], '+20 100 555 4321', 4.95, TRUE),
+('Sven Richter', 'dive_master', ARRAY['German', 'English'], '+20 101 222 9876', 5.00, TRUE),
+('Youssef El-Gamal', 'snorkel_guide', ARRAY['English', 'French', 'Russian', 'Arabic'], '+20 102 333 1122', 4.90, TRUE)
+ON CONFLICT DO NOTHING;
+
+
+-- 18. GLOBAL FREQUENTLY ASKED QUESTIONS
+INSERT INTO public.faqs (category, question, answer, sort_order, is_published)
+VALUES
+(
+    'booking',
+    'Can I pay in cash upon arrival at the harbor or hotel pickup?',
+    'Yes! We offer a guaranteed "Pay at Hotel Pickup" option so you can reserve your spots in advance and settle with our coordinator in Cash (EUR, USD, GBP, or EGP) on the day of your trip.',
+    1,
+    TRUE
+),
+(
+    'cancellation',
+    'What is your cancellation policy if our flight or travel plans change?',
+    'We provide a flexible 100% free cancellation guarantee up to 24 hours prior to your scheduled excursion departure with zero cancellation penalties.',
+    2,
+    TRUE
+),
+(
+    'marine_safety',
+    'Are life jackets and safety gear provided onboard for children and non-swimmers?',
+    'Yes. Every vessel in our fleet exceeds Egyptian Coast Guard standards and carries certified US Coast Guard life vests in all sizes, including specialized flotation jackets for children and infants.',
+    3,
+    TRUE
+),
+(
+    'transfers',
+    'Where will the driver pick us up from our resort?',
+    'Our professional driver will arrive directly outside your resort main security gate / hotel lobby entrance holding a greeting card with your booking reference.',
+    4,
+    TRUE
+)
+ON CONFLICT DO NOTHING;
+
+
+-- 19. TODAY MARITIME WEATHER BULLETIN
+INSERT INTO public.weather_bulletins (
+    harbor_location,
+    water_temperature_c,
+    air_temperature_c,
+    swell_height_m,
+    wind_speed_knots,
+    wind_direction,
+    visibility_meters,
+    coast_guard_cleared,
+    advisory_notes,
+    bulletin_date
+)
+VALUES (
+    'Hurghada Marina',
+    25.5,
+    29.0,
+    0.3,
+    8.5,
+    'NNE',
+    35,
+    TRUE,
+    'Superb calm sea conditions across Giftun Island archipelago. Crystal clear visibility exceeding 30 meters.',
+    CURRENT_DATE
+)
+ON CONFLICT DO NOTHING;
+

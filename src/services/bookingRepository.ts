@@ -1,5 +1,12 @@
 import { Booking, BookingStatus } from '../types/booking';
-import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
+import {
+  supabase,
+  isSupabaseConfigured,
+  formatSupabaseError,
+  isSchemaMissing,
+  isSchemaMissingError,
+  setSchemaMissing,
+} from './supabaseClient';
 import { DbBooking } from '../types/database';
 
 export interface IBookingRepository {
@@ -340,7 +347,7 @@ class SupabaseBookingRepository implements IBookingRepository {
   }
 
   async listBookings(filters?: { status?: string; limit?: number }): Promise<Booking[]> {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || isSchemaMissing()) {
       let all = this.getLocalBookings();
       if (filters?.status && filters.status !== 'all') {
         all = all.filter((b) => b.status === filters.status);
@@ -369,11 +376,17 @@ class SupabaseBookingRepository implements IBookingRepository {
 
       const { data, error } = await query;
       if (error || !data) {
+        if (error && isSchemaMissingError(error)) {
+          setSchemaMissing(true);
+        }
         return this.getLocalBookings();
       }
 
       return data.map((d: any) => this.mapDbToBooking(d));
-    } catch {
+    } catch (err) {
+      if (isSchemaMissingError(err)) {
+        setSchemaMissing(true);
+      }
       return this.getLocalBookings();
     }
   }

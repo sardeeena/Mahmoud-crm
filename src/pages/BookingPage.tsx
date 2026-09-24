@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Tour, CurrencyConfig } from '../types';
-import { GuestCounts, PickupLocation, BookingExtra, CustomerInfo, Booking } from '../types/booking';
+import { GuestCounts, BookingExtra, CustomerInfo, Booking } from '../types/booking';
 import { DEMO_PICKUP_LOCATIONS, GLOBAL_BOOKING_EXTRAS } from '../data/bookingData';
 import { calculateBookingPrice } from '../services/pricingService';
 import { bookingRepository, generateBookingReference } from '../services/bookingRepository';
@@ -23,9 +24,8 @@ import {
   Check, 
   ChevronRight,
   ShieldCheck,
-  ChevronDown,
-  ChevronUp
 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface BookingPageProps {
   tours: Tour[];
@@ -51,6 +51,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({
   onBookingSuccess,
   onNavigate,
 }) => {
+  const { showToast } = useToast();
+
   // Find current tour or fallback
   const [selectedTourSlug, setSelectedTourSlug] = useState<string>(
     initialTourSlug || (tours.length > 0 ? tours[0].slug : '')
@@ -80,7 +82,6 @@ export const BookingPage: React.FC<BookingPageProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'pay_at_pickup' | 'pay_online'>(initialDraft.paymentMethod || 'pay_at_pickup');
   const [termsAccepted, setTermsAccepted] = useState<boolean>(initialDraft.termsAccepted || false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isMobileSummaryOpen, setIsMobileSummaryOpen] = useState<boolean>(false);
 
   // Synchronize draft to sessionStorage
   useEffect(() => {
@@ -126,68 +127,39 @@ export const BookingPage: React.FC<BookingPageProps> = ({
   // Pricing calculation via dedicated engine
   const pricing = useMemo(() => {
     if (!currentTour) {
-      return {
-        basePricePerAdultEur: 0,
-        basePricePerChildEur: 0,
-        adultSubtotalEur: 0,
-        childSubtotalEur: 0,
-        infantSubtotalEur: 0,
-        pickupSubtotalEur: 0,
-        pickupFeePerPersonEur: 0,
-        extrasSubtotalEur: 0,
-        extrasBreakdown: [],
-        discountEur: 0,
-        subtotalEur: 0,
-        totalEur: 0,
-        formattedTotal: '€0.00',
-        formattedSubtotal: '€0.00',
-      };
+      return calculateBookingPrice({
+        tour: tours[0],
+        guests,
+        pickupLocation: selectedPickup,
+        selectedExtras: [],
+        currency,
+      });
     }
-
     return calculateBookingPrice({
       tour: currentTour,
       guests,
       pickupLocation: selectedPickup,
-      selectedExtras: selectedExtras.map((ex) => ({ extra: ex, quantity: 1 })),
+      selectedExtras: selectedExtras.map((e) => ({ extra: e, quantity: 1 })),
       currency,
     });
-  }, [currentTour, guests, selectedPickup, selectedExtras, currency]);
+  }, [currentTour, tours, guests, selectedPickup, selectedExtras, currency]);
 
-  // Scroll to top upon step change
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentStep]);
-
-  if (!currentTour) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] py-20 px-4 text-center">
-        <h2 className="font-display text-xl font-bold text-stone-900">No Excursion Found</h2>
-        <p className="text-xs text-stone-600 mt-2">Please select an excursion to begin your booking.</p>
-        <button
-          onClick={() => onNavigate('excursions')}
-          className="mt-4 px-6 py-2.5 bg-[#0A6C74] text-white text-xs font-semibold rounded"
-        >
-          View All Excursions
-        </button>
-      </div>
-    );
-  }
-
-  // Toggle extra helper
   const handleToggleExtra = (extraId: string) => {
     setSelectedExtraIds((prev) =>
       prev.includes(extraId) ? prev.filter((id) => id !== extraId) : [...prev, extraId]
     );
   };
 
-  // Submit and Create Booking
   const handleConfirmBooking = async () => {
+    if (!currentTour) return;
     setIsSubmitting(true);
+
     try {
-      const bookingReference = generateBookingReference();
+      const ref = generateBookingReference();
+
       const newBooking: Booking = {
         bookingId: `b-${Date.now()}`,
-        bookingReference,
+        bookingReference: ref,
         tourId: currentTour.id,
         tourSlug: currentTour.slug,
         tourTitle: currentTour.title,
@@ -200,103 +172,57 @@ export const BookingPage: React.FC<BookingPageProps> = ({
           locationId: selectedPickup.id,
           locationName: selectedPickup.name,
           area: selectedPickup.area,
-          feeEur: pricing.pickupSubtotalEur,
-          hotelName: hotelName || customer.hotelName,
-          roomNumber: roomNumber || customer.roomNumber,
+          feeEur: selectedPickup.feeEurPerPerson,
+          hotelName,
+          roomNumber,
         },
-        extras: pricing.extrasBreakdown.map((ex) => ({
-          extraId: ex.extraId,
-          name: ex.name,
-          priceEur: ex.amountEur,
-          pricingType: ex.pricingType,
-          quantity: ex.quantity,
-          amountEur: ex.amountEur,
+        extras: selectedExtras.map((e) => ({
+          extraId: e.id,
+          name: e.name,
+          priceEur: e.priceEur,
+          pricingType: e.pricingType,
+          quantity: 1,
+          amountEur: e.priceEur,
         })),
-        customer: {
-          ...customer,
-          hotelName: hotelName || customer.hotelName,
-          roomNumber: roomNumber || customer.roomNumber,
-        },
+        customer,
         pricing,
         paymentMethod,
-        paymentStatus: 'pending',
+        paymentStatus: paymentMethod === 'pay_online' ? 'paid' : 'pending',
         status: 'confirmed',
-        bookingStatus: 'confirmed',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
-      // Save into repository
       await bookingRepository.createBooking(newBooking);
-
-      // Trigger notification service
-      await notificationService.sendBookingConfirmation(newBooking);
-
-      // Clear draft
       clearBookingDraft();
-
-      // Handover to confirmation
+      notificationService.sendBookingConfirmation(newBooking);
+      showToast('Booking successfully confirmed!', 'success');
       onBookingSuccess(newBooking);
     } catch (err) {
-      console.error('Failed to create booking', err);
+      console.error('Failed to save booking:', err);
+      showToast('An error occurred while confirming your reservation. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] pb-24 lg:pb-16">
-      
-      {/* Top Breadcrumb & Step Progress Bar */}
+    <div className="bg-[#FAF8F5] min-h-screen">
+      {/* Top Stepper Navigation */}
       <div className="bg-white border-b border-[#E8E3DA] sticky top-16 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           
-          {/* Breadcrumb info */}
-          <div className="flex items-center justify-between text-xs text-stone-500 mb-2">
-            <div className="flex items-center space-x-1.5 truncate">
-              <button
-                onClick={() => onNavigate('home')}
-                className="hover:text-stone-900 transition-colors"
-              >
-                Home
-              </button>
-              <span>/</span>
-              <button
-                onClick={() => onNavigate('excursions')}
-                className="hover:text-stone-900 transition-colors"
-              >
-                Excursions
-              </button>
-              <span>/</span>
-              <button
-                onClick={() => onNavigate('tour-detail', currentTour.slug)}
-                className="hover:text-stone-900 truncate max-w-[150px] sm:max-w-xs transition-colors"
-              >
-                {currentTour.title}
-              </button>
-              <span>/</span>
-              <span className="font-semibold text-stone-800">Booking</span>
-            </div>
-
-            <span className="text-[11px] font-bold text-[#0A6C74] bg-[#E8F3F4] px-2.5 py-0.5 rounded-full shrink-0">
-              Step {currentStep} of 6
-            </span>
-          </div>
-
-          {/* Desktop Steps Navigation */}
-          <div className="hidden md:flex items-center justify-between gap-1 pt-1">
+          {/* Desktop Stepper */}
+          <div className="hidden md:flex items-center justify-between">
             {STEPS.map((s, idx) => {
-              const Icon = s.icon;
-              const isCompleted = currentStep > s.id;
               const isCurrent = currentStep === s.id;
-
+              const isCompleted = currentStep > s.id;
               return (
-                <div key={s.id} className="flex-1 flex items-center">
+                <div key={s.id} className="flex items-center flex-1 last:flex-none">
                   <button
                     type="button"
-                    disabled={currentStep < s.id}
                     onClick={() => {
-                      if (currentStep > s.id) setCurrentStep(s.id);
+                      if (isCompleted) setCurrentStep(s.id);
                     }}
                     className={`flex items-center space-x-2 text-xs font-semibold py-1.5 px-2 rounded transition-all text-left w-full ${
                       isCurrent
@@ -307,7 +233,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                     }`}
                   >
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] shrink-0 ${
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] shrink-0 transition-colors ${
                         isCurrent
                           ? 'bg-[#0A6C74] text-white'
                           : isCompleted
@@ -336,7 +262,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
               />
             </div>
             <span className="text-xs font-bold text-stone-800 shrink-0">
-              {STEPS[currentStep - 1]?.label}
+              {STEPS[currentStep - 1]?.label} ({currentStep}/6)
             </span>
           </div>
 
@@ -349,7 +275,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         {/* Header Title */}
         <div className="mb-6">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#0A6C74]">
-            Official Maritime Reservation Portal
+            Direct Vessel Reservation
           </span>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0E1B2A] tracking-tight">
             Reserve Your Excursion
@@ -360,88 +286,97 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Active Step Flow (7 cols on desktop) */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-            
-            {/* Step 1: Date & Guests */}
-            {currentStep === 1 && (
-              <StepDateGuests
-                tour={currentTour}
-                date={date}
-                onDateChange={setDate}
-                guests={guests}
-                onGuestsChange={setGuests}
-                currency={currency}
-                onNext={() => setCurrentStep(2)}
-              />
-            )}
+          <div className="lg:col-span-7 xl:col-span-8 min-w-0">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                className="space-y-6"
+              >
+                {/* Step 1: Date & Guests */}
+                {currentStep === 1 && (
+                  <StepDateGuests
+                    tour={currentTour}
+                    date={date}
+                    onDateChange={setDate}
+                    guests={guests}
+                    onGuestsChange={setGuests}
+                    currency={currency}
+                    onNext={() => setCurrentStep(2)}
+                  />
+                )}
 
-            {/* Step 2: Pickup Location */}
-            {currentStep === 2 && (
-              <StepPickup
-                selectedPickupId={pickupLocationId}
-                onSelectPickup={(loc) => setPickupLocationId(loc.id)}
-                hotelName={hotelName}
-                onHotelNameChange={setHotelName}
-                currency={currency}
-                onNext={() => setCurrentStep(3)}
-                onBack={() => setCurrentStep(1)}
-              />
-            )}
+                {/* Step 2: Pickup Location */}
+                {currentStep === 2 && (
+                  <StepPickup
+                    selectedPickupId={pickupLocationId}
+                    onSelectPickup={(loc) => setPickupLocationId(loc.id)}
+                    hotelName={hotelName}
+                    onHotelNameChange={setHotelName}
+                    currency={currency}
+                    onNext={() => setCurrentStep(3)}
+                    onBack={() => setCurrentStep(1)}
+                  />
+                )}
 
-            {/* Step 3: Optional Extras */}
-            {currentStep === 3 && (
-              <StepExtras
-                selectedExtraIds={selectedExtraIds}
-                onToggleExtra={handleToggleExtra}
-                currency={currency}
-                onNext={() => setCurrentStep(4)}
-                onBack={() => setCurrentStep(2)}
-              />
-            )}
+                {/* Step 3: Optional Extras */}
+                {currentStep === 3 && (
+                  <StepExtras
+                    selectedExtraIds={selectedExtraIds}
+                    onToggleExtra={handleToggleExtra}
+                    currency={currency}
+                    onNext={() => setCurrentStep(4)}
+                    onBack={() => setCurrentStep(2)}
+                  />
+                )}
 
-            {/* Step 4: Lead Customer Contact */}
-            {currentStep === 4 && (
-              <StepCustomerInfo
-                customer={customer}
-                onCustomerChange={setCustomer}
-                onNext={() => setCurrentStep(5)}
-                onBack={() => setCurrentStep(3)}
-              />
-            )}
+                {/* Step 4: Lead Customer Contact */}
+                {currentStep === 4 && (
+                  <StepCustomerInfo
+                    customer={customer}
+                    onCustomerChange={setCustomer}
+                    onNext={() => setCurrentStep(5)}
+                    onBack={() => setCurrentStep(3)}
+                  />
+                )}
 
-            {/* Step 5: Review Booking */}
-            {currentStep === 5 && (
-              <StepReview
-                tour={currentTour}
-                date={date}
-                guests={guests}
-                pickupLocation={selectedPickup}
-                hotelName={hotelName}
-                selectedExtras={selectedExtras}
-                customer={customer}
-                pricing={pricing}
-                currency={currency}
-                onGoToStep={(step) => setCurrentStep(step)}
-                onNext={() => setCurrentStep(6)}
-                onBack={() => setCurrentStep(4)}
-              />
-            )}
+                {/* Step 5: Review Booking */}
+                {currentStep === 5 && (
+                  <StepReview
+                    tour={currentTour}
+                    date={date}
+                    guests={guests}
+                    pickupLocation={selectedPickup}
+                    hotelName={hotelName}
+                    selectedExtras={selectedExtras}
+                    customer={customer}
+                    pricing={pricing}
+                    currency={currency}
+                    onGoToStep={(step) => setCurrentStep(step)}
+                    onNext={() => setCurrentStep(6)}
+                    onBack={() => setCurrentStep(4)}
+                  />
+                )}
 
-            {/* Step 6: Payment Method & Terms */}
-            {currentStep === 6 && (
-              <StepPayment
-                pricing={pricing}
-                currency={currency}
-                paymentMethod={paymentMethod}
-                onPaymentMethodChange={setPaymentMethod}
-                termsAccepted={termsAccepted}
-                onTermsAcceptedChange={setTermsAccepted}
-                isSubmitting={isSubmitting}
-                onSubmitBooking={handleConfirmBooking}
-                onBack={() => setCurrentStep(5)}
-              />
-            )}
-
+                {/* Step 6: Payment Method & Terms */}
+                {currentStep === 6 && (
+                  <StepPayment
+                    pricing={pricing}
+                    currency={currency}
+                    paymentMethod={paymentMethod}
+                    onPaymentMethodChange={setPaymentMethod}
+                    termsAccepted={termsAccepted}
+                    onTermsAcceptedChange={setTermsAccepted}
+                    isSubmitting={isSubmitting}
+                    onSubmitBooking={handleConfirmBooking}
+                    onBack={() => setCurrentStep(5)}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* Right Column: Sticky Booking Summary (5 cols on desktop) */}
@@ -455,20 +390,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({
               selectedExtras={selectedExtras}
               pricing={pricing}
               currency={currency}
-              showGuarantee={true}
-              collapsibleMobile={true}
-              isMobileExpanded={isMobileSummaryOpen}
-              onToggleMobileExpand={() => setIsMobileSummaryOpen(!isMobileSummaryOpen)}
             />
 
-            {/* Security & Operator Guarantee card */}
-            <div className="p-4 bg-white border border-[#E8E3DA] rounded-sm text-xs space-y-2 text-stone-600 hidden lg:block">
-              <div className="flex items-center space-x-2 text-stone-800 font-bold">
-                <ShieldCheck className="w-4 h-4 text-[#0A6C74]" />
-                <span>Verified Direct Tour Operator</span>
+            {/* Direct Operator Security Box */}
+            <div className="p-4 bg-white rounded-lg border border-[#E8E3DA] text-xs space-y-2">
+              <div className="flex items-center text-emerald-700 font-bold">
+                <ShieldCheck className="w-4 h-4 mr-1.5" />
+                <span>Operator Direct Guarantee</span>
               </div>
-              <p className="text-[11px] leading-relaxed">
-                You are booking directly with the licensed vessel fleet operator in Hurghada Marina. Zero intermediary commissions.
+              <p className="text-stone-600 text-[11px] leading-relaxed">
+                Reservations are transmitted directly to the marine fleet operations center in Hurghada. Free cancellation up to 24 hours prior.
               </p>
             </div>
           </div>
@@ -476,94 +407,6 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         </div>
 
       </div>
-
-      {/* Mobile Sticky Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#E8E3DA] shadow-lg p-3 lg:hidden flex items-center justify-between">
-        <div>
-          <button
-            type="button"
-            onClick={() => setIsMobileSummaryOpen(!isMobileSummaryOpen)}
-            className="flex items-center space-x-1 text-stone-500 text-[10px] uppercase font-bold"
-          >
-            <span>Total Payable</span>
-            {isMobileSummaryOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-          </button>
-          <span className="font-display font-bold text-lg text-[#0A6C74] block leading-tight">
-            {pricing.formattedTotal}
-          </span>
-        </div>
-
-        <div>
-          {currentStep === 1 && (
-            <button
-              type="button"
-              disabled={!date}
-              onClick={() => setCurrentStep(2)}
-              className="px-5 py-2.5 bg-[#0A6C74] text-white text-xs font-semibold rounded disabled:opacity-40"
-            >
-              Continue (Step 2)
-            </button>
-          )}
-
-          {currentStep === 2 && (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(3)}
-              className="px-5 py-2.5 bg-[#0A6C74] text-white text-xs font-semibold rounded"
-            >
-              Next: Extras (3)
-            </button>
-          )}
-
-          {currentStep === 3 && (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(4)}
-              className="px-5 py-2.5 bg-[#0A6C74] text-white text-xs font-semibold rounded"
-            >
-              Next: Details (4)
-            </button>
-          )}
-
-          {currentStep === 4 && (
-            <button
-              type="button"
-              onClick={() => {
-                if (customer.firstName && customer.lastName && customer.email && customer.phoneNumber) {
-                  setCurrentStep(5);
-                } else {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-              }}
-              className="px-5 py-2.5 bg-[#0A6C74] text-white text-xs font-semibold rounded"
-            >
-              Review (Step 5)
-            </button>
-          )}
-
-          {currentStep === 5 && (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(6)}
-              className="px-5 py-2.5 bg-[#0A6C74] text-white text-xs font-semibold rounded"
-            >
-              Payment (Step 6)
-            </button>
-          )}
-
-          {currentStep === 6 && (
-            <button
-              type="button"
-              disabled={!termsAccepted || isSubmitting}
-              onClick={handleConfirmBooking}
-              className="px-5 py-2.5 bg-[#0A6C74] text-white text-xs font-bold rounded disabled:opacity-40"
-            >
-              {isSubmitting ? 'Confirming...' : 'Confirm Now'}
-            </button>
-          )}
-        </div>
-      </div>
-
     </div>
   );
 };

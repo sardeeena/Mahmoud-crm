@@ -573,18 +573,20 @@ export async function adminGetTourById(id: string): Promise<TourWithRelations | 
  */
 export async function adminCreateTour(payload: AdminTourPayload): Promise<{ id: string; slug: string }> {
   const tourData = payload.tour;
+  const tourTitle = tourData.title;
+  const tourSlug = tourData.slug;
 
-  if (!tourData.title || !tourData.slug) {
+  if (!tourTitle || !tourSlug) {
     throw new Error('Tour title and unique URL slug are required.');
   }
 
-  if (!isSupabaseConfigured()) {
+  const createLocalTour = (): { id: string; slug: string } => {
     const newId = `tour-custom-${Date.now()}`;
     const frontendTour = mapDbTourToFrontendTour(
       {
         id: newId,
-        title: tourData.title,
-        slug: tourData.slug,
+        title: tourTitle,
+        slug: tourSlug,
         short_description: tourData.short_description || '',
         description: tourData.description || '',
         destination_id: tourData.destination_id || null,
@@ -629,7 +631,11 @@ export async function adminCreateTour(payload: AdminTourPayload): Promise<{ id: 
 
     (frontendTour as any).status = tourData.status || 'draft';
     localTours.unshift(frontendTour);
-    return { id: newId, slug: tourData.slug };
+    return { id: newId, slug: tourSlug };
+  };
+
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return createLocalTour();
   }
 
   try {
@@ -679,6 +685,11 @@ export async function adminCreateTour(payload: AdminTourPayload): Promise<{ id: 
 
     return { id: tourId, slug: tourRecord.slug };
   } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+      console.warn('Supabase tours table not found in schema cache. Saved tour to local storage.');
+      return createLocalTour();
+    }
     console.error('Failed to create tour in Supabase:', err);
     throw new Error(formatSupabaseError(err));
   }
@@ -690,7 +701,7 @@ export async function adminCreateTour(payload: AdminTourPayload): Promise<{ id: 
 export async function adminUpdateTour(id: string, payload: AdminTourPayload): Promise<{ id: string; slug: string }> {
   const tourData = payload.tour;
 
-  if (!isSupabaseConfigured()) {
+  const updateLocalTour = () => {
     const index = localTours.findIndex((t) => t.id === id);
     if (index !== -1) {
       const existing = localTours[index];
@@ -719,6 +730,10 @@ export async function adminUpdateTour(id: string, payload: AdminTourPayload): Pr
       return { id: updatedTour.id, slug: updatedTour.slug };
     }
     return { id, slug: tourData.slug || id };
+  };
+
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return updateLocalTour();
   }
 
   try {
@@ -768,6 +783,11 @@ export async function adminUpdateTour(id: string, payload: AdminTourPayload): Pr
 
     return { id: updatedRecord.id, slug: updatedRecord.slug };
   } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+      console.warn('Supabase tours table not found in schema cache. Updated tour in local storage.');
+      return updateLocalTour();
+    }
     console.error('Failed to update tour in Supabase:', err);
     throw new Error(formatSupabaseError(err));
   }
@@ -915,18 +935,36 @@ async function syncTourRelations(tourId: string, payload: AdminTourPayload): Pro
  * Changes status of tour (published, draft, archived)
  */
 export async function adminSetTourStatus(id: string, status: 'draft' | 'published' | 'archived'): Promise<void> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
     const t = localTours.find((item) => item.id === id);
     if (t) (t as any).status = status;
     return;
   }
 
-  const { error } = await supabase
-    .from('tours')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  try {
+    const { error } = await supabase
+      .from('tours')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
 
-  if (error) throw new Error(formatSupabaseError(error));
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+        const t = localTours.find((item) => item.id === id);
+        if (t) (t as any).status = status;
+        return;
+      }
+      throw new Error(formatSupabaseError(error));
+    }
+  } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+      const t = localTours.find((item) => item.id === id);
+      if (t) (t as any).status = status;
+      return;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -934,7 +972,7 @@ export async function adminSetTourStatus(id: string, status: 'draft' | 'publishe
  * Rule: For tours with existing bookings, DO NOT allow unsafe deletion; recommend Archive instead.
  */
 export async function adminCheckTourBookingsCount(id: string): Promise<number> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
     return id.includes('orange-bay') || id.includes('tour-1') ? 1 : 0;
   }
 
@@ -944,7 +982,12 @@ export async function adminCheckTourBookingsCount(id: string): Promise<number> {
       .select('*', { count: 'exact', head: true })
       .eq('tour_id', id);
 
-    if (error) return 0;
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+      }
+      return 0;
+    }
     return count || 0;
   } catch {
     return 0;
@@ -962,38 +1005,57 @@ export async function adminDeleteTour(id: string): Promise<void> {
     );
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
     localTours = localTours.filter((t) => t.id !== id);
     return;
   }
 
-  const { error } = await supabase.from('tours').delete().eq('id', id);
-  if (error) throw new Error(formatSupabaseError(error));
+  try {
+    const { error } = await supabase.from('tours').delete().eq('id', id);
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+        localTours = localTours.filter((t) => t.id !== id);
+        return;
+      }
+      throw new Error(formatSupabaseError(error));
+    }
+  } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+      localTours = localTours.filter((t) => t.id !== id);
+      return;
+    }
+    throw err;
+  }
 }
 
 // ==============================================================================
 // DESTINATIONS & CATEGORIES SERVICES
 // ==============================================================================
 
+const getLocalDestinationsList = (): DbDestination[] =>
+  localDestinations.map((d, i) => ({
+    id: d.id,
+    name: d.name,
+    slug: d.slug,
+    tagline: d.tagline,
+    description: d.description,
+    main_image: d.image,
+    gallery: [],
+    distance_from_airport: d.distanceFromAirport,
+    seo_title: `${d.name} Excursions & Boat Trips`,
+    seo_description: d.description,
+    seo_keywords: [d.name.toLowerCase(), 'red sea', 'boat tours'],
+    status: 'published',
+    sort_order: i + 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
+
 export async function getDestinations(): Promise<DbDestination[]> {
-  if (!isSupabaseConfigured()) {
-    return localDestinations.map((d, i) => ({
-      id: d.id,
-      name: d.name,
-      slug: d.slug,
-      tagline: d.tagline,
-      description: d.description,
-      main_image: d.image,
-      gallery: [],
-      distance_from_airport: d.distanceFromAirport,
-      seo_title: `${d.name} Excursions & Boat Trips`,
-      seo_description: d.description,
-      seo_keywords: [d.name.toLowerCase(), 'red sea', 'boat tours'],
-      status: 'published',
-      sort_order: i + 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return getLocalDestinationsList();
   }
 
   try {
@@ -1002,32 +1064,44 @@ export async function getDestinations(): Promise<DbDestination[]> {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      return getDestinations(); // fallback
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+      }
+      return getLocalDestinationsList();
+    }
+    if (!data || data.length === 0) {
+      return getLocalDestinationsList();
     }
     return data as DbDestination[];
-  } catch {
-    return [];
+  } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+    }
+    return getLocalDestinationsList();
   }
 }
 
+const getLocalCategoriesList = (): DbCategory[] =>
+  localCategories.map((c, i) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    description: c.description,
+    image: c.image,
+    icon_name: c.iconName,
+    seo_title: `${c.name} in Red Sea`,
+    seo_description: c.description,
+    seo_keywords: [c.name.toLowerCase()],
+    status: 'published',
+    sort_order: i + 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
+
 export async function getCategories(): Promise<DbCategory[]> {
-  if (!isSupabaseConfigured()) {
-    return localCategories.map((c, i) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.slug,
-      description: c.description,
-      image: c.image,
-      icon_name: c.iconName,
-      seo_title: `${c.name} in Red Sea`,
-      seo_description: c.description,
-      seo_keywords: [c.name.toLowerCase()],
-      status: 'published',
-      sort_order: i + 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return getLocalCategoriesList();
   }
 
   try {
@@ -1036,84 +1110,95 @@ export async function getCategories(): Promise<DbCategory[]> {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      return getCategories(); // fallback
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+      }
+      return getLocalCategoriesList();
+    }
+    if (!data || data.length === 0) {
+      return getLocalCategoriesList();
     }
     return data as DbCategory[];
-  } catch {
-    return [];
+  } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+    }
+    return getLocalCategoriesList();
   }
 }
 
+const DEFAULT_PICKUP_LOCATIONS: DbPickupLocation[] = [
+  {
+    id: 'hurghada',
+    code: 'hurghada',
+    name: 'Hurghada Hotels (Central)',
+    area: 'Hurghada (Mamsha, Dahar, Sheraton, Marina)',
+    fee_eur_per_person: 0,
+    fee_eur_flat: 0,
+    description: 'Complimentary lobby pickup',
+    is_active: true,
+    sort_order: 1,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'el-gouna',
+    code: 'el-gouna',
+    name: 'El Gouna Resorts',
+    area: 'El Gouna Peninsula & Lagoons',
+    fee_eur_per_person: 5,
+    fee_eur_flat: 0,
+    description: 'Shuttle transfer to Marina',
+    is_active: true,
+    sort_order: 2,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'makadi-bay',
+    code: 'makadi-bay',
+    name: 'Makadi Bay Resorts',
+    area: 'Makadi Bay Coast',
+    fee_eur_per_person: 5,
+    fee_eur_flat: 0,
+    description: 'Shuttle transfer to Marina',
+    is_active: true,
+    sort_order: 3,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'sahl-hasheesh',
+    code: 'sahl-hasheesh',
+    name: 'Sahl Hasheesh Resorts',
+    area: 'Sahl Hasheesh Promenade',
+    fee_eur_per_person: 5,
+    fee_eur_flat: 0,
+    description: 'Shuttle transfer to Marina',
+    is_active: true,
+    sort_order: 4,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'safaga',
+    code: 'safaga',
+    name: 'Safaga & Soma Bay',
+    area: 'Soma Bay Peninsula & Safaga Port',
+    fee_eur_per_person: 10,
+    fee_eur_flat: 0,
+    description: 'Dedicated long-range transport',
+    is_active: true,
+    sort_order: 5,
+    created_at: '',
+    updated_at: '',
+  },
+];
+
 export async function getPickupLocations(): Promise<DbPickupLocation[]> {
-  if (!isSupabaseConfigured()) {
-    return [
-      {
-        id: 'hurghada',
-        code: 'hurghada',
-        name: 'Hurghada Hotels (Central)',
-        area: 'Hurghada (Mamsha, Dahar, Sheraton, Marina)',
-        fee_eur_per_person: 0,
-        fee_eur_flat: 0,
-        description: 'Complimentary lobby pickup',
-        is_active: true,
-        sort_order: 1,
-        created_at: '',
-        updated_at: '',
-      },
-      {
-        id: 'el-gouna',
-        code: 'el-gouna',
-        name: 'El Gouna Resorts',
-        area: 'El Gouna Peninsula & Lagoons',
-        fee_eur_per_person: 5,
-        fee_eur_flat: 0,
-        description: 'Shuttle transfer to Marina',
-        is_active: true,
-        sort_order: 2,
-        created_at: '',
-        updated_at: '',
-      },
-      {
-        id: 'makadi-bay',
-        code: 'makadi-bay',
-        name: 'Makadi Bay Resorts',
-        area: 'Makadi Bay Coast',
-        fee_eur_per_person: 5,
-        fee_eur_flat: 0,
-        description: 'Shuttle transfer to Marina',
-        is_active: true,
-        sort_order: 3,
-        created_at: '',
-        updated_at: '',
-      },
-      {
-        id: 'sahl-hasheesh',
-        code: 'sahl-hasheesh',
-        name: 'Sahl Hasheesh Resorts',
-        area: 'Sahl Hasheesh Promenade',
-        fee_eur_per_person: 5,
-        fee_eur_flat: 0,
-        description: 'Shuttle transfer to Marina',
-        is_active: true,
-        sort_order: 4,
-        created_at: '',
-        updated_at: '',
-      },
-      {
-        id: 'safaga',
-        code: 'safaga',
-        name: 'Safaga & Soma Bay',
-        area: 'Soma Bay Peninsula & Safaga Port',
-        fee_eur_per_person: 10,
-        fee_eur_flat: 0,
-        description: 'Dedicated long-range transport',
-        is_active: true,
-        sort_order: 5,
-        created_at: '',
-        updated_at: '',
-      },
-    ];
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return DEFAULT_PICKUP_LOCATIONS;
   }
 
   try {
@@ -1123,65 +1208,76 @@ export async function getPickupLocations(): Promise<DbPickupLocation[]> {
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
-    if (error || !data) return [];
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+      }
+      return DEFAULT_PICKUP_LOCATIONS;
+    }
+    if (!data || data.length === 0) return DEFAULT_PICKUP_LOCATIONS;
     return data as DbPickupLocation[];
-  } catch {
-    return [];
+  } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+    }
+    return DEFAULT_PICKUP_LOCATIONS;
   }
 }
 
+const DEFAULT_TOUR_EXTRAS: DbTourExtra[] = [
+  {
+    id: 'underwater-photos',
+    name: 'Underwater Photos & Video Package',
+    description: 'Professional photographer captures underwater shots of you and your family.',
+    price_eur: 20,
+    currency: 'EUR',
+    pricing_type: 'per_booking',
+    is_active: true,
+    sort_order: 1,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'hotel-transfer-vip',
+    name: 'VIP Private Mercedes Van Transfer',
+    description: 'Direct door-to-marina transfer in private luxury air-conditioned van.',
+    price_eur: 30,
+    currency: 'EUR',
+    pricing_type: 'per_booking',
+    is_active: true,
+    sort_order: 2,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'seafood-upgrade',
+    name: 'Fresh Grilled Jumbo Seafood Lunch Upgrade',
+    description: 'Fresh Red Sea jumbo prawns and calamari served sizzling hot onboard.',
+    price_eur: 15,
+    currency: 'EUR',
+    pricing_type: 'per_person',
+    is_active: true,
+    sort_order: 3,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'intro-scuba-dive',
+    name: 'Introductory 20-Min Guided Scuba Dive',
+    description: 'Breathe underwater with certified PADI dive instructor. No experience needed.',
+    price_eur: 20,
+    currency: 'EUR',
+    pricing_type: 'per_person',
+    is_active: true,
+    sort_order: 4,
+    created_at: '',
+    updated_at: '',
+  },
+];
+
 export async function getTourExtras(): Promise<DbTourExtra[]> {
-  if (!isSupabaseConfigured()) {
-    return [
-      {
-        id: 'underwater-photos',
-        name: 'Underwater Photos & Video Package',
-        description: 'Professional photographer captures underwater shots of you and your family.',
-        price_eur: 20,
-        currency: 'EUR',
-        pricing_type: 'per_booking',
-        is_active: true,
-        sort_order: 1,
-        created_at: '',
-        updated_at: '',
-      },
-      {
-        id: 'hotel-transfer-vip',
-        name: 'VIP Private Mercedes Van Transfer',
-        description: 'Direct door-to-marina transfer in private luxury air-conditioned van.',
-        price_eur: 30,
-        currency: 'EUR',
-        pricing_type: 'per_booking',
-        is_active: true,
-        sort_order: 2,
-        created_at: '',
-        updated_at: '',
-      },
-      {
-        id: 'seafood-upgrade',
-        name: 'Fresh Grilled Jumbo Seafood Lunch Upgrade',
-        description: 'Fresh Red Sea jumbo prawns and calamari served sizzling hot onboard.',
-        price_eur: 15,
-        currency: 'EUR',
-        pricing_type: 'per_person',
-        is_active: true,
-        sort_order: 3,
-        created_at: '',
-        updated_at: '',
-      },
-      {
-        id: 'intro-scuba-dive',
-        name: 'Introductory 20-Min Guided Scuba Dive',
-        description: 'Breathe underwater with certified PADI dive instructor. No experience needed.',
-        price_eur: 20,
-        currency: 'EUR',
-        pricing_type: 'per_person',
-        is_active: true,
-        sort_order: 4,
-        created_at: '',
-        updated_at: '',
-      },
-    ];
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return DEFAULT_TOUR_EXTRAS;
   }
 
   try {
@@ -1191,9 +1287,18 @@ export async function getTourExtras(): Promise<DbTourExtra[]> {
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
-    if (error || !data) return [];
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+      }
+      return DEFAULT_TOUR_EXTRAS;
+    }
+    if (!data || data.length === 0) return DEFAULT_TOUR_EXTRAS;
     return data as DbTourExtra[];
-  } catch {
-    return [];
+  } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+    }
+    return DEFAULT_TOUR_EXTRAS;
   }
 }

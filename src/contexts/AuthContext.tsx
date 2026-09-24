@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AdminUser, signInAdmin, signOutAdmin, getCurrentAdminUser } from '../services/authService';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { useToast } from './ToastContext';
 
 interface AuthContextType {
   user: AdminUser | null;
@@ -13,11 +14,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// 30 minutes of idle time before automatic session logout for terminal security
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { showToast } = useToast();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const current = await getCurrentAdminUser();
       setUser(current);
@@ -26,7 +32,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const handleSignOut = useCallback(async (isAutoLogout = false) => {
+    setLoading(true);
+    await signOutAdmin();
+    setUser(null);
+    setLoading(false);
+
+    if (isAutoLogout) {
+      showToast('Admin session expired due to inactivity. Please sign in again.', 'info', 5000);
+    }
+  }, [showToast]);
+
+  // Reset idle timer on user activity if admin is logged in
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+
+    if (user) {
+      idleTimerRef.current = setTimeout(() => {
+        handleSignOut(true);
+      }, IDLE_TIMEOUT_MS);
+    }
+  }, [user, handleSignOut]);
+
+  // Activity listeners for idle timeout
+  useEffect(() => {
+    if (!user) return;
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    const handleActivity = () => resetIdleTimer();
+
+    events.forEach((evt) => window.addEventListener(evt, handleActivity, { passive: true }));
+    resetIdleTimer();
+
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      events.forEach((evt) => window.removeEventListener(evt, handleActivity));
+    };
+  }, [user, resetIdleTimer]);
 
   useEffect(() => {
     refreshUser();
@@ -44,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subscription.unsubscribe();
       };
     }
-  }, []);
+  }, [refreshUser]);
 
   const handleSignIn = async (email: string, pass: string) => {
     setLoading(true);
@@ -52,13 +98,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(authedUser);
     setLoading(false);
     return { success: !error && !!authedUser, error };
-  };
-
-  const handleSignOut = async () => {
-    setLoading(true);
-    await signOutAdmin();
-    setUser(null);
-    setLoading(false);
   };
 
   const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'manager'));
@@ -70,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isAdmin,
         signIn: handleSignIn,
-        signOut: handleSignOut,
+        signOut: () => handleSignOut(false),
         refreshUser,
       }}
     >

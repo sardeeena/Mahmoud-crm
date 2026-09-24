@@ -6,6 +6,8 @@ import { TourFilters, FilterState, INITIAL_FILTERS } from '../components/tours/T
 import { TourSort, SortOption } from '../components/tours/TourSort';
 import { TourGrid } from '../components/tours/TourGrid';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
+import { useSeo } from '../hooks/useSeo';
+import { seoService } from '../services/seoService';
 
 interface ExcursionsPageProps {
   currency: CurrencyConfig;
@@ -171,6 +173,13 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
     setActiveCategoryTab('All');
     setSidebarFilters(INITIAL_FILTERS);
   };
+
+  // Dynamic SEO meta tags, OpenGraph, and Schema.org JSON-LD based on current filters
+  const activeLabel = activitySelect !== 'All' ? activitySelect : destinationSelect !== 'All' ? destinationSelect : 'All';
+  const seoData = useMemo(() => {
+    return seoService.generateCategorySeo(activeLabel, filteredTours.length, filteredTours);
+  }, [activeLabel, filteredTours]);
+  useSeo(seoData);
 
   return (
     <div className="bg-[#FAF8F5] min-h-screen py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">

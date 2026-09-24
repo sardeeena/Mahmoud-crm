@@ -1,6 +1,6 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { MapPin, Navigation, ArrowUpRight } from 'lucide-react';
-import { Destination } from '../../types';
 import { POPULAR_DESTINATIONS } from '../../data/toursData';
 
 interface DestinationsSectionProps {
@@ -35,10 +35,15 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ onSele
         {/* Destination Cards Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {POPULAR_DESTINATIONS.map((dest, idx) => (
-            <div
+            <motion.div
               key={dest.id}
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.4, delay: idx * 0.08 }}
+              whileHover={{ y: -4 }}
               onClick={() => onSelectDestination(dest.name)}
-              className={`group bg-white rounded-sm border border-[#E8E3DA] overflow-hidden cursor-pointer hover:border-stone-400 hover:shadow-md transition-all duration-200 flex flex-col justify-between ${
+              className={`group bg-white rounded-xl border border-[#E8E3DA] overflow-hidden cursor-pointer hover:border-stone-400 hover:shadow-lg transition-all duration-200 flex flex-col justify-between ${
                 idx === 0 ? 'md:col-span-2 lg:col-span-1' : ''
               }`}
             >
@@ -51,10 +56,10 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ onSele
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
-                  <div className="absolute top-3 left-3 bg-[#0E1B2A]/90 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-xs">
+                  <div className="absolute top-3 left-3 bg-[#0E1B2A]/90 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
                     {dest.tourCount} Excursions Available
                   </div>
-                  <div className="absolute bottom-3 left-3 bg-white/95 text-stone-800 text-[10px] font-medium px-2 py-0.5 rounded-xs shadow-xs">
+                  <div className="absolute bottom-3 left-3 bg-white/95 text-stone-800 text-[10px] font-medium px-2.5 py-0.5 rounded-full shadow-xs">
                     {dest.distanceFromAirport}
                   </div>
                 </div>
@@ -82,7 +87,7 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ onSele
                     {dest.highlights.map((hl, i) => (
                       <span 
                         key={i}
-                        className="text-[10px] bg-stone-100 text-stone-700 px-2 py-0.5 rounded border border-stone-200"
+                        className="text-[10px] bg-stone-100 text-stone-700 px-2 py-0.5 rounded-md border border-stone-200"
                       >
                         {hl}
                       </span>
@@ -96,7 +101,7 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ onSele
                 <span>View {dest.name} Tours</span>
                 <span>→</span>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 

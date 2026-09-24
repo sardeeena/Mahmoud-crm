@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { SearchFilters } from '../../types';
 import { POPULAR_DESTINATIONS, TOUR_CATEGORIES } from '../../data/toursData';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface SearchModuleProps {
   onSearch: (filters: { destination: string; category: string; date: string; guests: number }) => void;
@@ -19,6 +20,7 @@ interface SearchModuleProps {
 }
 
 export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCount }) => {
+  const { t } = useLanguage();
   const [destination, setDestination] = useState<string>('All Destinations');
   const [category, setCategory] = useState<string>('All Activities');
   const [date, setDate] = useState<string>('');
@@ -78,7 +80,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
           {/* Destination Selector */}
           <div className="lg:col-span-3 relative" ref={destRef}>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1 pl-1">
-              Destination
+              {t('search.destination')}
             </label>
             <button
               type="button"
@@ -92,7 +94,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
             >
               <div className="flex items-center space-x-2 truncate">
                 <MapPin className="w-4 h-4 text-[#0A6C74] shrink-0" />
-                <span className="truncate font-medium">{destination}</span>
+                <span className="truncate font-medium">{destination === 'All Destinations' ? t('search.allDestinations') : destination}</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-stone-400 shrink-0 ml-1" />
             </button>
@@ -104,7 +106,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
                   onClick={() => { setDestination('All Destinations'); setDestOpen(false); }}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-stone-50 flex items-center justify-between"
                 >
-                  <span className="font-semibold text-stone-900">All Red Sea Destinations</span>
+                  <span className="font-semibold text-stone-900">{t('search.allDestinations')}</span>
                   {destination === 'All Destinations' && <Check className="w-3.5 h-3.5 text-[#0A6C74]" />}
                 </button>
                 {POPULAR_DESTINATIONS.map((d) => (
@@ -128,7 +130,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
           {/* Activity / Category Selector */}
           <div className="lg:col-span-3 relative" ref={catRef}>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1 pl-1">
-              Activity Type
+              {t('search.activity')}
             </label>
             <button
               type="button"
@@ -142,7 +144,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
             >
               <div className="flex items-center space-x-2 truncate">
                 <Compass className="w-4 h-4 text-[#0A6C74] shrink-0" />
-                <span className="truncate font-medium">{category}</span>
+                <span className="truncate font-medium">{category === 'All Activities' ? t('search.allActivities') : category}</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-stone-400 shrink-0 ml-1" />
             </button>
@@ -154,7 +156,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
                   onClick={() => { setCategory('All Activities'); setCatOpen(false); }}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-stone-50 flex items-center justify-between"
                 >
-                  <span className="font-semibold text-stone-900">All Experience Types</span>
+                  <span className="font-semibold text-stone-900">{t('search.allActivities')}</span>
                   {category === 'All Activities' && <Check className="w-3.5 h-3.5 text-[#0A6C74]" />}
                 </button>
                 {TOUR_CATEGORIES.map((c) => (
@@ -178,7 +180,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
           {/* Date Selector */}
           <div className="lg:col-span-3">
             <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1 pl-1">
-              Excursion Date
+              {t('search.date')}
             </label>
             <div className="relative">
               <input
@@ -196,7 +198,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
           {/* Guests Popover */}
           <div className="lg:col-span-2 relative" ref={guestsRef}>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1 pl-1">
-              Guests
+              {t('search.guests')}
             </label>
             <button
               type="button"
@@ -219,8 +221,8 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
               <div className="absolute top-full right-0 mt-1 w-64 bg-white border border-[#E8E3DA] rounded shadow-xl p-3 z-30">
                 <div className="flex items-center justify-between py-2 border-b border-stone-100">
                   <div>
-                    <span className="text-xs font-semibold text-stone-800 block">Adults</span>
-                    <span className="text-[11px] text-stone-400">Age 12+</span>
+                    <span className="text-xs font-semibold text-stone-800 block">{t('search.adults')}</span>
+                    <span className="text-[11px] text-stone-400">{t('search.ageAdult')}</span>
                   </div>
                   <div className="flex items-center space-x-2.5">
                     <button
@@ -245,8 +247,8 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
 
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <span className="text-xs font-semibold text-stone-800 block">Children</span>
-                    <span className="text-[11px] text-stone-400">Age 2–11 (50% off)</span>
+                    <span className="text-xs font-semibold text-stone-800 block">{t('search.children')}</span>
+                    <span className="text-[11px] text-stone-400">{t('search.ageChild')}</span>
                   </div>
                   <div className="flex items-center space-x-2.5">
                     <button
@@ -288,10 +290,10 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
               type="submit"
               id="search-submit-btn"
               className="w-full h-11 bg-[#0A6C74] hover:bg-[#08565C] text-white font-medium rounded-sm flex items-center justify-center shadow transition-all group"
-              title="Explore Tours"
+              title={t('search.submit')}
             >
               <Search className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="lg:hidden ml-2 text-sm font-semibold">Explore Tours</span>
+              <span className="lg:hidden ml-2 text-sm font-semibold">{t('search.submit')}</span>
             </button>
           </div>
 

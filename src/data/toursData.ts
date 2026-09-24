@@ -32,8 +32,8 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Cruise to Giftun Island’s famous Orange Bay beach with its crystal turquoise lagoon, followed by two guided coral reef snorkeling stops and an open buffet lunch onboard.',
-    fullDescription: 'Spend a relaxing day sailing across the sheltered waters of the Red Sea to Giftun Island. Disembark at Orange Bay where wooden swings, shallow white sandbars, and shaded beanbag cabanas await. Enjoy two hours of island leisure before re-boarding for a freshly prepared buffet lunch and two distinct open-sea snorkeling sessions over living coral heads.',
+    shortDescription: 'Take a boat trip to Giftun Island’s Orange Bay beach with shallow turquoise water, two guided snorkeling stops at coral reefs, and buffet lunch onboard.',
+    fullDescription: 'Spend a relaxing day sailing across the Red Sea to Giftun Island. Disembark at Orange Bay where wooden swings, shallow white sandbars, and shaded beanbag cabanas await. Enjoy two hours of island leisure before re-boarding for a freshly prepared buffet lunch and two distinct open-sea snorkeling sessions over living coral heads.',
     highlights: [
       '2 hours on Orange Bay beach with shaded loungers and shallow turquoise water',
       'Two 45-minute guided snorkeling stops at vibrant offshore reefs',
@@ -142,8 +142,8 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Sail to Paradise Beach on Giftun Island with white sandbars, parasols, folklore dance show, and two rich coral reef snorkeling adventures.',
-    fullDescription: 'Paradise Island offers a vibrant alternative on Giftun Island featuring bamboo sunshades, beach bars, and gentle shallow sea entries. After reaching the island by transfer boat, relax on soft sands, swim in warm coastal waters, and watch an authentic Oriental folklore performance before returning to the boat for lunch and coral exploration.',
+    shortDescription: 'Sail to Paradise Beach on Giftun Island with white sand, parasols, folklore dance show, and two coral reef snorkeling stops.',
+    fullDescription: 'Visit Paradise Beach on Giftun Island for a relaxing beach day. Enjoy 2.5 hours on the white sand with shaded parasols and calm water for swimming. The boat stops at two coral reefs along the way where guides help you spot reef fish, followed by a warm buffet lunch on the yacht.',
     highlights: [
       '2.5 hours at Paradise Beach on Giftun Island',
       'Two stops at protected coral gardens with guide',
@@ -210,8 +210,8 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Cruise to the famous Shaab El Erg horseshoe reef where pods of wild spinner dolphins congregate, followed by two coral garden snorkeling stops.',
-    fullDescription: 'Shaab El Erg is a protected reef renowned as the primary resting lagoon for wild spinner and bottlenose dolphins. Observe these intelligent marine mammals swimming in their natural environment without chasing. Guided snorkeling stops follow over pristine coral towers with an open buffet lunch and water sports inflatables.',
+    shortDescription: 'Take a boat trip to Shaab El Erg reef to see wild dolphins in open water, with two coral snorkeling stops and lunch.',
+    fullDescription: 'Shaab El Erg is a protected reef where pods of spinner dolphins rest and swim. We travel by comfortable boat to observe dolphins in their natural environment without chasing. Guided snorkeling stops follow over colorful coral reefs, with an open buffet lunch and water sports onboard.',
     highlights: [
       'Observe pods of wild dolphins in their natural habitat',
       'Two guided reef snorkeling stops with marine guides',
@@ -326,8 +326,8 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Conquer the rugged Eastern Desert mountain trails on your own 250cc ATV quad bike. Includes practice test drive, desert canyon run, and Bedouin tea.',
-    fullDescription: 'Experience adrenaline and open desert scenery on an ATV quad excursion. After a driving and safety briefing at the safari center, navigate your quad bike through wide gravel plains and natural canyons framed by the Red Sea mountains. Stop at a Bedouin tent for herbal tea and hospitality before riding back.',
+    shortDescription: 'Ride a 250cc ATV quad bike across desert trails and mountain canyons. Includes test drive and Bedouin tea.',
+    fullDescription: 'Drive a quad bike through the Eastern Desert near Hurghada. After a safety briefing and practice drive at the safari center, follow your guide through wide gravel trails and natural valleys framed by mountains. Stop at a Bedouin tent for herbal tea and rest before riding back.',
     highlights: [
       'Dedicated single quad bike for each participant',
       'Comprehensive safety test drive and instruction',
@@ -378,8 +378,8 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Quad biking, spider dune buggy driving, camel riding, Bedouin village tour, BBQ dinner, and folkloric evening show beneath desert stars.',
-    fullDescription: 'The ultimate evening desert experience combining motorized action with authentic Bedouin culture. Drive a quad bike and dune buggy, meet desert dwellers in their village, watch bread being baked on iron plates, ride a camel at sunset, and dine on an open-air barbecue buffet accompanied by traditional Tanoura dance.',
+    shortDescription: 'Quad biking, spider dune buggy driving, camel ride, Bedouin village visit, BBQ dinner, and evening folklore show.',
+    fullDescription: 'An afternoon and evening tour in the desert. Drive a quad bike and dune buggy, visit a Bedouin village to see how bread is baked on iron plates, ride a camel at sunset, and dine on an open-air barbecue buffet with music and folklore performances.',
     highlights: [
       'ATV quad ride and spider dune buggy drive',
       'Authentic Bedouin village tour with bread making demonstration',
@@ -431,8 +431,8 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1569263979104-865ab7cd8d17?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Charter your private luxury yacht exclusively for up to 8 guests. Fully customized itinerary to secluded reefs, island beaches, and private chef lunch.',
-    fullDescription: 'Escape crowded tour boats with an exclusive private charter. Accommodating up to 8 family members or friends, your yacht features cushioned flybridge sunbeds, shaded dining aft deck, air-conditioned saloon, and private swim platform. Your licensed captain customizes stops to secluded lagoons and reefs.',
+    shortDescription: 'Private yacht charter for up to 8 guests. Choose your stops, snorkel quiet reefs, and enjoy a freshly cooked lunch.',
+    fullDescription: 'Rent a private yacht exclusively for your family or friends. Your captain coordinates the route according to your wishes—visit secluded sandbars, Orange Bay, or quiet snorkeling reefs away from crowds. The onboard cook prepares a fresh lunch while you swim and relax on the sun deck.',
     highlights: [
       'Exclusive private yacht for your party only (up to 8 guests)',
       'Customized route: Orange Bay, Magawish, or Dolphin Reefs',
@@ -484,14 +484,14 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1569263979104-865ab7cd8d17?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Depart directly from Abu Tig Marina on a private speed cruiser. Explore El Gouna’s turquoise lagoons, offshore dolphin banks, and quiet reef drop-offs.',
-    fullDescription: 'Starting from the glamorous Abu Tig Marina in El Gouna, this private boat excursion takes you through tranquil lagoon channels and out into the open Red Sea. Cruise past luxury waterfront villas before setting heading toward remote northern reefs known for clear visibility and sea turtles.',
+    shortDescription: 'Private cruiser departing Abu Tig Marina. Cruise through El Gouna channels, visit quiet northern reefs, and relax on sandbars.',
+    fullDescription: 'Depart directly from Abu Tig Marina in El Gouna on a private boat for up to 6 guests. Cruise along lagoon waterways into open water to snorkel northern reefs known for clear visibility and marine life. Includes soft drinks, fruit platter, and snorkeling gear.',
     highlights: [
-      'Direct departure from prestigious Abu Tig Marina, El Gouna',
-      'Private vessel with shaded bimini and swim platform',
-      'Explore quiet northern reefs and shallow sandbars',
-      'Flexible departure times to avoid crowds',
-      'Snorkeling gear and refreshments included'
+      'Direct departure from Abu Tig Marina in El Gouna',
+      'Private boat with sun shade and swimming ladder',
+      'Explore quiet northern coral reefs and shallow sandbars',
+      'Flexible departure time for your group',
+      'Snorkeling equipment and cold drinks included'
     ],
     itinerary: [
       { time: '09:30', title: 'Pickup or Marina meet', description: 'Meet captain at Abu Tig Marina Berth 4.' },
@@ -537,13 +537,13 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1544551763-92ab472cad5d?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'No certification needed. Discover breathing underwater with personal 1-on-1 certified PADI instructor guidance. Includes 2 guided boat dives and buffet lunch.',
-    fullDescription: 'Curious about scuba diving without committing to a full multi-day course? This introductory program is designed for total beginners. Receive a comprehensive equipment and safety briefing on the cruise out, then complete two separate 20-minute dives to a maximum depth of 7 meters with your instructor holding your hand every step of the way.',
+    shortDescription: 'No license needed. Try scuba diving with a certified PADI instructor by your side. Includes 2 shallow boat dives and lunch.',
+    fullDescription: 'Designed for complete beginners who want to try scuba diving safely. On the cruise out, your instructor explains breathing, equalizing, and hand signals. You do two separate 20-minute shallow dives (max 6-7 meters) with your instructor holding your hand throughout. Between dives, relax on the sun deck and enjoy lunch.',
     highlights: [
-      'No prior diving experience or swimming expertise required',
-      'Two separate intro dives with your own dedicated instructor',
-      'Maximum safe shallow depth of 6–7 meters',
-      'High-grade sanitized regulator, BCD, mask, and wetsuit included',
+      'No previous diving experience or swimming expertise required',
+      'Two separate shallow dives with your own instructor',
+      'Safe maximum depth of 6 to 7 meters',
+      'Clean dive equipment, wetsuit, mask, and fins included',
       'Full-day boat cruise with open buffet lunch'
     ],
     itinerary: [
@@ -591,14 +591,14 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1682687220063-4742bd7fd538?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Sail to the famous Sha’ab Samadai protected marine reserve in southern Egypt, where large families of spinner dolphins rest in natural lagoons.',
-    fullDescription: 'Sha’ab Samadai, also known as the Marsa Alam Dolphin House, is one of the most strictly protected marine reserves in the Red Sea. Designated into dedicated ecological protection zones, visitors can snorkel in regulated outer lagoons and witness dozens of wild spinner dolphins gliding gracefully through crystal clear waters.',
+    shortDescription: 'Sail to the protected Sha’ab Samadai marine reserve to snorkel near wild dolphins in calm natural lagoons.',
+    fullDescription: 'Sha’ab Samadai is a protected marine reserve in southern Egypt where families of spinner dolphins rest in natural lagoons. Snorkel in the designated lagoon zone with marine guides, then explore outer coral drop-offs. Includes hotel pickup across Marsa Alam and lunch onboard.',
     highlights: [
-      'Protected national marine park with strictly regulated dolphin access',
-      'High likelihood of observing spinner dolphins in calm lagoons',
-      'Two guided snorkeling excursions accompanied by marine specialists',
-      'Hot buffet lunch and cold refreshments on the vessel',
-      'Round-trip hotel transfers across Marsa Alam coast'
+      'Protected national marine park with regulated dolphin access',
+      'High chance to see spinner dolphins in calm waters',
+      'Two guided snorkeling stops accompanied by marine guides',
+      'Hot buffet lunch and cold drinks on the boat',
+      'Hotel pickup and drop-off across Marsa Alam included'
     ],
     itinerary: [
       { time: '07:30', title: 'Hotel pickup', description: 'Transfer to Marsa Alam marina pier.' },
@@ -625,7 +625,7 @@ export const ALL_TOURS: Tour[] = [
   {
     id: 'tour-11',
     slug: 'sharm-el-naga-beach-reef-day',
-    title: 'Sharm El Naga Protected Marine Reserve & Beach Day',
+    title: 'Sharm El Naga Beach & Snorkeling Day',
     destination: 'Safaga',
     category: 'Snorkeling',
     categories: ['Snorkeling', 'Island'],
@@ -644,10 +644,10 @@ export const ALL_TOURS: Tour[] = [
       'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'Step straight into shallow living coral reefs from a private sandy bay. No boat required. Includes beach loungers, freshwater pool, and buffet lunch.',
-    fullDescription: 'Located near Safaga, Sharm El Naga is an environmental sanctuary where untouched coral reefs start just 2 meters from the sandy shoreline. Ideal for travelers who prefer snorkeling from dry land rather than bouncing on boats.',
+    shortDescription: 'Snorkel straight from a sandy beach without a boat. Includes private bay entry, sun loungers, swimming pool, and lunch.',
+    fullDescription: 'Sharm El Naga is a protected bay south of Hurghada where coral reefs grow just a few meters from the shore. Ideal for families, children, and travelers who prefer walking into the water from the beach rather than taking a boat. Loungers, freshwater pool, and restaurant buffet lunch are included.',
     highlights: [
-      'Direct shore-entry snorkeling right off the sandy beach',
+      'Direct beach-entry snorkeling without needing a boat',
       'Access to fresh-water swimming pool, showers, and shaded loungers',
       'Buffet lunch served at beachfront restaurant',
       'Snorkeling gear and guide included'
@@ -677,7 +677,7 @@ export const ALL_TOURS: Tour[] = [
   {
     id: 'tour-12',
     slug: 'sahl-hasheesh-glass-bottom-boat',
-    title: 'Sahl Hasheesh Glass Bottom Boat & Sunken City',
+    title: 'Sahl Hasheesh Glass Bottom Boat',
     destination: 'Sahl Hasheesh',
     category: 'Water Sports',
     categories: ['Water Sports', 'Boat Trip'],
@@ -695,13 +695,13 @@ export const ALL_TOURS: Tour[] = [
     galleryImages: [
       'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80'
     ],
-    shortDescription: 'View the underwater world through deep panoramic glass windows without getting wet. Sail past Sahl Hasheesh’s artificial sunken pharaonic pillars and reefs.',
-    fullDescription: 'Perfect for non-swimmers and families with toddlers. Peer through massive underwater viewing ports to observe corals, pufferfish, and marine life in crystal clear bay waters, followed by an optional 20-minute shallow swim.',
+    shortDescription: 'View corals and fish through underwater glass windows without getting wet. Sail past sunken pillars with an optional swim stop.',
+    fullDescription: 'Great for children, non-swimmers, and anyone wanting a short 2.5-hour trip. Look through deep panoramic glass panels to watch coral reefs and marine life in calm bay waters. Includes a short swimming stop and hotel transfer.',
     highlights: [
       'Large submerged glass viewing windows',
-      'Cruise past Sahl Hasheesh Sunken Pharaonic City',
+      'Cruise past Sahl Hasheesh sunken columns',
       'Ideal for small children and non-swimmers',
-      'Short 2.5-hour duration fits into any holiday schedule'
+      'Short 2.5-hour tour with hotel pickup'
     ],
     itinerary: [
       { time: '10:00 or 14:00', title: 'Hotel pickup', description: 'Transfer to Sahl Hasheesh pier.' },
@@ -731,21 +731,21 @@ export const POPULAR_DESTINATIONS: Destination[] = [
     name: 'Hurghada',
     slug: 'hurghada',
     image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Main gateway to vibrant offshore barrier reefs & marine parks',
+    tagline: 'Main departure hub for boat trips and coral reefs',
     tourCount: 24,
-    description: 'The premier coastal hub on the Egyptian Red Sea, celebrated for white sandy sandbars, shallow turquoise waters, and direct yacht access to Giftun Island.',
-    highlights: ['Giftun Island Marine Reserve', 'Orange Bay & Paradise Beach', 'Direct Marina Pier Departures'],
-    distanceFromAirport: '15 mins from Hurghada Int. (HRG)',
+    description: 'The main resort city on the Red Sea with direct boat trips to Giftun Island, Orange Bay, and desert safari centers.',
+    highlights: ['Giftun Island Marine Reserve', 'Orange Bay & Paradise Beach', 'Direct marina departures'],
+    distanceFromAirport: '15 mins from Hurghada Airport (HRG)',
   },
   {
     id: 'dest-elgouna',
     name: 'El Gouna',
     slug: 'el-gouna',
     image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Eco-conscious lagoon resort town with private yacht marinas',
+    tagline: 'Quiet lagoon town with marinas and private boat charters',
     tourCount: 16,
-    description: 'A boutique architecture paradise interconnected by tranquil turquoise lagoons, championship golf courses, and quiet offshore dolphin reefs.',
-    highlights: ['Abu Tig Marina departures', 'Lagoon sunset cruises', 'Kite-surfing & catamaran trips'],
+    description: 'A quiet resort town 30 minutes north of Hurghada, connected by lagoons, with private yacht charters from Abu Tig Marina.',
+    highlights: ['Abu Tig Marina departures', 'Lagoon boat tours', 'Private yacht charters'],
     distanceFromAirport: '30 mins north of Hurghada (HRG)',
   },
   {
@@ -753,10 +753,10 @@ export const POPULAR_DESTINATIONS: Destination[] = [
     name: 'Makadi Bay',
     slug: 'makadi-bay',
     image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Pristine house reefs, serene bays, and tranquil sandy shores',
+    tagline: 'Calm bay with house reefs right off the beach',
     tourCount: 14,
-    description: 'Located south of Hurghada with house reefs starting directly off the shoreline, offering top-tier snorkeling and immediate access to the Eastern Desert.',
-    highlights: ['Piers for immediate house reef snorkeling', 'Desert quad trail access', 'Family-friendly calm waters'],
+    description: 'Located south of Hurghada with house reefs right in front of the hotels, great for snorkeling from the shore and desert tours.',
+    highlights: ['Shore snorkeling from piers', 'Desert quad trail access', 'Calm waters for families'],
     distanceFromAirport: '25 mins south of Hurghada (HRG)',
   },
   {
@@ -764,10 +764,10 @@ export const POPULAR_DESTINATIONS: Destination[] = [
     name: 'Sahl Hasheesh',
     slug: 'sahl-hasheesh',
     image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Exclusive bay with sunken pharaonic pillars and calm waters',
+    tagline: 'Relaxed resort bay with walking promenade and glass bottom boats',
     tourCount: 8,
-    description: 'A luxurious resort bay framed by a long pedestrian promenade and tranquil waters, ideal for relaxation and glass-bottom boats.',
-    highlights: ['Sunken city pillars', 'Quiet coral gardens', 'Boardwalk pier'],
+    description: 'A relaxed bay with a pedestrian promenade, calm waters, sunken pharaonic pillars, and glass-bottom boat trips.',
+    highlights: ['Sunken columns', 'Quiet coral reefs', 'Promenade pier'],
     distanceFromAirport: '20 mins south of Hurghada (HRG)',
   },
   {
@@ -775,10 +775,10 @@ export const POPULAR_DESTINATIONS: Destination[] = [
     name: 'Safaga',
     slug: 'safaga',
     image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Panoramic bays, therapeutic sands, and Sharm El Naga nature reserve',
+    tagline: 'Wide bays and Sharm El Naga beach nature reserve',
     tourCount: 9,
-    description: 'Famed for world-class wind sports, pure coral drop-offs at Sharm El Naga, and relaxed boat expeditions away from larger tourist crowds.',
-    highlights: ['Sharm El Naga protected national park', 'Tobias Island sandbar', 'Soma Bay house reefs'],
+    description: 'A quieter coastal area south of Hurghada, home to the protected Sharm El Naga marine bay where you snorkel right from the sand.',
+    highlights: ['Sharm El Naga protected bay', 'Sandy beaches', 'Quiet boat trips'],
     distanceFromAirport: '45 mins south of Hurghada (HRG)',
   },
   {
@@ -786,11 +786,11 @@ export const POPULAR_DESTINATIONS: Destination[] = [
     name: 'Marsa Alam',
     slug: 'marsa-alam',
     image: 'https://images.unsplash.com/photo-1682687220063-4742bd7fd538?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Wild, untouched marine reserves with Dugongs and Green Turtles',
+    tagline: 'Protected marine bays with sea turtles and wild dolphins',
     tourCount: 11,
-    description: 'Egypt’s southern marine jewel where sea cows, spinner dolphins, and massive sea turtles glide among pristine untouched coral walls.',
-    highlights: ['Abu Dabbab Turtle Bay', 'Sataya Dolphin Reef', 'Samadai Dolphin House'],
-    distanceFromAirport: '10-45 mins from Marsa Alam Int. (RMF)',
+    description: 'Egypt’s southern marine destination where wild spinner dolphins, sea turtles, and untouched reefs thrive.',
+    highlights: ['Abu Dabbab turtle bay', 'Sataya dolphin reef', 'Samadai dolphin house'],
+    distanceFromAirport: '10-45 mins from Marsa Alam Airport (RMF)',
   }
 ];
 
@@ -924,32 +924,32 @@ export const RECENT_REVIEWS = REVIEWS_DATA;
 export const TRUST_PILLARS = [
   {
     id: 'trust-local',
-    title: 'Direct Red Sea Operator',
-    description: 'Direct fleet operator with dedicated marina piers. No anonymous middlemen or third-party reseller markups.',
+    title: 'Direct Local Operator',
+    description: 'We run our own boats, safari bases, and transfers. You book directly with the local team who welcomes you.',
     iconName: 'ShieldCheck',
   },
   {
     id: 'trust-fleet',
-    title: 'Experienced Skippers & Guides',
-    description: 'Marine expeditions led by certified PADI divemasters, licensed sea captains, and first-aid trained crew members.',
+    title: 'Licensed Skippers & Guides',
+    description: 'Certified PADI divemasters, licensed sea captains, and first-aid trained crew on every tour.',
     iconName: 'Award',
   },
   {
     id: 'trust-transfers',
-    title: 'Hotel Lobby-to-Pier Transfers',
-    description: 'Complimentary hotel transfers directly from your resort lobby across Hurghada, El Gouna, and Makadi Bay.',
+    title: 'Hotel Pickup & Return',
+    description: 'Direct pickup and return from your hotel lobby across Hurghada, El Gouna, and Makadi Bay.',
     iconName: 'Bus',
   },
   {
     id: 'trust-cancellation',
-    title: '24-Hour Free Cancellation',
-    description: 'Plans change. Cancel any excursion up to 24 hours prior to departure for a full 100% refund, no questions asked.',
+    title: 'Free 24h Cancellation',
+    description: 'Plans change? Cancel any tour up to 24 hours before departure for a full 100% refund.',
     iconName: 'Clock',
   },
   {
     id: 'trust-support',
-    title: 'Daily WhatsApp Concierge Desk',
-    description: 'Direct assistance in English, German, and French from coordinators stationed at Hurghada and El Gouna marinas.',
+    title: 'Daily WhatsApp Support',
+    description: 'Quick answers in English, German, and Russian from our team stationed at the marina.',
     iconName: 'Headphones',
   }
 ];

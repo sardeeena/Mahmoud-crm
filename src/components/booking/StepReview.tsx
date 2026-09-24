@@ -51,10 +51,10 @@ export const StepReview: React.FC<StepReviewProps> = ({
       {/* Introduction */}
       <div className="bg-white border border-[#E8E3DA] rounded-sm p-5">
         <h2 className="font-display text-base sm:text-lg font-bold text-[#0E1B2A]">
-          Review Your Reservation Details
+          Review your booking
         </h2>
         <p className="text-xs text-stone-600 mt-1">
-          Please verify your excursion dates, pickup address, and passenger information before proceeding to payment.
+          Please check your dates, pickup location, and contact information before paying.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
           <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4 text-[#0A6C74]" />
             <h3 className="font-bold text-xs sm:text-sm text-stone-900 uppercase tracking-wider">
-              Excursion & Schedule
+              Tour and Date
             </h3>
           </div>
           <button
@@ -251,7 +251,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
           onClick={onNext}
           className="px-7 py-3 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-sm transition-colors shadow-xs flex items-center space-x-2"
         >
-          <span>Continue to Payment Method</span>
+          <span>Continue to Payment</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

@@ -193,8 +193,8 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
         <div className="pt-3 border-t border-stone-200">
           <div className="flex justify-between items-baseline">
             <div>
-              <span className="text-stone-900 font-bold text-sm block">Total Payable:</span>
-              <span className="text-[10px] text-stone-400">All maritime park fees included</span>
+              <span className="text-stone-900 font-bold text-sm block">Total:</span>
+              <span className="text-[10px] text-stone-400">All taxes and park fees included</span>
             </div>
             <div className="text-right">
               <span className="font-display font-bold text-2xl text-[#0A6C74]">
@@ -216,7 +216,7 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
             <div>
               <span className="font-bold block">Free 24h Cancellation</span>
               <span className="text-emerald-800">
-                Cancel up to 24 hours prior to departure for a 100% refund.
+                Cancel up to 24 hours before pickup for a full refund.
               </span>
             </div>
           </div>

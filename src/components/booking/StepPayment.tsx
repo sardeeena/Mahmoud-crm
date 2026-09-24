@@ -49,10 +49,10 @@ export const StepPayment: React.FC<StepPaymentProps> = ({
         <div>
           <h2 className="font-display text-base sm:text-lg font-bold text-[#0E1B2A] flex items-center">
             <Lock className="w-4 h-4 mr-2 text-[#0A6C74]" />
-            Payment Method & Guarantee
+            Payment Method
           </h2>
           <p className="text-xs text-stone-600 mt-1">
-            Choose how you would like to settle your excursion. Direct reservations require zero deposit today.
+            Choose how you want to pay. You do not need to pay anything today.
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export const StepPayment: React.FC<StepPaymentProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                    Pay our representative directly in cash (EUR, USD, GBP, or EGP) or by card when your transfer vehicle arrives at your hotel lobby. No upfront credit card charge required today.
+                    Pay in cash (EUR, USD, GBP, or EGP) or by card when we pick you up at your hotel. No deposit needed now.
                   </p>
                 </div>
               </div>
@@ -105,7 +105,7 @@ export const StepPayment: React.FC<StepPaymentProps> = ({
 
             <div className="mt-3 pt-3 border-t border-stone-200/70 flex items-center text-[11px] text-emerald-800">
               <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-600 shrink-0" />
-              <span>Instant confirmation voucher issued with zero advance risk.</span>
+              <span>Instant booking confirmation. Free cancellation up to 24 hours before pickup.</span>
             </div>
           </div>
 
@@ -143,9 +143,9 @@ export const StepPayment: React.FC<StepPaymentProps> = ({
         <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-sm text-xs text-emerald-900 flex items-start space-x-3">
           <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <span className="font-bold block">100% Free Cancellation Guarantee</span>
+            <span className="font-bold block">Free 24-hour cancellation</span>
             <p className="text-[11px] text-emerald-800 leading-normal">
-              Plans change? You can cancel or reschedule up to 24 hours before your excursion with a single click or WhatsApp message. No fees or penalties.
+              Plans change? Cancel or change your date up to 24 hours before pickup at no cost.
             </p>
           </div>
         </div>
@@ -199,7 +199,7 @@ export const StepPayment: React.FC<StepPaymentProps> = ({
           className="px-5 py-2.5 border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs sm:text-sm font-semibold rounded-sm transition-colors flex items-center space-x-1.5"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Review</span>
+          <span>Back</span>
         </button>
 
         <button
@@ -211,11 +211,11 @@ export const StepPayment: React.FC<StepPaymentProps> = ({
           {isSubmitting ? (
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Generating Official Voucher...</span>
+              <span>Confirming your booking...</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
-              <span>Confirm Reservation ({pricing.formattedTotal})</span>
+              <span>Confirm Booking ({pricing.formattedTotal})</span>
               <CheckCircle2 className="w-4 h-4" />
             </div>
           )}

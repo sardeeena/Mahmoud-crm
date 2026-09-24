@@ -49,14 +49,14 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
           </div>
 
           <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-block mb-2">
-            Reservation Confirmed • Active Voucher
+            Booking Confirmed
           </span>
 
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0E1B2A] tracking-tight">
-            You're All Set for the Red Sea!
+            Your booking is confirmed
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto mt-2">
-            Your booking voucher has been generated and dispatched to{' '}
+            We have saved your booking and sent the details to{' '}
             <strong className="text-stone-900">{booking.customer.email}</strong>.
           </p>
 
@@ -64,7 +64,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
           <div className="mt-5 p-3.5 bg-[#FAF8F5] border border-[#E8E3DA] rounded inline-flex flex-col sm:flex-row items-center justify-center gap-3">
             <div className="text-center sm:text-left">
               <span className="text-[10px] uppercase font-bold text-stone-400 block">
-                Booking Reference Code
+                Booking Reference
               </span>
               <span className="font-mono font-bold text-lg sm:text-xl text-[#0A6C74] tracking-wider">
                 {booking.bookingReference}
@@ -83,7 +83,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-stone-500" />
-                  <span>Copy Code</span>
+                  <span>Copy Reference</span>
                 </>
               )}
             </button>
@@ -107,7 +107,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
             className="p-3 bg-white hover:bg-stone-50 border border-[#E8E3DA] rounded text-xs font-semibold text-stone-800 flex items-center justify-center space-x-2 shadow-2xs transition-colors"
           >
             <Calendar className="w-4 h-4 text-[#0A6C74]" />
-            <span>Add to Calendar (.ics)</span>
+            <span>Add to Calendar</span>
           </button>
 
           <a
@@ -117,7 +117,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
             className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center justify-center space-x-2 shadow-2xs transition-colors"
           >
             <MessageCircle className="w-4 h-4" />
-            <span>WhatsApp Dispatcher</span>
+            <span>Contact on WhatsApp</span>
           </a>
         </div>
 
@@ -127,7 +127,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
           <div className="flex items-start justify-between border-b border-stone-200 pb-4">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#0A6C74] block">
-                Official Boarding Voucher
+                Booking Voucher
               </span>
               <h2 className="font-display text-lg sm:text-xl font-bold text-[#0E1B2A]">
                 {booking.tourTitle}
@@ -230,17 +230,17 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
           {/* What to Expect Next */}
           <div className="p-4 bg-[#FAF8F5] border border-[#E8E3DA] rounded text-xs space-y-2 text-stone-700">
             <span className="font-bold text-stone-900 block text-xs">
-              Important Next Steps for Departure Day:
+              What happens next:
             </span>
             <ul className="space-y-1 text-[11px] text-stone-600 list-disc list-inside">
               <li>
-                <strong>WhatsApp Alert:</strong> Our operations desk will message you between 18:00 – 20:00 the evening before with the exact vehicle number and driver contact.
+                <strong>WhatsApp message:</strong> We will send a WhatsApp message the evening before your tour (between 18:00 and 20:00) with your exact pickup time and driver details.
               </li>
               <li>
-                <strong>What to Bring:</strong> Passports (or hotel identity card for Coast Guard check), beach towels, swimwear, sunglasses, and sun cream.
+                <strong>What to bring:</strong> Passports (or hotel card for Coast Guard check), beach towels, swimwear, sunglasses, and sun cream.
               </li>
               <li>
-                <strong>Meeting Point:</strong> Please wait in your main hotel lobby 10 minutes before the pickup window.
+                <strong>Meeting point:</strong> Please wait in your main hotel lobby 10 minutes before the pickup time.
               </li>
             </ul>
           </div>
@@ -254,7 +254,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
             onClick={() => onNavigate('my-booking', booking.bookingReference)}
             className="text-xs font-semibold text-[#0A6C74] hover:text-[#08565C] hover:underline"
           >
-            Manage this reservation in "My Booking"
+            View or cancel booking in My Booking
           </button>
 
           <button
@@ -262,7 +262,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
             onClick={() => onNavigate('excursions')}
             className="px-6 py-2.5 bg-[#0E1B2A] hover:bg-[#16283D] text-white text-xs font-semibold rounded transition-colors flex items-center space-x-1.5"
           >
-            <span>Explore More Excursions</span>
+            <span>View All Tours</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

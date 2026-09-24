@@ -22,6 +22,7 @@ import { bookingRepository } from '../services/bookingRepository';
 import { notificationService } from '../services/notificationService';
 import { downloadCalendarEvent, getWhatsAppSupportUrl, triggerPrintVoucher } from '../services/exportService';
 import { APP_CONFIG } from '../config/appConfig';
+import { sanitizeString, isValidBookingReference } from '../lib/security';
 
 interface MyBookingPageProps {
   initialReference?: string;
@@ -64,15 +65,23 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
 
+    const cleanRef = sanitizeString(reference).toUpperCase();
+    const cleanContact = sanitizeString(emailOrPhone);
+
+    if (!cleanRef) {
+      setErrorMessage('Please enter your booking reference code (e.g. RST-2026-AB4821).');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // First try exact search by reference and contact
-      let result = await bookingRepository.findBooking(reference, emailOrPhone);
+      let result = await bookingRepository.findBooking(cleanRef, cleanContact);
 
       // Fallback: If only reference was given or contact was slightly formatted differently, check reference
-      if (!result && reference.trim()) {
-        const byRef = await bookingRepository.getBooking(reference);
+      if (!result && cleanRef) {
+        const byRef = await bookingRepository.getBooking(cleanRef);
         if (byRef) {
-          // If contact wasn't provided or matches loosely
           result = byRef;
         }
       }
@@ -81,11 +90,11 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
         setBooking(result);
       } else {
         setErrorMessage(
-          'Booking reference not found. Please verify your reference code (e.g., RST-2026-AB4821 or RSE-88214) or contact our operations desk on WhatsApp.'
+          'Booking reference not found. Please check your reference code (for example RST-2026-AB4821) or contact our pier desk on WhatsApp.'
         );
       }
     } catch {
-      setErrorMessage('Unable to retrieve reservation at this time. Please try again.');
+      setErrorMessage('Could not find your booking. Please check your reference code and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -96,9 +105,10 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
     setIsCancelling(true);
 
     try {
+      const sanitizedReason = sanitizeString(cancelReason) || 'Customer requested cancellation via portal';
       const updated = await bookingRepository.cancelBooking(
         booking.bookingReference,
-        cancelReason || 'Customer requested cancellation via portal'
+        sanitizedReason
       );
 
       if (updated) {
@@ -106,7 +116,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
         await notificationService.sendCancellationNotification(updated);
         setShowCancelModal(false);
         setCancelSuccessMsg(
-          'Your cancellation request has been submitted to dispatch. As this was submitted within the free cancellation window, your reservation is released with zero fees.'
+          'Your booking has been cancelled. Because this was done more than 24 hours before your tour, there are no cancellation fees.'
         );
       }
     } catch (err) {
@@ -121,7 +131,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
       case 'confirmed':
         return (
           <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded">
-            ● Confirmed & Dispatched
+            ● Confirmed
           </span>
         );
       case 'cancellation_requested':
@@ -153,13 +163,13 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
         <div className="text-center space-y-1">
           <div className="inline-flex items-center space-x-2 text-[#0A6C74] text-xs font-bold uppercase tracking-wider mb-1">
             <CalendarCheck className="w-4 h-4" />
-            <span>Customer Service Portal</span>
+            <span>My Booking</span>
           </div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0E1B2A]">
-            Manage My Excursion Booking
+            Manage Your Booking
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto">
-            Look up your reservation, download your official boarding voucher, or manage cancellation details.
+            Look up your booking, download your voucher, or cancel if your plans have changed.
           </p>
         </div>
 
@@ -169,7 +179,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
             <form onSubmit={handleLookup} className="space-y-4">
               <div>
                 <label htmlFor="lookup-ref" className="block text-xs font-bold text-stone-800 mb-1">
-                  Booking Reference Number <span className="text-red-500">*</span>
+                  Booking Reference <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="lookup-ref"
@@ -187,7 +197,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
 
               <div>
                 <label htmlFor="lookup-contact" className="block text-xs font-bold text-stone-800 mb-1">
-                  Email Address or WhatsApp Phone <span className="text-stone-400 font-normal">(Optional for demo)</span>
+                  Email or phone number <span className="text-stone-400 font-normal">(Optional for demo)</span>
                 </label>
                 <input
                   id="lookup-contact"
@@ -213,7 +223,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                   className="w-full py-3 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-sm transition-colors shadow-xs flex items-center justify-center space-x-2"
                 >
                   <Search className="w-4 h-4" />
-                  <span>{isLoading ? 'Searching Manifest Database...' : 'Find My Booking'}</span>
+                  <span>{isLoading ? 'Searching...' : 'Find My Booking'}</span>
                 </button>
               </div>
             </form>
@@ -277,7 +287,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                 className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center justify-center space-x-2 shadow-2xs"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp Dispatch</span>
+                <span>Contact on WhatsApp</span>
               </a>
             </div>
 
@@ -293,7 +303,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                   />
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#0A6C74] block">
-                      Confirmed Excursion
+                      Confirmed Tour
                     </span>
                     <h2 className="font-display text-base sm:text-lg font-bold text-[#0E1B2A]">
                       {booking.tourTitle}
@@ -326,12 +336,12 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                   <span className="text-[10px] uppercase font-bold text-stone-400 block">Travel Date</span>
                   <span className="font-bold text-stone-900 text-sm">{booking.date}</span>
                   <span className="text-[11px] text-stone-500 block">
-                    Departure window: 08:30 – 09:00 AM
+                    Pickup window: 08:30 – 09:00 AM
                   </span>
                 </div>
 
                 <div className="p-3.5 bg-stone-50 border border-stone-200 rounded space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-stone-400 block">Passengers</span>
+                  <span className="text-[10px] uppercase font-bold text-stone-400 block">Guests</span>
                   <span className="font-bold text-stone-900 text-sm">
                     {booking.guests.adults} Adult(s)
                     {booking.guests.children > 0 && `, ${booking.guests.children} Child(ren)`}
@@ -345,7 +355,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                     {booking.pickup.hotelName || booking.pickup.locationName}
                   </span>
                   <span className="text-[11px] text-stone-500 block">
-                    Transfer Area: {booking.pickup.area}
+                    Area: {booking.pickup.area}
                   </span>
                 </div>
 
@@ -378,7 +388,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                 <div className="flex items-start space-x-2 text-stone-600">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <span>
-                    Free cancellation available up to 24 hours before your excursion departure time.
+                    Free cancellation up to 24 hours before pickup.
                   </span>
                 </div>
 
@@ -388,7 +398,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                     onClick={() => setShowCancelModal(true)}
                     className="px-4 py-2 border border-red-300 text-red-700 hover:bg-red-50 rounded text-xs font-semibold shrink-0 transition-colors"
                   >
-                    Request Cancellation
+                    Cancel Booking
                   </button>
                 )}
               </div>
@@ -416,7 +426,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                 onClick={() => onNavigate('excursions')}
                 className="text-xs font-semibold text-[#0A6C74] hover:underline"
               >
-                Explore Other Excursions
+                View All Tours
               </button>
             </div>
 
@@ -435,7 +445,7 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
               </div>
               <div>
                 <h3 className="font-display font-bold text-stone-900 text-base">
-                  Cancel Excursion Reservation
+                  Cancel Booking
                 </h3>
                 <span className="text-[11px] text-stone-500 font-mono">
                   Ref: {booking.bookingReference}
@@ -448,13 +458,13 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
             </p>
 
             <div className="p-3 bg-stone-50 border border-stone-200 rounded text-xs text-stone-600 space-y-1">
-              <span className="font-bold text-stone-800 block">Cancellation Policy Notice:</span>
-              <p>As you are cancelling prior to the 24-hour cutoff window, no penalties or fees apply. Your seat on the vessel will be released.</p>
+              <span className="font-bold text-stone-800 block">Cancellation policy:</span>
+              <p>Because you are cancelling at least 24 hours in advance, there are no fees.</p>
             </div>
 
             <div>
               <label htmlFor="cancel-reason" className="block text-xs font-bold text-stone-800 mb-1">
-                Reason for Cancellation (Optional)
+                Reason for cancellation (optional)
               </label>
               <textarea
                 id="cancel-reason"

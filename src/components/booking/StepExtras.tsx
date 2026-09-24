@@ -28,10 +28,10 @@ export const StepExtras: React.FC<StepExtrasProps> = ({
         <div>
           <h2 className="font-display text-base sm:text-lg font-bold text-[#0E1B2A] flex items-center">
             <Sparkles className="w-4 h-4 mr-2 text-[#0A6C74]" />
-            Enhance Your Excursion (Optional)
+            Optional Extras
           </h2>
           <p className="text-xs text-stone-600 mt-1">
-            Tailor your day with popular upgrades. All equipment and upgrades are prepared in advance on your vessel.
+            Add optional upgrades to your day. You can skip this step if you prefer.
           </p>
         </div>
 
@@ -88,7 +88,7 @@ export const StepExtras: React.FC<StepExtrasProps> = ({
         </div>
 
         <p className="text-[11px] text-stone-500">
-          * Extras can also be modified or cancelled up to 24 hours prior to departure without penalty.
+          * You can also change or remove extras up to 24 hours before your trip.
         </p>
       </div>
 
@@ -108,7 +108,7 @@ export const StepExtras: React.FC<StepExtrasProps> = ({
           onClick={onNext}
           className="px-7 py-3 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-sm transition-colors shadow-xs flex items-center space-x-2"
         >
-          <span>Continue to Lead Guest Details</span>
+          <span>Continue</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

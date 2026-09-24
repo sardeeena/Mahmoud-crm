@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { 
   Star, 
   MapPin, 
@@ -6,9 +7,10 @@ import {
   CheckCircle2, 
   ShieldCheck, 
   Users, 
-  Sparkles,
-  Share2,
-  Heart
+  Sparkles, 
+  Share2, 
+  Heart,
+  Scale
 } from 'lucide-react';
 import { Tour, CurrencyConfig } from '../types';
 import { ALL_TOURS, formatPrice } from '../data/toursData';
@@ -21,6 +23,11 @@ import { IncludedExcluded } from '../components/tours/IncludedExcluded';
 import { ImportantInformation } from '../components/tours/ImportantInformation';
 import { TourReviews } from '../components/tours/TourReviews';
 import { RelatedTours } from '../components/tours/RelatedTours';
+import { useWishlist } from '../contexts/WishlistContext';
+import { useComparison } from '../contexts/ComparisonContext';
+import { useToast } from '../contexts/ToastContext';
+import { useSeo } from '../hooks/useSeo';
+import { seoService } from '../services/seoService';
 
 interface TourDetailPageProps {
   tour: Tour;
@@ -51,11 +58,22 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
   onBookTour,
   onDirectBookNow,
 }) => {
+  const { isFavorite, toggleFavorite } = useWishlist();
+  const { isCompared, toggleCompare } = useComparison();
+  const { showToast } = useToast();
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Dynamic SEO meta tags, OpenGraph, and Schema.org JSON-LD
+  const seoData = React.useMemo(() => seoService.generateTourSeo(tour), [tour]);
+  useSeo(seoData);
+
+  const favorite = isFavorite(tour.slug);
+  const compared = isCompared(tour.slug);
 
   const handleShare = () => {
     navigator.clipboard?.writeText(window.location.href);
     setCopiedLink(true);
+    showToast('Tour link copied to clipboard!', 'success');
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
@@ -71,10 +89,14 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
   };
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-24 lg:pb-12">
-      
-      {/* Breadcrumbs & Share */}
-      <div className="flex items-center justify-between">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="bg-[#FAF8F5] min-h-screen py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-24 lg:pb-12"
+    >
+      {/* Breadcrumbs & Actions Row */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
         <Breadcrumbs
           items={[
             { label: 'Home', onClick: onNavigateHome },
@@ -84,10 +106,45 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
         />
 
         <div className="flex items-center space-x-2">
+          {/* Wishlist Button */}
+          <button
+            type="button"
+            onClick={() => toggleFavorite(tour.slug, tour.title)}
+            className={`p-2 rounded text-xs flex items-center space-x-1.5 transition-all shadow-2xs border ${
+              favorite
+                ? 'bg-rose-50 text-rose-600 border-rose-200 font-semibold'
+                : 'bg-white border-stone-200 hover:border-stone-300 text-stone-700'
+            }`}
+            title={favorite ? 'Remove from saved' : 'Save to wishlist'}
+          >
+            <Heart className={`w-3.5 h-3.5 ${favorite ? 'fill-current text-rose-600' : ''}`} />
+            <span className="hidden sm:inline">
+              {favorite ? 'Saved' : 'Save'}
+            </span>
+          </button>
+
+          {/* Compare Button */}
+          <button
+            type="button"
+            onClick={() => toggleCompare(tour.slug, tour.title)}
+            className={`p-2 rounded text-xs flex items-center space-x-1.5 transition-all shadow-2xs border ${
+              compared
+                ? 'bg-[#E8F3F4] text-[#0A6C74] border-[#0A6C74]/30 font-semibold'
+                : 'bg-white border-stone-200 hover:border-stone-300 text-stone-700'
+            }`}
+            title="Compare with other excursions"
+          >
+            <Scale className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              {compared ? 'In Comparison' : 'Compare'}
+            </span>
+          </button>
+
+          {/* Share Button */}
           <button
             type="button"
             onClick={handleShare}
-            className="p-2 bg-white border border-stone-200 hover:border-stone-300 rounded text-stone-600 text-xs flex items-center space-x-1 transition-colors shadow-2xs"
+            className="p-2 bg-white border border-stone-200 hover:border-stone-300 rounded text-stone-600 text-xs flex items-center space-x-1.5 transition-colors shadow-2xs"
             title="Copy tour link"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -161,7 +218,7 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
           </div>
 
           {/* Short description */}
-          <div className="p-4 bg-stone-50 border-l-3 border-[#0A6C74] rounded-r text-xs sm:text-sm text-stone-700 leading-relaxed">
+          <div className="p-4 bg-stone-50 border-l-4 border-[#0A6C74] rounded-r text-xs sm:text-sm text-stone-700 leading-relaxed shadow-xs">
             {tour.shortDescription}
           </div>
 
@@ -182,7 +239,7 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {tour.highlights.map((hl, idx) => (
-                <div key={idx} className="flex items-start text-xs text-stone-700">
+                <div key={idx} className="flex items-start text-xs text-stone-700 p-2.5 rounded bg-white border border-stone-200">
                   <div className="p-1 rounded bg-[#E8F3F4] text-[#0A6C74] mr-2.5 mt-0.5 shrink-0">
                     <Sparkles className="w-3 h-3" />
                   </div>
@@ -229,7 +286,7 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
         </div>
 
         {/* Right Column: Sticky Booking Panel (4 cols) */}
-        <div className="lg:col-span-5 xl:col-span-4">
+        <div className="lg:col-span-5 xl:col-span-4 sticky top-24">
           <TourBookingPanel
             tour={tour}
             currency={currency}
@@ -246,6 +303,6 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
         onBookNow={handleMobileBook}
       />
 
-    </div>
+    </motion.div>
   );
 };

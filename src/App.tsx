@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
+import { WhatsAppFloatingButton } from './components/common/WhatsAppFloatingButton';
+import { WishlistDrawer } from './components/common/WishlistDrawer';
+import { CompareModal } from './components/common/CompareModal';
+import { CompareFloatingBar } from './components/common/CompareFloatingBar';
 import { Hero } from './components/home/Hero';
 import { PopularTours } from './components/home/PopularTours';
 import { ExperienceCategories } from './components/home/ExperienceCategories';
@@ -8,6 +13,7 @@ import { DestinationsSection } from './components/home/DestinationsSection';
 import { WhyChooseUs } from './components/home/WhyChooseUs';
 import { ReviewsSection } from './components/home/ReviewsSection';
 import { FinalCTA } from './components/home/FinalCTA';
+import { NotFoundPage } from './components/common/NotFoundPage';
 import { ExcursionsPage } from './pages/ExcursionsPage';
 import { TourDetailPage } from './pages/TourDetailPage';
 import { BookingPage } from './pages/BookingPage';
@@ -19,9 +25,17 @@ import { Booking } from './types/booking';
 import { bookingRepository } from './services/bookingRepository';
 import { saveBookingDraft, loadBookingDraft } from './services/draftStorage';
 import { getPublishedTours, getTourBySlug } from './services/tourService';
+import { seoService } from './services/seoService';
+import { Compass } from 'lucide-react';
+
+// Providers
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { WishlistProvider } from './contexts/WishlistContext';
+import { ComparisonProvider } from './contexts/ComparisonContext';
 
 // Admin CMS Components
-import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AdminLayout, AdminTab } from './components/admin/AdminLayout';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminTourList } from './components/admin/AdminTourList';
@@ -41,6 +55,10 @@ function MainApp() {
   // Live published tours loaded dynamically from Supabase
   const [liveTours, setLiveTours] = useState<Tour[]>(ALL_TOURS);
   const [loadingTours, setLoadingTours] = useState<boolean>(false);
+
+  // Drawer / Modal states
+  const [isWishlistOpen, setIsWishlistOpen] = useState<boolean>(false);
+  const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
 
   // Client-side router path & search query
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -191,30 +209,34 @@ function MainApp() {
     });
   }, [tourDetailSlug, liveTours, isAdmin]);
 
-  // Synchronize document title with current page
+  // Synchronize document title, OpenGraph tags, and Schema.org for non-catalog pages
   useEffect(() => {
     if (currentPath.startsWith('/admin')) {
-      document.title = 'Staff & Admin CMS | Red Sea Voyages';
+      seoService.apply({
+        title: 'Staff & Admin CMS | Red Sea Voyages',
+        description: 'Administrative portal for tour management, booking verification, and fleet operations.',
+      });
     } else if (currentPath.startsWith('/booking/confirmation')) {
-      document.title = confirmationReference
-        ? `Booking Confirmed (${confirmationReference}) | Red Sea Excursions`
-        : 'Booking Confirmation | Red Sea Excursions';
+      seoService.apply({
+        title: confirmationReference
+          ? `Booking Confirmed (${confirmationReference}) | Red Sea Excursions`
+          : 'Booking Confirmation | Red Sea Excursions',
+        description: 'Your Red Sea excursion booking voucher and confirmed hotel pickup transfer itinerary.',
+      });
     } else if (currentPath.startsWith('/booking')) {
-      document.title = 'Book Your Excursion | Red Sea Excursions';
+      seoService.apply({
+        title: 'Book Your Excursion | Red Sea Excursions',
+        description: 'Direct vessel reservation with free cancellation, hotel pickup, and pay on pickup options.',
+      });
     } else if (currentPath.startsWith('/my-booking')) {
-      document.title = 'Find & Manage My Booking | Red Sea Excursions';
-    } else if (currentPath.startsWith('/excursions/')) {
-      if (currentTourDetail?.title) {
-        document.title = `${currentTourDetail.title} | Red Sea Excursions`;
-      } else {
-        document.title = 'Excursion Details | Red Sea Excursions';
-      }
-    } else if (currentPath.startsWith('/excursions')) {
-      document.title = 'All Red Sea Excursions & Boat Trips | Hurghada, El Gouna & Sinai';
-    } else {
-      document.title = 'Red Sea Excursions & Tours | Verified Red Sea Boat Trips & Safaris';
+      seoService.apply({
+        title: 'Find & Manage My Booking | Red Sea Excursions',
+        description: 'View your excursion booking details, print your official voucher, or request a free date change.',
+      });
+    } else if (currentPath === '/') {
+      seoService.apply(seoService.generateDefaultSeo());
     }
-  }, [currentPath, confirmationReference, currentTourDetail]);
+  }, [currentPath, confirmationReference]);
 
   // Handlers from Homepage
   const handleHeroSearch = (filters: { destination: string; category: string; date: string; guests: number }) => {
@@ -335,9 +357,11 @@ function MainApp() {
 
   // 1. Admin Login View: /admin/login
   if (currentPath === '/admin/login') {
+    const redirectParam = searchParams.get('redirect') || '/admin';
     return (
       <AdminLoginPage
-        onSuccess={() => navigate('/admin')}
+        redirectUrl={redirectParam}
+        onSuccess={(target) => navigate(target || '/admin')}
         onBackToSite={() => navigate('/')}
       />
     );
@@ -348,7 +372,8 @@ function MainApp() {
     if (!isAdmin) {
       return (
         <AdminLoginPage
-          onSuccess={() => navigate('/admin')}
+          redirectUrl={currentPath}
+          onSuccess={(target) => navigate(target || '/admin')}
           onBackToSite={() => navigate('/')}
         />
       );
@@ -499,6 +524,36 @@ function MainApp() {
         );
       }
 
+      if (!loadingTours) {
+        return (
+          <div className="min-h-[60vh] max-w-xl mx-auto px-4 py-20 text-center">
+            <div className="w-14 h-14 rounded-full bg-stone-100 text-[#0A6C74] flex items-center justify-center mx-auto mb-4 border border-stone-200">
+              <Compass className="w-7 h-7" />
+            </div>
+            <h2 className="font-display text-2xl font-bold text-stone-900 mb-2">Excursion Not Found</h2>
+            <p className="text-xs sm:text-sm text-stone-600 mb-6">
+              The excursion "{tourDetailSlug}" could not be located in our fleet schedule. It may have been updated or concluded for the season.
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/excursions')}
+                className="px-5 py-2.5 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-semibold rounded-full transition-colors cursor-pointer"
+              >
+                Browse All Excursions
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-full transition-colors cursor-pointer"
+              >
+                Return Home
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="min-h-screen bg-[#FAF8F5] py-24 px-4 text-center">
           <div className="w-8 h-8 border-2 border-[#0A6C74] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -509,7 +564,7 @@ function MainApp() {
     }
 
     // 5. Excursions Discovery Page: /excursions
-    if (currentPath.startsWith('/excursions')) {
+    if (currentPath === '/excursions') {
       return (
         <ExcursionsPage
           currency={currentCurrency}
@@ -523,46 +578,60 @@ function MainApp() {
       );
     }
 
-    // 6. Default: Homepage
+    // 6. Homepage: /
+    if (currentPath === '/') {
+      return (
+        <main className="flex-1">
+          {/* Hero Section */}
+          <Hero
+            onSearch={handleHeroSearch}
+            resultCount={liveTours.length}
+          />
+
+          {/* Popular Tours Section */}
+          <PopularTours
+            tours={liveTours.slice(0, 8)}
+            currency={currentCurrency}
+            onSelectTour={handleViewTour}
+            onQuickBook={handleStartBooking}
+            onViewAllExcursions={() => navigate('/excursions')}
+          />
+
+          {/* Experience Categories */}
+          <ExperienceCategories
+            onSelectCategory={handleSelectHomeCategory}
+          />
+
+          {/* Why Choose Us */}
+          <WhyChooseUs />
+
+          {/* Destinations */}
+          <DestinationsSection
+            onSelectDestination={handleSelectHomeDestination}
+          />
+
+          {/* Reviews */}
+          <ReviewsSection />
+
+          {/* Final CTA */}
+          <FinalCTA
+            onExploreTours={() => navigate('/excursions')}
+            onOpenMyBooking={() => navigate('/my-booking')}
+          />
+        </main>
+      );
+    }
+
+    // 7. Unknown / Unmatched Route -> 404 Not Found Page
     return (
-      <main className="flex-1">
-        {/* Hero Section */}
-        <Hero
-          onSearch={handleHeroSearch}
-          resultCount={liveTours.length}
-        />
-
-        {/* Popular Tours Section */}
-        <PopularTours
-          tours={liveTours.slice(0, 8)}
-          currency={currentCurrency}
-          onSelectTour={handleViewTour}
-          onQuickBook={handleStartBooking}
-          onViewAllExcursions={() => navigate('/excursions')}
-        />
-
-        {/* Experience Categories */}
-        <ExperienceCategories
-          onSelectCategory={handleSelectHomeCategory}
-        />
-
-        {/* Why Choose Us */}
-        <WhyChooseUs />
-
-        {/* Destinations */}
-        <DestinationsSection
-          onSelectDestination={handleSelectHomeDestination}
-        />
-
-        {/* Reviews */}
-        <ReviewsSection />
-
-        {/* Final CTA */}
-        <FinalCTA
-          onExploreTours={() => navigate('/excursions')}
-          onOpenMyBooking={() => navigate('/my-booking')}
-        />
-      </main>
+      <NotFoundPage
+        popularTours={liveTours}
+        currency={currentCurrency}
+        onNavigateHome={() => navigate('/')}
+        onNavigateExcursions={() => navigate('/excursions')}
+        onSelectTour={handleViewTour}
+        onOpenMyBooking={() => navigate('/my-booking')}
+      />
     );
   };
 
@@ -577,10 +646,23 @@ function MainApp() {
         onNavigateExcursions={() => navigate('/excursions')}
         onNavigateBooking={() => navigate('/booking')}
         onNavigateSection={handleNavigateSection}
+        onOpenWishlist={() => setIsWishlistOpen(true)}
+        onOpenCompare={() => setIsCompareOpen(true)}
       />
 
-      {/* Main View Flow */}
-      {renderCurrentView()}
+      {/* Main View Flow with Smooth Page Entrance */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentPath}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="flex-1 flex flex-col"
+        >
+          {renderCurrentView()}
+        </motion.div>
+      </AnimatePresence>
 
       {/* Global Commercial Footer */}
       <Footer
@@ -595,14 +677,53 @@ function MainApp() {
         onOpenMyBooking={() => navigate('/my-booking')}
         onOpenAdmin={() => navigate('/admin')}
       />
+
+      {/* Floating WhatsApp Quick Inquiries Widget */}
+      <WhatsAppFloatingButton currentPath={currentPath} />
+
+      {/* Slide-over Saved Excursions (Wishlist) Drawer */}
+      <WishlistDrawer
+        isOpen={isWishlistOpen}
+        onClose={() => setIsWishlistOpen(false)}
+        allTours={liveTours}
+        currency={currentCurrency}
+        onSelectTour={handleViewTour}
+        onBookTour={handleStartBooking}
+      />
+
+      {/* Side-by-Side Excursions Comparison Modal */}
+      <CompareModal
+        isOpen={isCompareOpen}
+        onClose={() => setIsCompareOpen(false)}
+        allTours={liveTours}
+        currency={currentCurrency}
+        onSelectTour={handleViewTour}
+        onBookTour={handleStartBooking}
+      />
+
+      {/* Floating Comparison Sticky Trigger Bar */}
+      {!isAdminRoute && (
+        <CompareFloatingBar
+          allTours={liveTours}
+          onOpenCompareModal={() => setIsCompareOpen(true)}
+        />
+      )}
     </div>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <LanguageProvider>
+      <ToastProvider>
+        <WishlistProvider>
+          <ComparisonProvider>
+            <AuthProvider>
+              <MainApp />
+            </AuthProvider>
+          </ComparisonProvider>
+        </WishlistProvider>
+      </ToastProvider>
+    </LanguageProvider>
   );
 }
