@@ -13,6 +13,7 @@ interface TourSortProps {
   sortOption: SortOption;
   onSortChange: (sort: SortOption) => void;
   onOpenMobileFilters?: () => void;
+  activeFiltersCount?: number;
 }
 
 export const TourSort: React.FC<TourSortProps> = ({
@@ -20,6 +21,7 @@ export const TourSort: React.FC<TourSortProps> = ({
   sortOption,
   onSortChange,
   onOpenMobileFilters,
+  activeFiltersCount = 0,
 }) => {
   return (
     <div className="flex items-center justify-between py-3 border-b border-stone-200 text-xs text-stone-600 mb-6">
@@ -43,6 +45,11 @@ export const TourSort: React.FC<TourSortProps> = ({
           >
             <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-[#0A6C74]" />
             <span>Filters</span>
+            {activeFiltersCount > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-[#0A6C74] text-white text-[10px] font-bold">
+                {activeFiltersCount}
+              </span>
+            )}
           </button>
         )}
 

@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
-import { User, Mail, Phone, Globe, Building, MessageSquare, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  Globe, 
+  Building, 
+  MessageSquare, 
+  ArrowRight, 
+  ArrowLeft, 
+  AlertCircle,
+  Sparkles,
+  CheckCircle2,
+  LogIn
+} from 'lucide-react';
 import { CustomerInfo } from '../../types/booking';
 import { COUNTRY_DIAL_CODES } from '../../data/bookingData';
 import { isValidEmail, isValidPhoneNumber, sanitizeString } from '../../lib/security';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface StepCustomerInfoProps {
   customer: CustomerInfo;
   onCustomerChange: (customer: CustomerInfo) => void;
   onNext: () => void;
   onBack: () => void;
+  onNavigateLogin?: () => void;
 }
 
 export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
@@ -16,8 +31,28 @@ export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
   onCustomerChange,
   onNext,
   onBack,
+  onNavigateLogin,
 }) => {
+  const { user } = useAuth();
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Auto-populate from logged-in user profile if fields are blank
+  useEffect(() => {
+    if (user && !customer.email) {
+      const parts = (user.fullName || '').trim().split(' ');
+      const first = parts[0] || '';
+      const last = parts.slice(1).join(' ') || '';
+      onCustomerChange({
+        ...customer,
+        firstName: customer.firstName || first,
+        lastName: customer.lastName || last,
+        email: customer.email || user.email,
+        phoneNumber: customer.phoneNumber || user.phoneNumber || '',
+        countryCode: customer.countryCode || user.countryCode || '+20',
+        country: customer.country || user.country || 'Germany',
+      });
+    }
+  }, [user]);
 
   const errors = {
     firstName: !customer.firstName.trim() ? 'Please enter your first name.' : '',
@@ -74,6 +109,46 @@ export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       
+      {/* Guest vs Logged-In User Banner */}
+      {user ? (
+        <div className="bg-[#E8F3F4] border border-[#0A6C74]/30 rounded-sm p-4 flex items-center justify-between text-xs">
+          <div className="flex items-center space-x-2.5">
+            <CheckCircle2 className="w-4 h-4 text-[#0A6C74] shrink-0" />
+            <div>
+              <span className="font-bold text-[#0E1B2A]">Logged in as {user.fullName}</span>
+              <span className="text-stone-600 block text-[11px]">
+                This reservation will be automatically linked to your account ({user.email}).
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] text-stone-500 hidden sm:inline">
+            You may adjust details below if reserving for someone else.
+          </span>
+        </div>
+      ) : (
+        <div className="bg-emerald-50/80 border border-emerald-200 rounded-sm p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-emerald-950">
+          <div className="flex items-center space-x-2.5">
+            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div>
+              <span className="font-bold text-emerald-900">Booking as Guest (No Account Required)</span>
+              <span className="text-emerald-800 block text-[11px]">
+                You can complete your reservation directly below. Vouchers & driver alerts go to your email & WhatsApp.
+              </span>
+            </div>
+          </div>
+          {onNavigateLogin && (
+            <button
+              type="button"
+              onClick={onNavigateLogin}
+              className="px-3 py-1 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded font-semibold text-[11px] shrink-0 flex items-center space-x-1 cursor-pointer"
+            >
+              <LogIn className="w-3 h-3 text-emerald-700" />
+              <span>Sign In to Autofill</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border border-[#E8E3DA] rounded-sm p-5 space-y-4">
         <div>

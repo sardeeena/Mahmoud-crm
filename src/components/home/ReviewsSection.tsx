@@ -5,20 +5,20 @@ import { REVIEWS_DATA } from '../../data/toursData';
 
 export const ReviewsSection: React.FC = () => {
   return (
-    <section id="reviews-section" className="py-16 sm:py-20 bg-[#FAF8F5] border-b border-[#E8E3DA]">
+    <section id="reviews-section" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E3DA]">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div>
             <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] mb-2">
-              <span className="w-4 h-0.5 bg-[#0A6C74]"></span>
+              <span className="w-5 h-0.5 bg-[#0A6C74] rounded-full"></span>
               <span>Authentic Guest Experiences</span>
             </div>
             <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] tracking-tight">
               What Travelers Say
             </h2>
-            <p className="text-stone-600 text-sm sm:text-base mt-2 max-w-xl">
+            <p className="text-stone-600 text-sm sm:text-base mt-2 max-w-xl leading-relaxed">
               Reviews collected following verified excursion completion from international guests staying in Hurghada, El Gouna, and Makadi Bay.
             </p>
           </div>
@@ -28,17 +28,17 @@ export const ReviewsSection: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="bg-white border border-[#E8E3DA] p-4 rounded-xl flex items-center space-x-4 self-start md:self-auto shadow-xs"
+            className="bg-white border border-[#E8E3DA] p-4.5 rounded-2xl flex items-center space-x-4 self-start md:self-auto shadow-sm"
           >
             <div className="text-center">
-              <span className="font-display text-3xl font-bold text-[#0E1B2A] block leading-none">4.9</span>
-              <div className="flex text-[#C28D32] mt-1">
+              <span className="font-display text-3xl font-bold text-[#0E1B2A] block leading-none font-mono">4.9</span>
+              <div className="flex text-amber-400 mt-1.5">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-3.5 h-3.5 fill-current" />
                 ))}
               </div>
             </div>
-            <div className="h-10 w-px bg-stone-200"></div>
+            <div className="h-10 w-px bg-stone-200" />
             <div>
               <span className="text-xs font-bold text-stone-900 block">4,800+ Verified Bookings</span>
               <span className="text-[11px] text-stone-500">98% recommendation rate</span>
@@ -51,48 +51,50 @@ export const ReviewsSection: React.FC = () => {
           {REVIEWS_DATA.map((rev, idx) => (
             <motion.div
               key={rev.id}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 18 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.4, delay: idx * 0.08 }}
-              whileHover={{ y: -4 }}
-              className="bg-white rounded-xl border border-[#E8E3DA] p-5 flex flex-col justify-between hover:border-stone-400 hover:shadow-md transition-all duration-200"
+              transition={{ duration: 0.45, delay: idx * 0.08 }}
+              whileHover={{ y: -5 }}
+              className="bg-white rounded-2xl border border-[#E8E3DA] p-6 flex flex-col justify-between hover:border-[#0A6C74]/50 hover:shadow-xl transition-all duration-300"
             >
               <div>
                 {/* Rating and Date */}
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex text-[#C28D32]">
+                  <div className="flex text-amber-400">
                     {[...Array(rev.rating)].map((_, i) => (
                       <Star key={i} className="w-3.5 h-3.5 fill-current" />
                     ))}
                   </div>
-                  <span className="text-[11px] text-stone-400">{rev.date}</span>
+                  <span className="text-[11px] text-stone-400 font-mono">{rev.date}</span>
                 </div>
 
                 {/* Excursion tag */}
-                <span className="text-[11px] font-semibold text-[#0A6C74] block mb-2 line-clamp-1">
+                <span className="text-xs font-semibold text-[#0A6C74] block mb-2 line-clamp-1">
                   {rev.tourTitle}
                 </span>
 
                 {/* Review Text */}
-                <p className="text-xs text-stone-700 leading-relaxed mb-4 italic">
+                <p className="text-xs sm:text-[13px] text-stone-700 leading-relaxed mb-5 italic">
                   "{rev.comment}"
                 </p>
               </div>
 
               {/* Guest Profile */}
-              <div className="pt-3 border-t border-stone-100 flex items-center justify-between">
+              <div className="pt-3.5 border-t border-stone-100 flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-stone-900 block">
                     {rev.authorName}
                   </span>
-                  <span className="text-[11px] text-stone-500">
-                    {rev.country} • {rev.travelerType}
-                  </span>
+                  <div className="text-[11px] text-stone-500 flex items-center space-x-1.5 mt-0.5">
+                    <span>{rev.country}</span>
+                    <span aria-hidden="true" className="text-stone-300">·</span>
+                    <span>{rev.travelerType}</span>
+                  </div>
                 </div>
 
                 {rev.verifiedBooking && (
-                  <div className="flex items-center text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <div className="flex items-center text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                     <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
                     <span>Verified</span>
                   </div>

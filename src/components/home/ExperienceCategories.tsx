@@ -7,7 +7,8 @@ import {
   Sun, 
   Anchor, 
   Landmark, 
-  ArrowRight 
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 import { TOUR_CATEGORIES } from '../../data/toursData';
 
@@ -29,19 +30,19 @@ export const ExperienceCategories: React.FC<ExperienceCategoriesProps> = ({ onSe
   };
 
   return (
-    <section id="categories-section" className="py-16 sm:py-20 bg-white border-b border-[#E8E3DA]">
+    <section id="categories-section" className="py-16 sm:py-24 bg-white border-b border-[#E8E3DA]">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
         
         {/* Section Header */}
         <div className="max-w-2xl mb-12">
           <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] mb-2">
-            <span className="w-4 h-0.5 bg-[#0A6C74]"></span>
-            <span>Curated Activities</span>
+            <span className="w-5 h-0.5 bg-[#0A6C74] rounded-full"></span>
+            <span>Curated Marine & Desert Adventures</span>
           </div>
           <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] tracking-tight">
             Explore by Experience
           </h2>
-          <p className="text-stone-600 text-sm sm:text-base mt-2">
+          <p className="text-stone-600 text-sm sm:text-base mt-2 leading-relaxed">
             Whether you seek calm shallow turquoise lagoons, offshore dolphin reef encounters, or sunset quad biking across desert mountain canyons.
           </p>
         </div>
@@ -51,36 +52,39 @@ export const ExperienceCategories: React.FC<ExperienceCategoriesProps> = ({ onSe
           {TOUR_CATEGORIES.map((cat, index) => (
             <motion.div
               key={cat.id}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
-              transition={{ duration: 0.4, delay: index * 0.06 }}
-              whileHover={{ y: -5 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.45, delay: index * 0.07 }}
+              whileHover={{ y: -6 }}
               onClick={() => onSelectCategory(cat.name)}
-              className="group relative rounded-xl overflow-hidden border border-[#E8E3DA] bg-stone-900 cursor-pointer h-72 flex flex-col justify-end p-6 hover:border-[#0A6C74]/50 hover:shadow-xl transition-all duration-300"
+              className="group relative rounded-2xl overflow-hidden border border-[#E8E3DA] bg-stone-900 cursor-pointer h-80 flex flex-col justify-end p-6 hover:border-[#0A6C74]/70 hover:shadow-2xl transition-all duration-300"
             >
-              {/* Background Photography */}
+              {/* Background Photography with smooth slow zoom */}
               <div 
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-108"
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
                 style={{ backgroundImage: `url(${cat.image})` }}
               />
+              
               {/* Refined gradient overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0E1B2A] via-[#0E1B2A]/60 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0E1B2A] via-[#0E1B2A]/65 to-black/20 group-hover:via-[#0E1B2A]/50 transition-colors" />
 
               {/* Category Card Details */}
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="w-10 h-10 rounded-lg bg-[#0A6C74]/90 flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform">
+              <div className="relative z-10 space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-110 group-hover:bg-[#0A6C74] transition-all">
                     {getIcon(cat.iconName)}
                   </div>
-                  <span className="text-[11px] font-semibold tracking-wider uppercase text-stone-300 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-xs border border-white/10">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-white/90 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/10 font-mono">
                     {cat.tourCount} Excursions
                   </span>
                 </div>
 
-                <h3 className="font-display text-lg font-semibold text-white group-hover:text-[#60C3CC] transition-colors mb-1.5 flex items-center justify-between">
+                <h3 className="font-display text-xl font-bold text-white group-hover:text-[#60C3CC] transition-colors flex items-center justify-between">
                   <span>{cat.name}</span>
-                  <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transform translate-x-1 group-hover:translate-x-0 transition-all text-[#60C3CC]" />
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all text-[#60C3CC]">
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
                 </h3>
 
                 <p className="text-xs text-stone-300 line-clamp-2 leading-relaxed">

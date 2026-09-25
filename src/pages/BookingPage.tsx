@@ -340,6 +340,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                     onCustomerChange={setCustomer}
                     onNext={() => setCurrentStep(5)}
                     onBack={() => setCurrentStep(3)}
+                    onNavigateLogin={() => onNavigate('login')}
                   />
                 )}
 

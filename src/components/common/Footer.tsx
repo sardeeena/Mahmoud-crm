@@ -10,11 +10,15 @@ import {
   CreditCard,
   CheckCircle2
 } from 'lucide-react';
+import { NewsletterSubscribe } from './NewsletterSubscribe';
 
 interface FooterProps {
   onSelectDestination?: (dest: string) => void;
   onSelectCategory?: (cat: string) => void;
   onOpenMyBooking?: () => void;
+  onOpenLogin?: () => void;
+  onOpenRegister?: () => void;
+  onOpenResetPassword?: () => void;
   onOpenAdmin?: () => void;
 }
 
@@ -22,6 +26,9 @@ export const Footer: React.FC<FooterProps> = ({
   onSelectDestination,
   onSelectCategory,
   onOpenMyBooking,
+  onOpenLogin,
+  onOpenRegister,
+  onOpenResetPassword,
   onOpenAdmin,
 }) => {
   return (
@@ -72,8 +79,13 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
       </div>
 
-      {/* Main Footer Links */}
+      {/* Main Footer Links & Newsletter */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
+        {/* Newsletter Subscription Card */}
+        <div className="mb-12">
+          <NewsletterSubscribe source="footer" />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           
           {/* Brand Col */}
@@ -224,9 +236,42 @@ export const Footer: React.FC<FooterProps> = ({
                   onClick={onOpenMyBooking}
                   className="text-[#60C3CC] hover:underline font-medium"
                 >
-                  My Booking
+                  My Booking & Voucher
                 </button>
               </li>
+              {onOpenLogin && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={onOpenLogin}
+                    className="hover:text-white transition-colors"
+                  >
+                    Customer Sign In
+                  </button>
+                </li>
+              )}
+              {onOpenRegister && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={onOpenRegister}
+                    className="hover:text-white transition-colors"
+                  >
+                    Register Account
+                  </button>
+                </li>
+              )}
+              {onOpenResetPassword && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={onOpenResetPassword}
+                    className="hover:text-white transition-colors text-slate-400"
+                  >
+                    Reset Password
+                  </button>
+                </li>
+              )}
               <li>
                 <span className="text-slate-400">Hotel Pickup Coverage</span>
               </li>

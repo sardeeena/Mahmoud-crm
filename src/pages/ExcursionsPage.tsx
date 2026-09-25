@@ -9,6 +9,44 @@ import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { useSeo } from '../hooks/useSeo';
 import { seoService } from '../services/seoService';
 
+const PERSISTENT_FILTERS_KEY = 'rse_persisted_excursion_filters';
+
+function getInitialPersistedFilters(): FilterState {
+  try {
+    // 1. URL search params takes highest priority
+    const params = new URLSearchParams(window.location.search);
+    const urlMinPrice = params.get('minPrice');
+    const urlMaxPrice = params.get('maxPrice');
+    const urlPricePreset = params.get('pricePreset');
+    const urlDurations = params.get('durations');
+    const urlDuration = params.get('duration');
+    const urlDurationPreset = params.get('durationPreset');
+
+    // 2. Saved localStorage state
+    const saved = localStorage.getItem(PERSISTENT_FILTERS_KEY);
+    const parsedSaved = saved ? JSON.parse(saved) : null;
+
+    const initial: FilterState = parsedSaved 
+      ? { ...INITIAL_FILTERS, ...parsedSaved } 
+      : { ...INITIAL_FILTERS };
+
+    // Overlay URL params if provided
+    if (urlMinPrice !== null) initial.minPrice = Number(urlMinPrice);
+    if (urlMaxPrice !== null) initial.maxPrice = Number(urlMaxPrice);
+    if (urlPricePreset !== null) initial.priceRangePreset = urlPricePreset;
+    if (urlDurationPreset !== null) initial.durationPreset = urlDurationPreset;
+    if (urlDurations !== null) {
+      initial.durations = urlDurations.split(',').filter(Boolean);
+    } else if (urlDuration !== null) {
+      initial.durations = [urlDuration];
+    }
+
+    return initial;
+  } catch {
+    return { ...INITIAL_FILTERS };
+  }
+}
+
 interface ExcursionsPageProps {
   currency: CurrencyConfig;
   tours?: Tour[];
@@ -36,8 +74,8 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
   const [guests, setGuests] = useState(2);
   const [activeCategoryTab, setActiveCategoryTab] = useState('All');
 
-  // Sidebar filters
-  const [sidebarFilters, setSidebarFilters] = useState<FilterState>(INITIAL_FILTERS);
+  // Persistent sidebar filters
+  const [sidebarFilters, setSidebarFilters] = useState<FilterState>(getInitialPersistedFilters);
   const [sortOption, setSortOption] = useState<SortOption>('recommended');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -50,6 +88,52 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
       setActivitySelect(initialCategory);
     }
   }, [initialDestination, initialCategory]);
+
+  // Persist sidebar filters to localStorage & sync with URL parameters
+  useEffect(() => {
+    try {
+      localStorage.setItem(PERSISTENT_FILTERS_KEY, JSON.stringify(sidebarFilters));
+
+      // Keep URL clean and synchronised on /excursions route
+      if (window.location.pathname.startsWith('/excursions')) {
+        const url = new URL(window.location.href);
+
+        if (sidebarFilters.minPrice > 0) {
+          url.searchParams.set('minPrice', String(sidebarFilters.minPrice));
+        } else {
+          url.searchParams.delete('minPrice');
+        }
+
+        if (sidebarFilters.maxPrice < 300) {
+          url.searchParams.set('maxPrice', String(sidebarFilters.maxPrice));
+        } else {
+          url.searchParams.delete('maxPrice');
+        }
+
+        if (sidebarFilters.priceRangePreset && sidebarFilters.priceRangePreset !== 'all') {
+          url.searchParams.set('pricePreset', sidebarFilters.priceRangePreset);
+        } else {
+          url.searchParams.delete('pricePreset');
+        }
+
+        if (sidebarFilters.durations.length > 0) {
+          url.searchParams.set('durations', sidebarFilters.durations.join(','));
+        } else {
+          url.searchParams.delete('durations');
+        }
+
+        if (sidebarFilters.durationPreset && sidebarFilters.durationPreset !== 'all') {
+          url.searchParams.set('durationPreset', sidebarFilters.durationPreset);
+        } else {
+          url.searchParams.delete('durationPreset');
+        }
+
+        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+      }
+    } catch {
+      // ignore
+    }
+  }, [sidebarFilters]);
 
   // Handle category tab change
   const handleCategoryTabSelect = (tab: string) => {
@@ -107,9 +191,22 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
         if (!hasMatchingActivity) return false;
       }
 
-      // 6. Sidebar: Duration
+      // 6. Sidebar: Duration Categories ('Half Day', 'Full Day', 'Multi Day')
       if (sidebarFilters.durations.length > 0) {
         if (!sidebarFilters.durations.includes(tour.durationCategory)) {
+          return false;
+        }
+      }
+
+      // 6b. Sidebar: Duration Preset hours
+      if (sidebarFilters.durationPreset && sidebarFilters.durationPreset !== 'all') {
+        if (sidebarFilters.durationPreset === 'under_4' && tour.durationHours >= 4) {
+          return false;
+        }
+        if (sidebarFilters.durationPreset === '4_8' && (tour.durationHours < 4 || tour.durationHours > 8)) {
+          return false;
+        }
+        if (sidebarFilters.durationPreset === '8_plus' && tour.durationHours <= 8) {
           return false;
         }
       }
@@ -121,8 +218,8 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
         }
       }
 
-      // 8. Sidebar: Price
-      if (tour.priceEur > sidebarFilters.maxPrice) {
+      // 8. Sidebar: Price Range (Min & Max)
+      if (tour.priceEur < sidebarFilters.minPrice || tour.priceEur > sidebarFilters.maxPrice) {
         return false;
       }
 
@@ -164,6 +261,7 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
     activitySelect,
     sidebarFilters,
     sortOption,
+    tours,
   ]);
 
   const handleClearAll = () => {
@@ -172,7 +270,26 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
     setActivitySelect('All');
     setActiveCategoryTab('All');
     setSidebarFilters(INITIAL_FILTERS);
+    try {
+      localStorage.removeItem(PERSISTENT_FILTERS_KEY);
+      if (window.location.pathname.startsWith('/excursions')) {
+        window.history.replaceState({}, '', '/excursions');
+      }
+    } catch {
+      // ignore
+    }
   };
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (sidebarFilters.minPrice > 0 || sidebarFilters.maxPrice < 300) count++;
+    if (sidebarFilters.durations.length > 0 || sidebarFilters.durationPreset !== 'all') count++;
+    if (sidebarFilters.destinations.length > 0) count += sidebarFilters.destinations.length;
+    if (sidebarFilters.activities.length > 0) count += sidebarFilters.activities.length;
+    if (sidebarFilters.tourTypes.length > 0) count += sidebarFilters.tourTypes.length;
+    if (sidebarFilters.pickupOnly) count++;
+    return count;
+  }, [sidebarFilters]);
 
   // Dynamic SEO meta tags, OpenGraph, and Schema.org JSON-LD based on current filters
   const activeLabel = activitySelect !== 'All' ? activitySelect : destinationSelect !== 'All' ? destinationSelect : 'All';
@@ -220,10 +337,10 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
         />
       </div>
 
-      {/* Desktop Layout: Left Sidebar + Right Results */}
+      {/* Desktop Layout: Persistent Left Sidebar + Right Results */}
       <div className="flex items-start gap-8">
         
-        {/* Left Filter Sidebar */}
+        {/* Left Persistent Filter Sidebar */}
         <TourFilters
           filters={sidebarFilters}
           onChange={setSidebarFilters}
@@ -232,6 +349,7 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
           isOpenMobile={mobileFiltersOpen}
           onCloseMobile={() => setMobileFiltersOpen(false)}
           totalFilteredCount={filteredTours.length}
+          allTours={tours}
         />
 
         {/* Right Results Column */}
@@ -243,6 +361,7 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
             sortOption={sortOption}
             onSortChange={setSortOption}
             onOpenMobileFilters={() => setMobileFiltersOpen(true)}
+            activeFiltersCount={activeFiltersCount}
           />
 
           {/* Tour Grid */}

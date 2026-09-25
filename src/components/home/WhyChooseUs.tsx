@@ -7,7 +7,8 @@ import {
   Clock, 
   Headphones, 
   CheckCircle,
-  FileCheck2
+  FileCheck2,
+  Sparkles
 } from 'lucide-react';
 import { TRUST_PILLARS } from '../../data/toursData';
 
@@ -24,20 +25,20 @@ export const WhyChooseUs: React.FC = () => {
   };
 
   return (
-    <section id="why-us-section" className="py-16 sm:py-20 bg-white border-b border-[#E8E3DA]">
+    <section id="why-us-section" className="py-16 sm:py-24 bg-white border-b border-[#E8E3DA]">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
         
         {/* Header */}
         <div className="max-w-3xl mb-12">
           <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] mb-2">
-            <span className="w-4 h-0.5 bg-[#0A6C74]"></span>
-            <span>Direct Local Operator</span>
+            <span className="w-5 h-0.5 bg-[#0A6C74] rounded-full"></span>
+            <span>Direct Licensed Fleet Operator</span>
           </div>
           <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] tracking-tight">
             Why Book Directly With Us
           </h2>
-          <p className="text-stone-600 text-sm sm:text-base mt-2">
-            We operate our own boats, desert vehicles, and hotel transfers in Hurghada and El Gouna. You get honest prices, direct support, and experienced local captains.
+          <p className="text-stone-600 text-sm sm:text-base mt-2 leading-relaxed">
+            We operate our own passenger yachts, speedboat charters, and hotel transfer fleet in Hurghada and El Gouna. You enjoy direct local captain support, transparent pricing, and zero middleman markups.
           </p>
         </div>
 
@@ -46,18 +47,18 @@ export const WhyChooseUs: React.FC = () => {
           {TRUST_PILLARS.map((pillar, idx) => (
             <motion.div
               key={pillar.id}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 18 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
-              transition={{ duration: 0.4, delay: idx * 0.07 }}
-              whileHover={{ y: -4 }}
-              className="p-6 rounded-xl border border-[#E8E3DA] bg-[#FAF8F5] flex flex-col justify-between hover:border-stone-400 hover:shadow-md transition-all duration-200"
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.45, delay: idx * 0.07 }}
+              whileHover={{ y: -5 }}
+              className="p-6 rounded-2xl border border-[#E8E3DA] bg-[#FAF8F5] flex flex-col justify-between hover:border-[#0A6C74]/50 hover:bg-white hover:shadow-xl transition-all duration-300 group"
             >
               <div>
-                <div className="w-10 h-10 rounded-lg bg-white border border-[#E8E3DA] flex items-center justify-center mb-4 shadow-2xs group-hover:scale-105 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-white border border-[#E8E3DA] flex items-center justify-center mb-4 shadow-2xs group-hover:scale-110 group-hover:border-[#0A6C74]/40 transition-all">
                   {getIcon(pillar.iconName)}
                 </div>
-                <h3 className="font-display text-base font-semibold text-[#0E1B2A] mb-2">
+                <h3 className="font-display text-base font-bold text-[#0E1B2A] mb-2 group-hover:text-[#0A6C74] transition-colors">
                   {pillar.title}
                 </h3>
                 <p className="text-xs text-stone-600 leading-relaxed">
@@ -65,7 +66,7 @@ export const WhyChooseUs: React.FC = () => {
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-stone-200/60 flex items-center text-[11px] text-[#0A6C74] font-medium">
+              <div className="mt-5 pt-3.5 border-t border-stone-200/60 flex items-center text-[11px] text-[#0A6C74] font-semibold">
                 <FileCheck2 className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                 <span>Verified Direct Fleet Standard</span>
               </div>

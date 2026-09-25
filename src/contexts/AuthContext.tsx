@@ -1,13 +1,47 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { AdminUser, signInAdmin, signOutAdmin, getCurrentAdminUser } from '../services/authService';
+import {
+  AppUser,
+  signInUser,
+  signUpUser,
+  resendConfirmationEmail,
+  confirmUserEmail,
+  resetPasswordRequest,
+  updateUserPassword,
+  signOutAdmin,
+  getCurrentAdminUser,
+} from '../services/authService';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { useToast } from './ToastContext';
 
 interface AuthContextType {
-  user: AdminUser | null;
+  user: AppUser | null;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  isCustomer: boolean;
+  signIn: (email: string, pass: string) => Promise<{ 
+    success: boolean; 
+    error?: string; 
+    requiresEmailConfirmation?: boolean; 
+    unconfirmedEmail?: string 
+  }>;
+  signUp: (data: {
+    email: string;
+    password: string;
+    fullName: string;
+    phoneNumber?: string;
+    countryCode?: string;
+    country?: string;
+  }) => Promise<{ 
+    success: boolean; 
+    error?: string; 
+    requiresEmailConfirmation?: boolean; 
+    email?: string;
+    confirmationToken?: string;
+  }>;
+  resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  confirmEmail: (email: string, token?: string) => Promise<{ success: boolean; error?: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; resetCode?: string }>;
+  updatePassword: (newPassword: string, email?: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -19,7 +53,7 @@ const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { showToast } = useToast();
-  const [user, setUser] = useState<AdminUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -41,17 +75,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
 
     if (isAutoLogout) {
-      showToast('Admin session expired due to inactivity. Please sign in again.', 'info', 5000);
+      showToast('Session expired due to inactivity. Please sign in again.', 'info', 5000);
     }
   }, [showToast]);
 
-  // Reset idle timer on user activity if admin is logged in
+  // Reset idle timer on user activity if user is logged in
   const resetIdleTimer = useCallback(() => {
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
     }
 
-    if (user) {
+    if (user && (user.role === 'admin' || user.role === 'manager')) {
       idleTimerRef.current = setTimeout(() => {
         handleSignOut(true);
       }, IDLE_TIMEOUT_MS);
@@ -60,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Activity listeners for idle timeout
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.role === 'customer') return;
 
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
     const handleActivity = () => resetIdleTimer();
@@ -94,13 +128,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleSignIn = async (email: string, pass: string) => {
     setLoading(true);
-    const { user: authedUser, error } = await signInAdmin(email, pass);
-    setUser(authedUser);
+    const result = await signInUser(email, pass);
+    setUser(result.user);
     setLoading(false);
-    return { success: !error && !!authedUser, error };
+    return { 
+      success: !result.error && !!result.user, 
+      error: result.error,
+      requiresEmailConfirmation: result.requiresEmailConfirmation,
+      unconfirmedEmail: result.unconfirmedEmail,
+    };
   };
 
-  const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'manager'));
+  const handleSignUp = async (data: {
+    email: string;
+    password: string;
+    fullName: string;
+    phoneNumber?: string;
+    countryCode?: string;
+    country?: string;
+  }) => {
+    setLoading(true);
+    const result = await signUpUser(data);
+    // User is NOT set as active yet because email confirmation is required!
+    setLoading(false);
+    return { 
+      success: !result.error, 
+      error: result.error,
+      requiresEmailConfirmation: result.requiresEmailConfirmation,
+      email: result.email,
+      confirmationToken: result.confirmationToken,
+    };
+  };
+
+  const handleResendConfirmation = async (email: string) => {
+    return resendConfirmationEmail(email);
+  };
+
+  const handleConfirmEmail = async (email: string, token?: string) => {
+    return confirmUserEmail(email, token);
+  };
+
+  const handleResetPassword = async (email: string) => {
+    return resetPasswordRequest(email);
+  };
+
+  const handleUpdatePassword = async (newPassword: string, email?: string) => {
+    return updateUserPassword(newPassword, email || user?.email);
+  };
+
+  const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'manager' || user.role === 'staff'));
+  const isCustomer = Boolean(user && user.role === 'customer');
 
   return (
     <AuthContext.Provider
@@ -108,7 +185,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         isAdmin,
+        isCustomer,
         signIn: handleSignIn,
+        signUp: handleSignUp,
+        resendConfirmation: handleResendConfirmation,
+        confirmEmail: handleConfirmEmail,
+        resetPassword: handleResetPassword,
+        updatePassword: handleUpdatePassword,
         signOut: () => handleSignOut(false),
         refreshUser,
       }}

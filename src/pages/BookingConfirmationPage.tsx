@@ -13,11 +13,13 @@ import {
   ShieldCheck, 
   ArrowRight,
   Download,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from 'lucide-react';
 import { Booking } from '../types/booking';
 import { CurrencyConfig } from '../types';
 import { downloadCalendarEvent, getWhatsAppSupportUrl, triggerPrintVoucher } from '../services/exportService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BookingConfirmationPageProps {
   booking: Booking;
@@ -30,6 +32,7 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
   currency,
   onNavigate,
 }) => {
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
 
   const handleCopyRef = () => {
@@ -246,6 +249,28 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
           </div>
 
         </div>
+
+        {/* Guest Account Prompt */}
+        {!user && (
+          <div className="bg-[#E8F3F4] border border-[#0A6C74]/30 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
+            <div className="text-center sm:text-left space-y-1">
+              <span className="font-bold text-sm text-[#0E1B2A] block">
+                Booked as a guest? Link this reservation to a free account
+              </span>
+              <p className="text-xs text-stone-600">
+                Create a password to access all your vouchers, manage dates, and get live WhatsApp updates anytime.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate('register')}
+              className="px-4 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-semibold rounded-lg shrink-0 flex items-center space-x-1.5 transition-colors shadow-2xs"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Create Account</span>
+            </button>
+          </div>
+        )}
 
         {/* Bottom Navigation */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 print:hidden">

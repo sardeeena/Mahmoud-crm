@@ -19,6 +19,10 @@ import { TourDetailPage } from './pages/TourDetailPage';
 import { BookingPage } from './pages/BookingPage';
 import { BookingConfirmationPage } from './pages/BookingConfirmationPage';
 import { MyBookingPage } from './pages/MyBookingPage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { AccountPage } from './pages/AccountPage';
 import { ALL_TOURS, CURRENCY_CONFIGS } from './data/toursData';
 import { Tour, CurrencyConfig } from './types';
 import { Booking } from './types/booking';
@@ -130,6 +134,14 @@ function MainApp() {
       fullPath = param ? `/admin/${param}` : '/admin';
     } else if (path === 'admin_login') {
       fullPath = '/admin/login';
+    } else if (path === 'login') {
+      fullPath = param ? `/login${param.startsWith('?') ? param : `?redirect=${param}`}` : '/login';
+    } else if (path === 'register') {
+      fullPath = param ? `/register${param.startsWith('?') ? param : `?redirect=${param}`}` : '/register';
+    } else if (path === 'reset-password' || path === 'forgot-password') {
+      fullPath = '/reset-password';
+    } else if (path === 'account' || path === 'profile') {
+      fullPath = '/account';
     }
 
     if (window.location.pathname + window.location.search !== fullPath) {
@@ -232,6 +244,26 @@ function MainApp() {
       seoService.apply({
         title: 'Find & Manage My Booking | Red Sea Excursions',
         description: 'View your excursion booking details, print your official voucher, or request a free date change.',
+      });
+    } else if (currentPath === '/login') {
+      seoService.apply({
+        title: 'Sign In | Red Sea Excursions & Voyages',
+        description: 'Sign in to access your excursion bookings, voucher downloads, and saved journeys.',
+      });
+    } else if (currentPath === '/register') {
+      seoService.apply({
+        title: 'Create Account | Red Sea Excursions & Voyages',
+        description: 'Create a voyager account for 1-click booking, digital vouchers, and priority pier departure updates.',
+      });
+    } else if (currentPath === '/reset-password' || currentPath === '/forgot-password') {
+      seoService.apply({
+        title: 'Reset Password | Red Sea Excursions',
+        description: 'Recover or update your Red Sea Excursions account credentials.',
+      });
+    } else if (currentPath === '/account' || currentPath === '/profile') {
+      seoService.apply({
+        title: 'My Profile & Reservations | Red Sea Excursions',
+        description: 'Manage your contact details, active excursions, and voucher tickets.',
       });
     } else if (currentPath === '/') {
       seoService.apply(seoService.generateDefaultSeo());
@@ -462,6 +494,48 @@ function MainApp() {
   // PUBLIC WEBSITE VIEWS
   // ==============================================================================
   const renderCurrentView = () => {
+    // Auth: Login Page
+    if (currentPath === '/login') {
+      const redirectParam = searchParams.get('redirect') || undefined;
+      return (
+        <LoginPage
+          redirectUrl={redirectParam}
+          onNavigate={(page, param) => navigate(page, param)}
+        />
+      );
+    }
+
+    // Auth: Register Page
+    if (currentPath === '/register') {
+      const redirectParam = searchParams.get('redirect') || undefined;
+      return (
+        <RegisterPage
+          redirectUrl={redirectParam}
+          onNavigate={(page, param) => navigate(page, param)}
+        />
+      );
+    }
+
+    // Auth: Reset Password Page
+    if (currentPath === '/reset-password' || currentPath === '/forgot-password') {
+      return (
+        <ResetPasswordPage
+          onNavigate={(page, param) => navigate(page, param)}
+        />
+      );
+    }
+
+    // Account & Profile Portal
+    if (currentPath === '/account' || currentPath === '/profile') {
+      return (
+        <AccountPage
+          currency={currentCurrency}
+          onNavigate={(page, param) => navigate(page, param)}
+          onOpenWishlist={() => setIsWishlistOpen(true)}
+        />
+      );
+    }
+
     // 1. Confirmation Screen: /booking/confirmation/:bookingReference
     if (confirmationReference) {
       if (confirmedBooking) {
@@ -645,6 +719,10 @@ function MainApp() {
         onNavigateHome={() => navigate('/')}
         onNavigateExcursions={() => navigate('/excursions')}
         onNavigateBooking={() => navigate('/booking')}
+        onNavigateLogin={() => navigate('/login')}
+        onNavigateRegister={() => navigate('/register')}
+        onNavigateAccount={() => navigate('/account')}
+        onNavigateAdmin={() => navigate('/admin')}
         onNavigateSection={handleNavigateSection}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenCompare={() => setIsCompareOpen(true)}
@@ -675,6 +753,9 @@ function MainApp() {
           navigate('/excursions');
         }}
         onOpenMyBooking={() => navigate('/my-booking')}
+        onOpenLogin={() => navigate('/login')}
+        onOpenRegister={() => navigate('/register')}
+        onOpenResetPassword={() => navigate('/reset-password')}
         onOpenAdmin={() => navigate('/admin')}
       />
 

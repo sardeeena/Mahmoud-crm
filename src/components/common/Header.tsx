@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Clock, 
   Menu, 
   X, 
   Search, 
@@ -12,15 +11,20 @@ import {
   Compass,
   Check,
   Heart,
-  Scale
+  Scale,
+  User,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  UserPlus
 } from 'lucide-react';
 import { CurrencyConfig } from '../../types';
 import { CURRENCY_CONFIGS } from '../../data/toursData';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useWishlist } from '../../contexts/WishlistContext';
 import { useComparison } from '../../contexts/ComparisonContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { LanguageCode } from '../../types/i18n';
-import { WeatherConditionsBar } from './WeatherConditionsBar';
 
 interface HeaderProps {
   currentCurrency: CurrencyConfig;
@@ -30,6 +34,10 @@ interface HeaderProps {
   onNavigateHome?: () => void;
   onNavigateExcursions?: () => void;
   onNavigateBooking?: (tourSlug?: string) => void;
+  onNavigateLogin?: () => void;
+  onNavigateRegister?: () => void;
+  onNavigateAccount?: () => void;
+  onNavigateAdmin?: () => void;
   onOpenWishlist?: () => void;
   onOpenCompare?: () => void;
 }
@@ -42,19 +50,26 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onNavigateExcursions,
   onNavigateBooking,
+  onNavigateLogin,
+  onNavigateRegister,
+  onNavigateAccount,
+  onNavigateAdmin,
   onOpenWishlist,
   onOpenCompare,
 }) => {
   const { language, setLanguage, currentLanguageConfig, supportedLanguages, t } = useLanguage();
   const { wishlistCount } = useWishlist();
   const { comparisonCount } = useComparison();
+  const { user, isAdmin, signOut } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const currencyRef = useRef<HTMLDivElement>(null);
   const languageRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -64,6 +79,9 @@ export const Header: React.FC<HeaderProps> = ({
       }
       if (languageRef.current && !languageRef.current.contains(event.target as Node)) {
         setLanguageDropdownOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -112,23 +130,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E3DA] transition-all">
-      {/* Real-time Maritime Weather & Sea Conditions Bar */}
-      <WeatherConditionsBar />
-
       {/* Top Utility Bar */}
       <div className="bg-[#0E1B2A] text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center space-x-5 text-[11px] sm:text-xs">
-            <span className="flex items-center text-slate-200 font-medium">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-              {t('top.licensed')}
-            </span>
-            <span className="hidden md:inline-flex items-center text-slate-400">
-              <Clock className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
-              {t('top.cancellation')}
-            </span>
-          </div>
-
+        <div className="max-w-7xl mx-auto flex items-center justify-end gap-3">
           <div className="flex items-center space-x-3.5 ml-auto">
             {/* Direct WhatsApp Hotline */}
             <a 
@@ -336,67 +340,190 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Action Controls */}
         <div className="hidden sm:flex items-center space-x-2">
           {/* Wishlist Button */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.9 }}
             type="button"
             onClick={onOpenWishlist}
-            className="relative p-2 text-stone-700 hover:text-rose-600 bg-stone-100 hover:bg-rose-50 border border-stone-200 rounded-sm transition-colors cursor-pointer"
+            className="relative p-2 text-stone-700 hover:text-rose-600 bg-stone-100 hover:bg-rose-50 border border-stone-200 rounded-xl transition-all cursor-pointer"
             title="Saved Excursions"
             aria-label={`View ${wishlistCount} saved excursions`}
           >
             <Heart className={`w-4 h-4 ${wishlistCount > 0 ? 'fill-rose-500 text-rose-500' : ''}`} />
             {wishlistCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-scale">
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                 {wishlistCount}
               </span>
             )}
-          </button>
+          </motion.button>
 
           {/* Compare Button */}
           {comparisonCount > 0 && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.9 }}
               type="button"
               onClick={onOpenCompare}
-              className="relative p-2 text-stone-700 hover:text-[#0A6C74] bg-stone-100 hover:bg-[#E8F3F4] border border-stone-200 rounded-sm transition-colors cursor-pointer"
+              className="relative p-2 text-stone-700 hover:text-[#0A6C74] bg-stone-100 hover:bg-[#E8F3F4] border border-stone-200 rounded-xl transition-all cursor-pointer"
               title="Compare Excursions"
               aria-label={`Compare ${comparisonCount} excursions`}
             >
               <Scale className="w-4 h-4 text-[#0A6C74]" />
-              <span className="absolute -top-1 -right-1 bg-[#0A6C74] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-[#0A6C74] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                 {comparisonCount}
               </span>
-            </button>
+            </motion.button>
           )}
 
           {/* Find My Booking */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
             type="button"
             id="my-booking-header-btn"
             onClick={onOpenMyBooking}
-            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#16283D] bg-stone-100 hover:bg-stone-200 border border-[#E8E3DA] rounded-sm transition-all cursor-pointer"
+            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#16283D] bg-stone-100 hover:bg-stone-200/90 border border-[#E8E3DA] rounded-xl transition-all cursor-pointer"
           >
             <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-[#0A6C74]" />
             {t('nav.findMyBooking')}
-          </button>
+          </motion.button>
 
-          {/* Explore */}
-          <button
-            type="button"
-            onClick={handleExcursionsClick}
-            className="inline-flex items-center px-3.5 py-2 text-xs font-semibold text-stone-700 bg-white hover:bg-stone-50 border border-stone-300 rounded-sm shadow-2xs transition-all cursor-pointer"
-          >
-            <Search className="w-3.5 h-3.5 mr-1.5 text-stone-500" />
-            {t('nav.explore')}
-          </button>
+          {/* User Auth Section */}
+          {user ? (
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                id="user-menu-button"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-sm border border-stone-300 bg-white hover:bg-stone-50 text-xs font-semibold text-stone-800 transition-colors cursor-pointer"
+                aria-expanded={userDropdownOpen}
+              >
+                <div className="w-5 h-5 rounded-full bg-[#0E1B2A] text-white flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{user.fullName.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <span className="max-w-[100px] truncate">{user.fullName.split(' ')[0]}</span>
+                <ChevronDown className={`w-3 h-3 text-stone-400 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {userDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-1.5 w-56 bg-white border border-stone-200 rounded-lg shadow-xl py-1 z-50 text-xs overflow-hidden"
+                  >
+                    <div className="px-3 py-2 border-b border-stone-100 bg-stone-50/70">
+                      <p className="font-bold text-stone-900 truncate">{user.fullName}</p>
+                      <p className="text-[11px] text-stone-500 truncate">{user.email}</p>
+                      <span className={`inline-block mt-1 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${
+                        isAdmin ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {isAdmin ? 'Staff / Admin' : 'Voyager'}
+                      </span>
+                    </div>
+
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          if (onNavigateAccount) onNavigateAccount();
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-stone-50 flex items-center space-x-2 text-stone-700"
+                      >
+                        <User className="w-3.5 h-3.5 text-[#0A6C74]" />
+                        <span>My Account Profile</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          if (onOpenMyBooking) onOpenMyBooking();
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-stone-50 flex items-center space-x-2 text-stone-700"
+                      >
+                        <CalendarCheck className="w-3.5 h-3.5 text-[#0A6C74]" />
+                        <span>My Reservations</span>
+                      </button>
+
+                      {isAdmin && onNavigateAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            onNavigateAdmin();
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-stone-50 flex items-center space-x-2 text-amber-700 font-semibold"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Admin CMS Portal</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border-t border-stone-100 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          signOut();
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center space-x-2"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-1.5">
+              <button
+                type="button"
+                id="header-sign-in-btn"
+                onClick={() => {
+                  if (onNavigateLogin) onNavigateLogin();
+                }}
+                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-stone-700 hover:text-[#0A6C74] hover:bg-stone-100 rounded-xl transition-all cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+                <span>Sign In</span>
+              </button>
+
+              <button
+                type="button"
+                id="header-register-btn"
+                onClick={() => {
+                  if (onNavigateRegister) onNavigateRegister();
+                }}
+                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#0A6C74] hover:text-[#08565C] hover:bg-[#E8F3F4] rounded-xl transition-all cursor-pointer font-medium"
+              >
+                <UserPlus className="w-3.5 h-3.5 mr-1" />
+                <span>Register</span>
+              </button>
+            </div>
+          )}
 
           {/* Book Excursion */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             type="button"
             id="book-excursion-header-btn"
             onClick={handleBookingClick}
-            className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-[#0A6C74] hover:bg-[#08565C] rounded-sm shadow-sm transition-all cursor-pointer hover:scale-[1.02]"
+            className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-[#0A6C74] to-[#0D838C] hover:from-[#08565C] hover:to-[#0A6C74] rounded-xl shadow-sm transition-all cursor-pointer"
           >
             {t('nav.bookExcursion')}
-          </button>
+          </motion.button>
         </div>
 
         {/* Mobile menu button & Wishlist icon */}
@@ -447,6 +574,90 @@ export const Header: React.FC<HeaderProps> = ({
             className="lg:hidden border-t border-[#E8E3DA] bg-[#FAF8F5] px-5 py-5 shadow-lg overflow-hidden"
           >
             <nav className="flex flex-col space-y-3.5 text-base font-medium text-[#0E1B2A]">
+              {/* Mobile User Profile Section */}
+              {user ? (
+                <div className="p-3 bg-stone-100 rounded-lg border border-stone-200 space-y-2.5">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-[#0E1B2A] text-white flex items-center justify-center font-bold text-sm overflow-hidden">
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{user.fullName.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm text-stone-900 truncate">{user.fullName}</p>
+                      <p className="text-xs text-stone-500 truncate">{user.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 pt-1 border-t border-stone-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        if (onNavigateAccount) onNavigateAccount();
+                      }}
+                      className="flex-1 py-1.5 px-2 bg-white hover:bg-stone-50 border border-stone-200 rounded text-xs font-semibold text-stone-800 text-center flex items-center justify-center space-x-1"
+                    >
+                      <User className="w-3.5 h-3.5 text-[#0A6C74]" />
+                      <span>My Profile</span>
+                    </button>
+
+                    {isAdmin && onNavigateAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          onNavigateAdmin();
+                        }}
+                        className="py-1.5 px-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded text-xs font-semibold text-amber-800 text-center flex items-center justify-center space-x-1"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Admin</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        signOut();
+                      }}
+                      className="py-1.5 px-2 bg-white hover:bg-rose-50 border border-stone-200 rounded text-xs font-semibold text-rose-600 text-center flex items-center justify-center space-x-1"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (onNavigateLogin) onNavigateLogin();
+                    }}
+                    className="py-2.5 px-3 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-md text-xs font-bold text-stone-800 flex items-center justify-center space-x-1.5 transition-colors"
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-[#0A6C74]" />
+                    <span>Sign In</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (onNavigateRegister) onNavigateRegister();
+                    }}
+                    className="py-2.5 px-3 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded-md text-xs font-bold flex items-center justify-center space-x-1.5 transition-colors shadow-2xs"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Register</span>
+                  </button>
+                </div>
+              )}
+
               {/* Mobile Language Selector */}
               <div className="p-3 bg-stone-100 rounded-lg border border-stone-200 space-y-2">
                 <span className="text-[11px] uppercase font-bold text-stone-500 tracking-wider flex items-center gap-1.5">

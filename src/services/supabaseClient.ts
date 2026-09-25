@@ -160,7 +160,32 @@ export const formatSupabaseError = (error: unknown): string => {
 
   // Invalid login credentials
   if (message.includes('Invalid login credentials') || message.includes('invalid_grant')) {
-    return 'Invalid email or password. Please verify your credentials.';
+    return 'Invalid email or password. Please verify your credentials and try again.';
+  }
+
+  // Email not confirmed
+  if (message.includes('Email not confirmed') || message.includes('email_not_confirmed')) {
+    return 'Your email address has not been confirmed yet. Please check your inbox for the verification email, or request a new one.';
+  }
+
+  // User already registered
+  if (message.includes('User already registered') || message.includes('user_already_exists') || message.includes('already registered')) {
+    return 'An account with this email address already exists. Please sign in or use password reset.';
+  }
+
+  // Password requirements
+  if (message.includes('Password should be at least') || message.includes('weak_password')) {
+    return 'Password is too weak. It must be at least 6 characters long.';
+  }
+
+  // Over email rate limit
+  if (message.includes('rate limit') || message.includes('over_email_send_rate_limit')) {
+    return 'Too many email requests sent. For security, please wait a minute before requesting another email.';
+  }
+
+  // Expired or invalid recovery/invite link
+  if (message.includes('recovery link') || message.includes('token has expired') || message.includes('token is invalid')) {
+    return 'This password reset link has expired or has already been used. Please request a new link.';
   }
 
   // JWT expired
@@ -168,5 +193,5 @@ export const formatSupabaseError = (error: unknown): string => {
     return 'Your session has expired. Please sign in again.';
   }
 
-  return message || 'Database request failed. Please check your connection and try again.';
+  return message || 'Request failed. Please check your connection and try again.';
 };

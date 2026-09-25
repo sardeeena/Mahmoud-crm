@@ -13,6 +13,7 @@ export interface IBookingRepository {
   createBooking(booking: Booking): Promise<Booking>;
   getBooking(bookingReference: string): Promise<Booking | null>;
   findBooking(bookingReference: string, emailOrPhone: string): Promise<Booking | null>;
+  getBookingsByEmail(email: string): Promise<Booking[]>;
   updateBooking(booking: Booking): Promise<Booking>;
   cancelBooking(bookingReference: string, reason: string): Promise<Booking | null>;
   listBookings(filters?: { status?: string; limit?: number }): Promise<Booking[]>;
@@ -280,6 +281,18 @@ class SupabaseBookingRepository implements IBookingRepository {
     }
 
     return null;
+  }
+
+  async getBookingsByEmail(email: string): Promise<Booking[]> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) return [];
+
+    try {
+      const all = await this.listBookings();
+      return all.filter((b) => b.customer.email.toLowerCase() === cleanEmail);
+    } catch {
+      return this.getLocalBookings().filter((b) => b.customer.email.toLowerCase() === cleanEmail);
+    }
   }
 
   async updateBooking(booking: Booking): Promise<Booking> {
