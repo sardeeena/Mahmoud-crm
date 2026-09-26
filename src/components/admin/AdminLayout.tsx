@@ -140,17 +140,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             {/* Brand Header */}
             <div className="p-4 border-b border-stone-800 flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-lg bg-stone-900 border border-[#0A6C74]/50 overflow-hidden flex items-center justify-center shrink-0 p-0.5 shadow-xs">
-                  <img 
-                    src="/logo.webp" 
-                    alt="Red Sea Logo" 
-                    className="w-full h-full object-cover rounded-md"
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      if (!img.src.endsWith('/logo.png')) img.src = '/logo.png';
-                    }}
-                  />
-                </div>
+                <img 
+                  src="/logo.png" 
+                  alt="Red Sea Logo" 
+                  className="h-10 w-auto object-contain shrink-0 drop-shadow-xs"
+                />
                 <div>
                   <span className="text-[9px] uppercase tracking-widest text-[#0A6C74] font-bold block">
                     Admin Portal

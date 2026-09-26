@@ -110,15 +110,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   if (!user) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#0E1B2A] overflow-hidden flex items-center justify-center mb-4 shadow-md border border-[#0A6C74]/40 p-0.5">
+        <div className="flex items-center justify-center mb-4">
           <img 
-            src="/logo.webp" 
+            src="/logo.png" 
             alt="Red Sea Voyages Logo" 
-            className="w-full h-full object-cover rounded-xl"
-            onError={(e) => {
-              const img = e.currentTarget;
-              if (!img.src.endsWith('/logo.png')) img.src = '/logo.png';
-            }}
+            className="h-20 w-auto object-contain drop-shadow-sm"
           />
         </div>
         <h2 className="font-display text-xl font-bold text-stone-900 mb-2">Sign In Required</h2>

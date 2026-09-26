@@ -347,30 +347,15 @@ export const Header: React.FC<HeaderProps> = ({
         <a 
           href="/" 
           onClick={handleLogoClick}
-          className="flex items-center space-x-3 group"
+          className="flex items-center group focus:outline-hidden"
           id="brand-logo-link"
+          aria-label="Red Sea Excursions Home"
         >
-          <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#0E1B2A] flex items-center justify-center border border-[#0A6C74]/40 group-hover:border-[#0A6C74] transition-all shadow-xs shrink-0 p-0.5">
-            <img 
-              src="/logo.webp" 
-              alt="Red Sea Excursions Logo" 
-              className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                const img = e.currentTarget;
-                if (!img.src.endsWith('/logo.png')) {
-                  img.src = '/logo.png';
-                }
-              }}
-            />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-display font-semibold tracking-wider text-lg sm:text-xl text-[#0E1B2A] leading-tight">
-              RED SEA <span className="text-[#0A6C74] font-medium">EXCURSIONS</span>
-            </span>
-            <span className="text-[10px] tracking-[0.16em] uppercase text-stone-500 font-medium">
-              {t('nav.brandSubtitle')}
-            </span>
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="Red Sea Excursions" 
+            className="h-14 sm:h-16 md:h-20 w-auto object-contain drop-shadow-xs group-hover:scale-105 transition-transform duration-300"
+          />
         </a>
 
         {/* Desktop Nav Links */}

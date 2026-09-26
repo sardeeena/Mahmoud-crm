@@ -308,15 +308,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ redirectUrl, onNavig
         <div className="bg-white border border-[#E8E3DA] rounded-xl shadow-sm p-6 sm:p-8 space-y-6">
           
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-[#0E1B2A] overflow-hidden flex items-center justify-center mx-auto shadow-md border border-[#0A6C74]/40 p-0.5">
+            <div className="flex items-center justify-center mx-auto mb-2">
               <img 
-                src="/logo.webp" 
+                src="/logo.png" 
                 alt="Red Sea Voyages Logo" 
-                className="w-full h-full object-cover rounded-xl"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  if (!img.src.endsWith('/logo.png')) img.src = '/logo.png';
-                }}
+                className="h-16 w-auto object-contain drop-shadow-sm"
               />
             </div>
             <h1 className="font-display text-2xl font-bold text-[#0E1B2A]">Create Voyager Account</h1>

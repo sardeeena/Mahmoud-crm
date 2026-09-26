@@ -91,19 +91,11 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Brand Col */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-3 mb-3.5">
-              <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#16283D] flex items-center justify-center border border-[#0A6C74] shrink-0 p-0.5 shadow-xs">
-                <img 
-                  src="/logo.webp" 
-                  alt="Red Sea Excursions Logo" 
-                  className="w-full h-full object-cover rounded-md"
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    if (!img.src.endsWith('/logo.png')) {
-                      img.src = '/logo.png';
-                    }
-                  }}
-                />
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="Red Sea Excursions Logo" 
+                className="h-12 w-auto object-contain shrink-0 drop-shadow-xs"
+              />
               <span className="font-display font-semibold text-white text-lg tracking-wide">
                 RED SEA <span className="text-[#60C3CC]">EXCURSIONS</span>
               </span>
