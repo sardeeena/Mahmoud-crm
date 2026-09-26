@@ -121,8 +121,16 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate
         <div className="bg-white border border-[#E8E3DA] rounded-xl shadow-sm p-6 sm:p-8 space-y-6">
           
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-xl bg-[#0E1B2A] flex items-center justify-center text-white mx-auto shadow-xs border border-[#0A6C74]/30">
-              <KeyRound className="w-6 h-6 text-[#0A6C74]" />
+            <div className="w-14 h-14 rounded-2xl bg-[#0E1B2A] overflow-hidden flex items-center justify-center mx-auto shadow-md border border-[#0A6C74]/40 p-0.5">
+              <img 
+                src="/logo.webp" 
+                alt="Red Sea Voyages Logo" 
+                className="w-full h-full object-cover rounded-xl"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (!img.src.endsWith('/logo.png')) img.src = '/logo.png';
+                }}
+              />
             </div>
             <h1 className="font-display text-2xl font-bold text-[#0E1B2A]">
               {step === 'completed'

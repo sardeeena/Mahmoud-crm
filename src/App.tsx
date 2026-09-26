@@ -30,6 +30,7 @@ import { bookingRepository } from './services/bookingRepository';
 import { saveBookingDraft, loadBookingDraft } from './services/draftStorage';
 import { getPublishedTours, getTourBySlug } from './services/tourService';
 import { seoService } from './services/seoService';
+import { TourDetailSkeleton } from './components/tours/TourDetailSkeleton';
 import { Compass } from 'lucide-react';
 
 // Providers
@@ -58,7 +59,7 @@ function MainApp() {
 
   // Live published tours loaded dynamically from Supabase
   const [liveTours, setLiveTours] = useState<Tour[]>(ALL_TOURS);
-  const [loadingTours, setLoadingTours] = useState<boolean>(false);
+  const [loadingTours, setLoadingTours] = useState<boolean>(true);
 
   // Drawer / Modal states
   const [isWishlistOpen, setIsWishlistOpen] = useState<boolean>(false);
@@ -628,13 +629,7 @@ function MainApp() {
         );
       }
 
-      return (
-        <div className="min-h-screen bg-[#FAF8F5] py-24 px-4 text-center">
-          <div className="w-8 h-8 border-2 border-[#0A6C74] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <h2 className="font-display text-lg font-bold text-stone-900">Loading Tour Experience...</h2>
-          <p className="text-xs text-stone-500 mt-1">Fetching details from Supabase</p>
-        </div>
-      );
+      return <TourDetailSkeleton />;
     }
 
     // 5. Excursions Discovery Page: /excursions
@@ -643,6 +638,7 @@ function MainApp() {
         <ExcursionsPage
           currency={currentCurrency}
           tours={liveTours}
+          isLoading={loadingTours}
           initialDestination={initialSearchFilter.destination}
           initialCategory={initialSearchFilter.category}
           onNavigateHome={() => navigate('/')}
@@ -662,10 +658,11 @@ function MainApp() {
             resultCount={liveTours.length}
           />
 
-          {/* Popular Tours Section */}
+          {/* Popular Tours Section with Skeleton Loading */}
           <PopularTours
             tours={liveTours.slice(0, 8)}
             currency={currentCurrency}
+            isLoading={loadingTours}
             onSelectTour={handleViewTour}
             onQuickBook={handleStartBooking}
             onViewAllExcursions={() => navigate('/excursions')}

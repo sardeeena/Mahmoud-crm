@@ -9,12 +9,14 @@ import {
 import { Tour, CurrencyConfig } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { TourCard } from '../tours/TourCard';
+import { TourCardSkeleton } from '../tours/TourCardSkeleton';
 import { TourPreviewModal } from './TourPreviewModal';
 import { QuickBookModal } from './QuickBookModal';
 
 interface PopularToursProps {
   tours: Tour[];
   currency: CurrencyConfig;
+  isLoading?: boolean;
   onSelectTour: (tour: Tour) => void;
   onQuickBook: (tour: Tour) => void;
   onViewAllExcursions?: () => void;
@@ -25,6 +27,7 @@ interface PopularToursProps {
 export const PopularTours: React.FC<PopularToursProps> = ({
   tours,
   currency,
+  isLoading = false,
   onSelectTour,
   onQuickBook,
   onViewAllExcursions,
@@ -108,8 +111,18 @@ export const PopularTours: React.FC<PopularToursProps> = ({
           })}
         </div>
 
-        {/* Tours Grid with Motion Animations */}
-        {filteredTours.length === 0 ? (
+        {/* Tours Grid with Motion Animations or Skeleton Loader */}
+        {isLoading ? (
+          <div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            aria-busy="true"
+            aria-label="Loading handpicked excursions from Supabase"
+          >
+            {[...Array(8)].map((_, index) => (
+              <TourCardSkeleton key={index} />
+            ))}
+          </div>
+        ) : filteredTours.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E8E3DA] p-12 text-center my-6 shadow-sm">
             <p className="text-stone-700 font-semibold text-base mb-1">No excursions match your current filter.</p>
             <p className="text-stone-500 text-xs mb-4">Try clearing your filters or selecting a different category.</p>

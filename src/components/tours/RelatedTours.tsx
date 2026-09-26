@@ -1,11 +1,13 @@
 import React from 'react';
 import { Tour, CurrencyConfig } from '../../types';
 import { TourCard } from './TourCard';
+import { TourCardSkeleton } from './TourCardSkeleton';
 
 interface RelatedToursProps {
   currentTour: Tour;
   allTours: Tour[];
   currency: CurrencyConfig;
+  isLoading?: boolean;
   onViewTour: (tour: Tour) => void;
   onBookNow?: (tour: Tour) => void;
 }
@@ -14,9 +16,26 @@ export const RelatedTours: React.FC<RelatedToursProps> = ({
   currentTour,
   allTours,
   currency,
+  isLoading = false,
   onViewTour,
   onBookNow,
 }) => {
+  if (isLoading) {
+    return (
+      <section className="pt-10 border-t border-stone-200">
+        <div className="mb-6 space-y-1">
+          <div className="w-32 h-3 bg-stone-200 rounded animate-shimmer" />
+          <div className="w-48 h-6 bg-stone-200 rounded animate-shimmer" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {[...Array(4)].map((_, i) => (
+            <TourCardSkeleton key={i} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   // Find related tours matching category, destination, or categories
   const related = allTours
     .filter((t) => t.id !== currentTour.id)

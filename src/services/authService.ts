@@ -8,6 +8,7 @@ export interface AppUser {
   role: UserRole;
   avatarUrl?: string;
   phoneNumber?: string;
+  phone?: string;
   countryCode?: string;
   country?: string;
   isDemo?: boolean;

@@ -13,11 +13,17 @@ import {
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { useToast } from './ToastContext';
 
+export type AuthModalView = 'login' | 'register' | 'forgot' | 'forgot_password' | 'verify' | 'staff';
+
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   isAdmin: boolean;
+  isStaff: boolean;
   isCustomer: boolean;
+  authModalView: AuthModalView | null;
+  openAuthModal: (view?: AuthModalView) => void;
+  closeAuthModal: () => void;
   signIn: (email: string, pass: string) => Promise<{ 
     success: boolean; 
     error?: string; 
@@ -29,19 +35,24 @@ interface AuthContextType {
     password: string;
     fullName: string;
     phoneNumber?: string;
+    phone?: string;
     countryCode?: string;
     country?: string;
   }) => Promise<{ 
     success: boolean; 
     error?: string; 
     requiresEmailConfirmation?: boolean; 
+    needsEmailConfirmation?: boolean;
     email?: string;
     confirmationToken?: string;
   }>;
   resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  resendVerification: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   confirmEmail: (email: string, token?: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; resetCode?: string }>;
+  sendPasswordReset: (email: string) => Promise<{ success: boolean; error?: string; message?: string; resetCode?: string }>;
   updatePassword: (newPassword: string, email?: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: Partial<AppUser>) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -55,7 +66,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { showToast } = useToast();
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [authModalView, setAuthModalView] = useState<AuthModalView | null>(null);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const openAuthModal = useCallback((view: AuthModalView = 'login') => {
+    setAuthModalView(view);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setAuthModalView(null);
+  }, []);
+
+  const updateProfile = async (data: Partial<AppUser>) => {
+    if (user) {
+      const updated = { ...user, ...data };
+      if (data.phone && !data.phoneNumber) {
+        updated.phoneNumber = data.phone;
+      }
+      setUser(updated);
+      try {
+        localStorage.setItem('redsea_auth_user', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+    }
+    return { success: true };
+  };
 
   const refreshUser = useCallback(async () => {
     try {
@@ -144,17 +180,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string;
     fullName: string;
     phoneNumber?: string;
+    phone?: string;
     countryCode?: string;
     country?: string;
   }) => {
     setLoading(true);
-    const result = await signUpUser(data);
+    const result = await signUpUser({
+      ...data,
+      phoneNumber: data.phoneNumber || data.phone,
+    });
     // User is NOT set as active yet because email confirmation is required!
     setLoading(false);
     return { 
       success: !result.error, 
       error: result.error,
       requiresEmailConfirmation: result.requiresEmailConfirmation,
+      needsEmailConfirmation: result.requiresEmailConfirmation,
       email: result.email,
       confirmationToken: result.confirmationToken,
     };
@@ -177,6 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'manager' || user.role === 'staff'));
+  const isStaff = isAdmin;
   const isCustomer = Boolean(user && user.role === 'customer');
 
   return (
@@ -185,13 +227,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         isAdmin,
+        isStaff,
         isCustomer,
+        authModalView,
+        openAuthModal,
+        closeAuthModal,
         signIn: handleSignIn,
         signUp: handleSignUp,
         resendConfirmation: handleResendConfirmation,
+        resendVerification: handleResendConfirmation,
         confirmEmail: handleConfirmEmail,
         resetPassword: handleResetPassword,
+        sendPasswordReset: handleResetPassword,
         updatePassword: handleUpdatePassword,
+        updateProfile,
         signOut: () => handleSignOut(false),
         refreshUser,
       }}

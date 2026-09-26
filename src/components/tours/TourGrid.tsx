@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Tour, CurrencyConfig } from '../../types';
 import { TourCard } from './TourCard';
+import { TourCardSkeleton } from './TourCardSkeleton';
 import { SearchX, RotateCcw } from 'lucide-react';
 import { TourPreviewModal } from '../home/TourPreviewModal';
 
 interface TourGridProps {
   tours: Tour[];
   currency: CurrencyConfig;
+  isLoading?: boolean;
+  skeletonCount?: number;
   onViewTour: (tour: Tour) => void;
   onBookNow?: (tour: Tour) => void;
   onClearFilters?: () => void;
@@ -16,11 +19,27 @@ interface TourGridProps {
 export const TourGrid: React.FC<TourGridProps> = ({
   tours,
   currency,
+  isLoading = false,
+  skeletonCount = 6,
   onViewTour,
   onBookNow,
   onClearFilters,
 }) => {
   const [quickViewTour, setQuickViewTour] = useState<Tour | null>(null);
+
+  if (isLoading) {
+    return (
+      <div 
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+        aria-busy="true"
+        aria-label="Loading excursions from Supabase"
+      >
+        {[...Array(skeletonCount)].map((_, i) => (
+          <TourCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
 
   if (tours.length === 0) {
     return (

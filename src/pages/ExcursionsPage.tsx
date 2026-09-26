@@ -50,6 +50,7 @@ function getInitialPersistedFilters(): FilterState {
 interface ExcursionsPageProps {
   currency: CurrencyConfig;
   tours?: Tour[];
+  isLoading?: boolean;
   initialDestination?: string;
   initialCategory?: string;
   onNavigateHome: () => void;
@@ -60,6 +61,7 @@ interface ExcursionsPageProps {
 export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
   currency,
   tours = ALL_TOURS,
+  isLoading = false,
   initialDestination,
   initialCategory,
   onNavigateHome,
@@ -364,10 +366,12 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
             activeFiltersCount={activeFiltersCount}
           />
 
-          {/* Tour Grid */}
+          {/* Tour Grid with Skeleton Loading */}
           <TourGrid
             tours={filteredTours}
             currency={currency}
+            isLoading={isLoading}
+            skeletonCount={6}
             onViewTour={onViewTour}
             onBookNow={onBookTour}
             onClearFilters={handleClearAll}

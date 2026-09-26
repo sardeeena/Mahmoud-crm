@@ -110,7 +110,17 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   if (!user) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-center">
-        <Compass className="w-12 h-12 text-[#0A6C74] mb-3 animate-pulse" />
+        <div className="w-16 h-16 rounded-2xl bg-[#0E1B2A] overflow-hidden flex items-center justify-center mb-4 shadow-md border border-[#0A6C74]/40 p-0.5">
+          <img 
+            src="/logo.webp" 
+            alt="Red Sea Voyages Logo" 
+            className="w-full h-full object-cover rounded-xl"
+            onError={(e) => {
+              const img = e.currentTarget;
+              if (!img.src.endsWith('/logo.png')) img.src = '/logo.png';
+            }}
+          />
+        </div>
         <h2 className="font-display text-xl font-bold text-stone-900 mb-2">Sign In Required</h2>
         <p className="text-xs text-stone-600 mb-4 max-w-sm">
           Please sign in to view your profile and manage all past and upcoming excursion bookings.

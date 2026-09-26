@@ -115,8 +115,16 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl space-y-6">
           {/* Brand & Title */}
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-xl bg-[#0A6C74]/20 border border-[#0A6C74]/40 text-[#2dd4bf] flex items-center justify-center mx-auto mb-3">
-              <Compass className="w-6 h-6" />
+            <div className="w-14 h-14 rounded-2xl bg-stone-950 border border-[#0A6C74]/50 overflow-hidden flex items-center justify-center mx-auto mb-3 shadow-lg p-0.5">
+              <img 
+                src="/logo.webp" 
+                alt="Red Sea Voyages Logo" 
+                className="w-full h-full object-cover rounded-xl"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (!img.src.endsWith('/logo.png')) img.src = '/logo.png';
+                }}
+              />
             </div>
             <span className="text-[10px] uppercase font-bold tracking-widest text-[#0A6C74]">
               Staff & Operations Portal

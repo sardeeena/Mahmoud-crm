@@ -71,6 +71,57 @@ export const Header: React.FC<HeaderProps> = ({
   const languageRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const lastScrollY = useRef(0);
+
+  // Auto-hide & fade away on scroll down, animate & fade back in on scroll up
+  useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+
+          // Always visible at the top
+          if (currentScrollY <= 25) {
+            setIsHeaderVisible(true);
+            setIsScrolled(false);
+            lastScrollY.current = currentScrollY;
+            ticking = false;
+            return;
+          }
+
+          setIsScrolled(true);
+
+          // Keep visible if mobile menu or dropdowns are open
+          if (mobileMenuOpen || currencyDropdownOpen || languageDropdownOpen || userDropdownOpen) {
+            setIsHeaderVisible(true);
+            lastScrollY.current = currentScrollY;
+            ticking = false;
+            return;
+          }
+
+          // If scrolled down by more than 6px past threshold, fade away
+          if (currentScrollY > lastScrollY.current + 6 && currentScrollY > 50) {
+            setIsHeaderVisible(false);
+          } else if (currentScrollY < lastScrollY.current - 6) {
+            // Scrolling up reveals it with animation
+            setIsHeaderVisible(true);
+          }
+
+          lastScrollY.current = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [mobileMenuOpen, currencyDropdownOpen, languageDropdownOpen, userDropdownOpen]);
+
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -129,9 +180,17 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E3DA] transition-all">
+    <header 
+      className={`sticky top-0 z-40 w-full bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E3DA] transition-all duration-300 ease-in-out transform ${
+        isHeaderVisible 
+          ? 'translate-y-0 opacity-100 shadow-xs' 
+          : '-translate-y-full opacity-0 pointer-events-none'
+      }`}
+    >
       {/* Top Utility Bar */}
-      <div className="bg-[#0E1B2A] text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-slate-800">
+      <div className={`bg-[#0E1B2A] text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-slate-800 transition-all duration-300 ease-in-out ${
+        isHeaderVisible ? 'opacity-100' : 'opacity-0'
+      }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-end gap-3">
           <div className="flex items-center space-x-3.5 ml-auto">
             {/* Direct WhatsApp Hotline */}
@@ -277,7 +336,13 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      <div 
+        className={`max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all duration-300 ease-in-out ${
+          isHeaderVisible
+            ? 'opacity-100 translate-y-0'
+            : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
         {/* Brand Logo */}
         <a 
           href="/" 
@@ -285,8 +350,18 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center space-x-3 group"
           id="brand-logo-link"
         >
-          <div className="w-10 h-10 rounded-sm bg-[#0E1B2A] flex items-center justify-center text-[#E8E3DA] border border-[#0A6C74]/40 group-hover:border-[#0A6C74] transition-colors">
-            <Compass className="w-6 h-6 text-[#0A6C74]" />
+          <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#0E1B2A] flex items-center justify-center border border-[#0A6C74]/40 group-hover:border-[#0A6C74] transition-all shadow-xs shrink-0 p-0.5">
+            <img 
+              src="/logo.webp" 
+              alt="Red Sea Excursions Logo" 
+              className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (!img.src.endsWith('/logo.png')) {
+                  img.src = '/logo.png';
+                }
+              }}
+            />
           </div>
           <div className="flex flex-col">
             <span className="font-display font-semibold tracking-wider text-lg sm:text-xl text-[#0E1B2A] leading-tight">
