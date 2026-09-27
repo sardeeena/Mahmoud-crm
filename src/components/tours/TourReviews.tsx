@@ -21,9 +21,9 @@ export const TourReviews: React.FC<TourReviewsProps> = ({ tour }) => {
 
   const totalReviews = tour.reviewCount || 100;
 
-  const verifiedReviewsList = tour.reviews && tour.reviews.length > 0 ? tour.reviews : [
+  const demoReviewsList = tour.reviews && tour.reviews.length > 0 ? tour.reviews : [
     {
-      id: 'rev-001',
+      id: 'demo-1',
       authorName: 'Katharina S.',
       country: 'Germany',
       countryCode: 'DE',
@@ -36,7 +36,7 @@ export const TourReviews: React.FC<TourReviewsProps> = ({ tour }) => {
       verifiedBooking: true,
     },
     {
-      id: 'rev-002',
+      id: 'demo-2',
       authorName: 'Liam O.',
       country: 'United Kingdom',
       countryCode: 'GB',
@@ -49,7 +49,7 @@ export const TourReviews: React.FC<TourReviewsProps> = ({ tour }) => {
       verifiedBooking: true,
     },
     {
-      id: 'rev-003',
+      id: 'demo-3',
       authorName: 'Camille L.',
       country: 'France',
       countryCode: 'FR',
@@ -136,7 +136,7 @@ export const TourReviews: React.FC<TourReviewsProps> = ({ tour }) => {
 
       {/* Individual Review Cards */}
       <div className="space-y-4">
-        {verifiedReviewsList.map((rev) => (
+        {demoReviewsList.map((rev) => (
           <div 
             key={rev.id} 
             className="p-4 bg-white border border-[#E8E3DA] rounded-sm text-xs space-y-2"

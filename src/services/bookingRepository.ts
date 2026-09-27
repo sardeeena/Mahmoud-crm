@@ -28,7 +28,93 @@ export function generateBookingReference(): string {
   return `RST-${currentYear}-${char1}${char2}${digits}`;
 }
 
-const SEED_BOOKINGS: Booking[] = [];
+const SEED_BOOKINGS: Booking[] = [
+  {
+    bookingId: 'b2000000-0000-0000-0000-000000000001',
+    bookingReference: 'RST-2026-AB4821',
+    tourId: 't1000000-0000-0000-0000-000000000001',
+    tourSlug: 'orange-bay-island-snorkeling',
+    tourTitle: 'Orange Bay Island & Snorkeling Cruise',
+    tourImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+    tourDestination: 'Hurghada',
+    tourDuration: 'Full Day (approx. 7 hours)',
+    date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+    guests: {
+      adults: 2,
+      children: 1,
+      infants: 0,
+    },
+    pickup: {
+      locationId: 'hurghada',
+      locationName: 'Hurghada Hotels',
+      area: 'Hurghada (Mamsha, Dahar, Sheraton, Marina)',
+      feeEur: 0,
+      hotelName: 'Steigenberger ALDAU Beach Resort',
+      roomNumber: '412',
+    },
+    extras: [
+      {
+        extraId: 'e1000000-0000-0000-0000-000000000001',
+        name: 'GoPro Underwater Camera Rental (16GB SD Included)',
+        priceEur: 25,
+        pricingType: 'per_booking',
+        quantity: 1,
+        amountEur: 25,
+      },
+    ],
+    pricing: {
+      basePricePerAdultEur: 35,
+      basePricePerChildEur: 18,
+      adultSubtotalEur: 70,
+      childSubtotalEur: 18,
+      infantSubtotalEur: 0,
+      pickupSubtotalEur: 0,
+      pickupFeePerPersonEur: 0,
+      extrasSubtotalEur: 25,
+      extrasBreakdown: [
+        {
+          extraId: 'e1000000-0000-0000-0000-000000000001',
+          name: 'GoPro Underwater Camera Rental',
+          amountEur: 25,
+          pricingType: 'per_booking',
+          quantity: 1,
+        },
+      ],
+      discountEur: 0,
+      subtotalEur: 88,
+      totalEur: 113,
+      formattedTotal: '€113.00',
+      formattedSubtotal: '€88.00',
+    },
+    customer: {
+      firstName: 'Markus',
+      lastName: 'Weber',
+      email: 'markus.weber@outlook.de',
+      countryCode: '+49',
+      phoneNumber: '170 1234567',
+      country: 'Germany',
+      whatsappNumber: '+49 170 1234567',
+      hotelName: 'Steigenberger ALDAU Beach Resort',
+      roomNumber: '412',
+      specialRequests: 'Please seat us on the upper sun deck. Vegetarian meal for 1 adult.',
+    },
+    paymentMethod: 'pay_at_pickup',
+    paymentStatus: 'pending',
+    status: 'confirmed',
+    bookingStatus: 'confirmed',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    timeline: [
+      {
+        id: 'ev-1',
+        timestamp: new Date().toISOString(),
+        title: 'Booking Confirmed',
+        description: 'Reservation accepted. Vouchers dispatched.',
+        type: 'created',
+      },
+    ],
+  },
+];
 
 class SupabaseBookingRepository implements IBookingRepository {
   private localKey = 'rse_bookings_cache';

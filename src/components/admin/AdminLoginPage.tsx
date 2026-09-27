@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lock, Mail, Compass, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff, Clock } from 'lucide-react';
+import { Lock, Mail, Compass, AlertCircle, ArrowLeft, ShieldCheck, Key, Eye, EyeOff, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { ClientRateLimiter, sanitizeString } from '../../lib/security';
@@ -16,8 +16,8 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
   redirectUrl,
 }) => {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@redseavoyages.com');
+  const [password, setPassword] = useState('admin123');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -83,6 +83,12 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
     }
   };
 
+  const fillDemoCredentials = () => {
+    setEmail('admin@redseavoyages.com');
+    setPassword('admin123');
+    setErrorMsg(null);
+  };
+
   return (
     <div className="min-h-screen bg-stone-950 flex flex-col justify-between text-stone-100 p-4 sm:p-6 antialiased selection:bg-[#0A6C74] selection:text-white">
       {/* Top Bar */}
@@ -99,7 +105,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-[11px] text-stone-400 uppercase tracking-widest font-mono">
-            {isSupabaseConfigured() ? 'Supabase Auth Protected' : 'Secure Admin Portal'}
+            {isSupabaseConfigured() ? 'Supabase Auth Protected' : 'Sandbox Admin Auth'}
           </span>
         </div>
       </div>
@@ -212,6 +218,24 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
               )}
             </button>
           </form>
+
+          {/* Quick Demo Helper */}
+          <div className="p-3 bg-stone-950/80 rounded-lg border border-stone-800/80 space-y-2 text-center">
+            <div className="flex items-center justify-center space-x-1 text-stone-400 text-[11px]">
+              <Key className="w-3 h-3 text-amber-400" />
+              <span>Demo Administrator Access:</span>
+            </div>
+            <div className="text-[11px] font-mono text-stone-300 bg-stone-900 py-1 px-2 rounded">
+              admin@redseavoyages.com / admin123
+            </div>
+            <button
+              type="button"
+              onClick={fillDemoCredentials}
+              className="text-[11px] text-[#2dd4bf] hover:underline block mx-auto font-medium cursor-pointer"
+            >
+              Auto-fill Demo Credentials
+            </button>
+          </div>
         </div>
       </div>
 

@@ -187,24 +187,24 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                   required
                   value={reference}
                   onChange={(e) => setReference(e.target.value.toUpperCase())}
-                  placeholder="e.g. RST-2026-AB4821"
+                  placeholder="e.g. RST-2026-AB4821 or RSE-88214"
                   className="w-full px-3.5 py-2.5 rounded border border-stone-300 text-sm uppercase font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-[#0A6C74] bg-stone-50/50"
                 />
                 <span className="text-[11px] text-stone-500 mt-1 block">
-                  Found on your digital confirmation email or SMS voucher.
+                  Tip: You can test with demo seeded code: <strong className="font-mono text-stone-700">RST-2026-AB4821</strong>
                 </span>
               </div>
 
               <div>
                 <label htmlFor="lookup-contact" className="block text-xs font-bold text-stone-800 mb-1">
-                  Email or phone number <span className="text-stone-400 font-normal">(Used during booking)</span>
+                  Email or phone number <span className="text-stone-400 font-normal">(Optional for demo)</span>
                 </label>
                 <input
                   id="lookup-contact"
                   type="text"
                   value={emailOrPhone}
                   onChange={(e) => setEmailOrPhone(e.target.value)}
-                  placeholder="name@example.com or +20..."
+                  placeholder="markus.weber@outlook.de or 1701234567"
                   className="w-full px-3.5 py-2.5 rounded border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6C74] bg-stone-50/50"
                 />
               </div>

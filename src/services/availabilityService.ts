@@ -36,8 +36,9 @@ export function meetsNoticeRequirement(dateStr: string, minNoticeHours: number):
 }
 
 /**
- * Fleet Availability Engine
- * Calculates available vessel capacity and booking schedule based on tour ID, max guests, and date.
+ * Demo Availability Engine
+ * Generates realistic yet deterministic demo capacities based on tour ID and date.
+ * Clearly tagged with demo indicators until live vessel manifest DB is integrated.
  */
 export function getTourAvailability(
   tour: Tour,
@@ -63,7 +64,7 @@ export function getTourAvailability(
     };
   }
 
-  // Calculate deterministic capacity for this tour & date schedule
+  // Generate a pseudo-random yet consistent capacity for this tour & date in DEMO_MODE
   const seedString = `${tour.id}-${selectedDate}`;
   let hash = 0;
   for (let i = 0; i < seedString.length; i++) {

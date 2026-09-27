@@ -18,15 +18,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [language, setLanguageState] = useState<LanguageCode>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY) as LanguageCode | null;
-      if (saved && (saved === 'en' || saved === 'de' || saved === 'ru' || saved === 'it' || saved === 'ro')) {
+      if (saved && (saved === 'en' || saved === 'de' || saved === 'ru')) {
         return saved;
       }
       // Detect browser language
       const browserLang = navigator.language?.toLowerCase() || '';
       if (browserLang.startsWith('de')) return 'de';
       if (browserLang.startsWith('ru')) return 'ru';
-      if (browserLang.startsWith('it')) return 'it';
-      if (browserLang.startsWith('ro')) return 'ro';
     } catch {
       // Ignore localStorage security/privacy restrictions
     }
