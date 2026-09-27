@@ -121,7 +121,7 @@ export const TourFilters: React.FC<TourFiltersProps> = ({
   ];
 
   const tourTypesList = ['Shared', 'Private'];
-  const languagesList = ['English', 'German', 'French', 'Italian', 'Russian'];
+  const languagesList = ['English', 'German', 'Italian', 'Romanian', 'French', 'Russian'];
 
   // Currency conversion helpers
   const formatWithRate = (eur: number) => {
