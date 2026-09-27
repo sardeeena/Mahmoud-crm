@@ -127,6 +127,16 @@ Both trips include air-conditioned coach transfers, lunch at a local restaurant,
 • **Flexibility:** Custom itinerary tailored to you—visit secret sandbars, snorkel with wild dolphins away from crowded big boats, or dock at Orange Bay early.
 • **Price:** €${tour.priceEur} per boat (up to 6 guests).
 • **Inclusions:** Captain, fuel, private hotel transfers, snorkeling gear, fresh fruit platter, and soft drinks.`;
+  } else if (p.includes('book') || p.includes('reservation') || p.includes('how to') || p.includes('pay') || p.includes('cash') || p.includes('reserve')) {
+    tours = ALL_TOURS.slice(0, 2);
+    content = `Booking your Red Sea excursion is fast, simple, and completely risk-free:
+
+• **Direct Booking from Chat:** Simply click the **"Book"** button on any excursion card above or below to start reservation instantly!
+• **Pay on Pickup Option:** Zero upfront card payment needed if you prefer—you can select "Pay at Pickup" and pay in cash (EUR, USD, GBP, EGP) or card upon hotel lobby pickup.
+• **Free 24-Hour Cancellation:** Full flexibility to modify dates or cancel up to 24 hours prior.
+• **Coast Guard Voucher:** You'll immediately receive an official voucher with your pickup schedule and harbor berth details.
+
+Which excursion would you like to reserve?`;
   } else {
     // General overview
     tours = ALL_TOURS.slice(0, 3);

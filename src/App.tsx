@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
-import { WhatsAppFloatingButton } from './components/common/WhatsAppFloatingButton';
+import { FloatingAIChatbot } from './components/common/FloatingAIChatbot';
 import { WishlistDrawer } from './components/common/WishlistDrawer';
 import { CompareModal } from './components/common/CompareModal';
 import { CompareFloatingBar } from './components/common/CompareFloatingBar';
@@ -756,8 +756,15 @@ function MainApp() {
         onOpenAdmin={() => navigate('/admin')}
       />
 
-      {/* Floating WhatsApp Quick Inquiries Widget */}
-      <WhatsAppFloatingButton currentPath={currentPath} />
+      {/* Floating AI Concierge Chatbot (floating button on left side) */}
+      {!isAdminRoute && (
+        <FloatingAIChatbot
+          currency={currentCurrency}
+          onViewTour={handleViewTour}
+          onBookTour={handleStartBooking}
+          currentPath={currentPath}
+        />
+      )}
 
       {/* Slide-over Saved Excursions (Wishlist) Drawer */}
       <WishlistDrawer

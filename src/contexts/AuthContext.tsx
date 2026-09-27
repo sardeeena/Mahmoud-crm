@@ -148,6 +148,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUser();
 
     if (isSupabaseConfigured()) {
+      // Exchange code or token_hash if landing directly from an email confirmation link
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const tokenHash = params.get('token_hash');
+        const otpType = params.get('type') || 'signup';
+
+        if (code) {
+          supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+            if (!error && data?.user) {
+              refreshUser();
+            }
+          }).catch((err) => console.warn('Global PKCE exchange notice:', err));
+        } else if (tokenHash) {
+          supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: (otpType as any) || 'signup',
+          }).then(({ data, error }) => {
+            if (!error && data?.user) {
+              refreshUser();
+            }
+          }).catch((err) => console.warn('Global verifyOtp notice:', err));
+        }
+      } catch {
+        // ignore
+      }
+
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
           await refreshUser();

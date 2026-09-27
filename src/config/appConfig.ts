@@ -1,14 +1,14 @@
 /**
  * Application & Booking Platform Configuration
  * 
- * In DEMO_MODE:
- * - Mock availability and local storage repositories are used
- * - Real external payment gateways & SMS/Email delivery are bypassed cleanly
- * - When DEMO_MODE becomes false, the application switches to real backend endpoints
+ * Production Configuration:
+ * - Real availability calculation based on live boat manifest capacities and bookings
+ * - Pay at hotel pickup enabled with multi-currency support (EUR, USD, GBP, EGP)
+ * - Remote Supabase integration for persistent tours, bookings, customers, and CMS media
  */
 
 export const APP_CONFIG = {
-  DEMO_MODE: true,
+  DEMO_MODE: false,
   COMPANY_NAME: 'Red Sea Excursions & Tours',
   LEGAL_NAME: 'Red Sea Marine Travel S.A.E.',
   

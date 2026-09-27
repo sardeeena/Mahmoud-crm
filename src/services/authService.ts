@@ -121,13 +121,149 @@ export async function signInUser(
     return { user: DEMO_ADMIN };
   }
 
-  // 3. Check Local Registered Users
+  // 3. Try Supabase Auth FIRST if configured (Supabase is source of truth for email verification)
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (!error && data.user) {
+        // Check if account email is verified
+        const isEmailConfirmed = Boolean(
+          data.user.email_confirmed_at ||
+          (data.user as any)?.confirmed_at ||
+          data.session
+        );
+
+        if (!isEmailConfirmed) {
+          return {
+            user: null,
+            error: 'Your account has not been confirmed yet. Please check your inbox for the confirmation email from Supabase and click the verification link.',
+            requiresEmailConfirmation: true,
+            unconfirmedEmail: cleanEmail,
+          };
+        }
+
+        // Check or update role in profiles table
+        let userRole: UserRole = (data.user.user_metadata?.role as UserRole) || 'customer';
+        let profileFullName = data.user.user_metadata?.full_name || 'Voyager';
+        let profilePhone = data.user.user_metadata?.phone;
+        let profileCountry = data.user.user_metadata?.country;
+        let profileAvatar = data.user.user_metadata?.avatar_url;
+
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle();
+
+          if (profile) {
+            if (profile.role) userRole = profile.role as UserRole;
+            if (profile.full_name) profileFullName = profile.full_name;
+            if (profile.phone) profilePhone = profile.phone;
+            if (profile.avatar_url) profileAvatar = profile.avatar_url;
+            if (profile.country) profileCountry = profile.country;
+
+            // Ensure profile is marked confirmed
+            if (!profile.is_confirmed) {
+              await supabase.from('profiles').update({ is_confirmed: true }).eq('id', data.user.id);
+            }
+          }
+        } catch {
+          // ignore profile sync failure
+        }
+
+        // Sync local registered copy if it exists so local storage reflects confirmed status
+        const localUsers = getStoredLocalUsers();
+        const matchedLocal = localUsers.find((u) => u.user.email.toLowerCase() === cleanEmail);
+        if (matchedLocal) {
+          matchedLocal.isConfirmed = true;
+          matchedLocal.user.isConfirmed = true;
+          saveStoredLocalUsers(localUsers);
+        }
+
+        const authedUser: AppUser = {
+          id: data.user.id,
+          email: data.user.email || cleanEmail,
+          fullName: profileFullName,
+          role: userRole,
+          avatarUrl: profileAvatar,
+          phoneNumber: profilePhone,
+          country: profileCountry,
+          isConfirmed: true,
+          isDemo: false,
+        };
+
+        localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(authedUser));
+        if (authedUser.role === 'admin' || authedUser.role === 'manager') {
+          localStorage.setItem('rse_demo_admin', 'true');
+        }
+        return { user: authedUser };
+      }
+
+      // If Supabase returned an error:
+      const errorMsg = error ? formatSupabaseError(error) : '';
+      const isNotConfirmed =
+        errorMsg.toLowerCase().includes('email not confirmed') ||
+        errorMsg.toLowerCase().includes('not confirmed') ||
+        (error as any)?.code === 'email_not_confirmed';
+
+      if (isNotConfirmed) {
+        // Check if the user was confirmed locally
+        const localUsers = getStoredLocalUsers();
+        const matchedLocal = localUsers.find(
+          (u) => u.user.email.toLowerCase() === cleanEmail && u.passwordHash === password
+        );
+        if (matchedLocal && matchedLocal.isConfirmed === true) {
+          localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(matchedLocal.user));
+          return { user: matchedLocal.user };
+        }
+
+        return {
+          user: null,
+          error: 'Your account has not been confirmed yet. Please check your inbox for the confirmation email from Supabase and click the verification link.',
+          requiresEmailConfirmation: true,
+          unconfirmedEmail: cleanEmail,
+        };
+      }
+
+      // If Supabase returned another error (e.g. invalid credentials or network/schema error),
+      // check if user registered in local registry fallback
+      const localUsers = getStoredLocalUsers();
+      const matchedLocal = localUsers.find(
+        (u) => u.user.email.toLowerCase() === cleanEmail && u.passwordHash === password
+      );
+      if (matchedLocal) {
+        if (matchedLocal.isConfirmed === false) {
+          return {
+            user: null,
+            error: 'Your account is pending email confirmation. Please check the email sent from Supabase and click the confirmation link to activate your account.',
+            requiresEmailConfirmation: true,
+            unconfirmedEmail: cleanEmail,
+          };
+        }
+        localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(matchedLocal.user));
+        return { user: matchedLocal.user };
+      }
+
+      return {
+        user: null,
+        error: errorMsg || 'Invalid email or password. Please verify your credentials.',
+      };
+    } catch (err) {
+      console.warn('Supabase sign-in failed, checking local registry:', err);
+    }
+  }
+
+  // 4. Fallback: Check Local Registered Users (when Supabase is offline or unconfigured)
   const localUsers = getStoredLocalUsers();
   const matchedLocal = localUsers.find(
     (u) => u.user.email.toLowerCase() === cleanEmail && u.passwordHash === password
   );
   if (matchedLocal) {
-    // Enforce that account is confirmed
     if (matchedLocal.isConfirmed === false) {
       return {
         user: null,
@@ -142,68 +278,6 @@ export async function signInUser(
       localStorage.setItem('rse_demo_admin', 'true');
     }
     return { user: matchedLocal.user };
-  }
-
-  // 4. Try Supabase Auth if configured
-  if (isSupabaseConfigured()) {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
-
-      if (error || !data.user) {
-        const errorMsg = error ? formatSupabaseError(error) : 'Invalid credentials';
-        const isNotConfirmed = 
-          errorMsg.toLowerCase().includes('email not confirmed') ||
-          (error as any)?.code === 'email_not_confirmed';
-
-        return { 
-          user: null, 
-          error: isNotConfirmed 
-            ? 'Your account has not been confirmed yet. Please check your inbox for the confirmation email from Supabase and click the verification link.'
-            : errorMsg,
-          requiresEmailConfirmation: isNotConfirmed,
-          unconfirmedEmail: cleanEmail,
-        };
-      }
-
-      // Check if session or confirmed_at is missing
-      if (!data.user.email_confirmed_at && !data.session) {
-        return {
-          user: null,
-          error: 'Your account has not been confirmed yet. Please check your inbox for the confirmation email from Supabase and click the verification link.',
-          requiresEmailConfirmation: true,
-          unconfirmedEmail: cleanEmail,
-        };
-      }
-
-      // Check role in profiles
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
-
-      const userRole: UserRole = (profile?.role as UserRole) || (data.user.user_metadata?.role as UserRole) || 'customer';
-
-      const authedUser: AppUser = {
-        id: data.user.id,
-        email: data.user.email || cleanEmail,
-        fullName: profile?.full_name || data.user.user_metadata?.full_name || 'Voyager',
-        role: userRole,
-        avatarUrl: profile?.avatar_url,
-        phoneNumber: profile?.phone || data.user.user_metadata?.phone,
-        country: data.user.user_metadata?.country,
-        isConfirmed: true,
-        isDemo: false,
-      };
-
-      localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(authedUser));
-      return { user: authedUser };
-    } catch (err) {
-      return { user: null, error: formatSupabaseError(err) };
-    }
   }
 
   return {
@@ -377,7 +451,23 @@ export async function resendConfirmationEmail(
       });
 
       if (error) {
-        return { success: false, error: formatSupabaseError(error) };
+        const errorMsg = formatSupabaseError(error);
+        const lower = errorMsg.toLowerCase();
+        // If Supabase reports user already confirmed or verified:
+        if (lower.includes('already confirmed') || lower.includes('already verified')) {
+          const localUsers = getStoredLocalUsers();
+          const matched = localUsers.find((u) => u.user.email.toLowerCase() === cleanEmail);
+          if (matched) {
+            matched.isConfirmed = true;
+            matched.user.isConfirmed = true;
+            saveStoredLocalUsers(localUsers);
+          }
+          return {
+            success: true,
+            message: 'Your account is already verified and confirmed! Please enter your password to sign in.',
+          };
+        }
+        return { success: false, error: errorMsg };
       }
       return { 
         success: true, 
@@ -411,8 +501,13 @@ export async function confirmUserEmail(
   token?: string
 ): Promise<{ success: boolean; error?: string }> {
   const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) {
+    return { success: false, error: 'Email address is required.' };
+  }
 
-  // If using Supabase and a token was provided
+  let confirmedInSupabase = false;
+
+  // 1. If using Supabase and a token was provided
   if (isSupabaseConfigured() && token) {
     try {
       const { data, error } = await supabase.auth.verifyOtp({
@@ -421,28 +516,34 @@ export async function confirmUserEmail(
         type: 'signup',
       });
 
-      if (error) {
-        return { success: false, error: formatSupabaseError(error) };
-      }
-
-      if (data.user) {
+      if (!error && data?.user) {
+        confirmedInSupabase = true;
         try {
           await supabase.from('profiles').update({ is_confirmed: true }).eq('id', data.user.id);
         } catch {
           // ignore
         }
-        return { success: true };
       }
     } catch (err) {
-      return { success: false, error: formatSupabaseError(err) };
+      console.warn('Supabase verifyOtp notice:', err);
     }
   }
 
-  // Local fallback confirmation
+  // 2. If using Supabase without token (e.g. user clicked confirmation link or confirmed=true in URL)
+  if (isSupabaseConfigured() && !token) {
+    try {
+      await supabase.from('profiles').update({ is_confirmed: true }).eq('email', cleanEmail);
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Always update local fallback registry so local storage stays confirmed
   const localUsers = getStoredLocalUsers();
   const matched = localUsers.find((u) => u.user.email.toLowerCase() === cleanEmail);
   if (matched) {
-    if (token && matched.confirmationToken && matched.confirmationToken !== token.trim()) {
+    // If token was provided and doesn't match local token AND wasn't confirmed in Supabase:
+    if (token && matched.confirmationToken && matched.confirmationToken !== token.trim() && !confirmedInSupabase) {
       return { 
         success: false, 
         error: 'Invalid confirmation code. Please check the email sent from Supabase.' 
@@ -577,7 +678,8 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
       if (!user) return null;
 
       // Must be email confirmed
-      if (!user.email_confirmed_at) {
+      const isConfirmed = Boolean(user.email_confirmed_at || (user as any)?.confirmed_at);
+      if (!isConfirmed) {
         return null;
       }
 
@@ -589,7 +691,7 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
 
       const userRole: UserRole = (profile?.role as UserRole) || (user.user_metadata?.role as UserRole) || 'customer';
 
-      return {
+      const authedUser: AppUser = {
         id: user.id,
         email: user.email || '',
         fullName: profile?.full_name || user.user_metadata?.full_name || 'Voyager',
@@ -600,6 +702,9 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
         isConfirmed: true,
         isDemo: false,
       };
+
+      localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(authedUser));
+      return authedUser;
     } catch {
       return null;
     }

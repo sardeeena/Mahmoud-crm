@@ -13,10 +13,13 @@ import {
   ShieldCheck, 
   ArrowLeft,
   RefreshCw,
-  MailCheck
+  MailCheck,
+  KeyRound,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 interface LoginPageProps {
   redirectUrl?: string;
@@ -24,7 +27,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate }) => {
-  const { signIn, resendConfirmation, confirmEmail } = useAuth();
+  const { user, signIn, resendConfirmation, confirmEmail } = useAuth();
   const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
@@ -37,24 +40,135 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
   const [unconfirmedEmail, setUnconfirmedEmail] = useState('');
   const [confirmedNotice, setConfirmedNotice] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isCheckingConfirmation, setIsCheckingConfirmation] = useState(false);
 
-  // Check URL parameters for confirmation flags or prefilled email
+  // Direct OTP verification code state
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  // If user is already authenticated (e.g. from Supabase email link session), redirect smoothly
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const isConfirmed = params.get('confirmed') === 'true';
-      const emailParam = params.get('email');
-
-      if (isConfirmed) {
-        setConfirmedNotice(true);
+    if (user) {
+      if (redirectUrl && redirectUrl !== '/login') {
+        onNavigate(redirectUrl);
+      } else {
+        onNavigate('/');
       }
-      if (emailParam) {
-        setEmail(emailParam);
-      }
-    } catch {
-      // ignore
     }
-  }, []);
+  }, [user, redirectUrl, onNavigate]);
+
+  // Check URL parameters for confirmation flags, PKCE codes, OTP tokens, or prefilled email
+  useEffect(() => {
+    const handleUrlConfirmation = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash;
+        const code = params.get('code');
+        const tokenHash = params.get('token_hash');
+        const otpType = params.get('type') || 'signup';
+        const isConfirmedParam = params.get('confirmed') === 'true' || params.get('confirm') === 'true';
+        const emailParam = params.get('email');
+        const tokenParam = params.get('token');
+        const errorDesc = params.get('error_description') || params.get('error');
+
+        if (emailParam) {
+          setEmail(emailParam);
+        }
+
+        // Handle error param if token was already used or expired
+        if (errorDesc) {
+          const decoded = decodeURIComponent(errorDesc.replace(/\+/g, ' '));
+          const lower = decoded.toLowerCase();
+          if (lower.includes('already confirmed') || lower.includes('already verified')) {
+            setConfirmedNotice(true);
+            setRequiresConfirmation(false);
+            setErrorMessage(null);
+            if (emailParam) {
+              await confirmEmail(emailParam);
+            }
+            return;
+          }
+          setErrorMessage(decoded);
+          return;
+        }
+
+        // 1. Handle PKCE code exchange if present
+        if (code && isSupabaseConfigured()) {
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            if (!error && data?.user) {
+              const authedEmail = data.user.email || emailParam || '';
+              if (authedEmail) {
+                setEmail(authedEmail);
+                await confirmEmail(authedEmail);
+              }
+              setConfirmedNotice(true);
+              setRequiresConfirmation(false);
+              setErrorMessage(null);
+              showToast('Email verified successfully! You are now signed in.', 'success');
+
+              // Clean URL query params to keep clean address bar
+              const newUrl = window.location.pathname + (redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '');
+              window.history.replaceState({}, '', newUrl);
+              return;
+            }
+          } catch (err) {
+            console.warn('PKCE code exchange error:', err);
+          }
+        }
+
+        // 2. Handle token_hash verification if present
+        if (tokenHash && isSupabaseConfigured()) {
+          try {
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: (otpType as any) || 'signup',
+            });
+            if (!error && data?.user) {
+              const authedEmail = data.user.email || emailParam || '';
+              if (authedEmail) {
+                setEmail(authedEmail);
+                await confirmEmail(authedEmail);
+              }
+              setConfirmedNotice(true);
+              setRequiresConfirmation(false);
+              setErrorMessage(null);
+              showToast('Email verified successfully! You are now signed in.', 'success');
+
+              const newUrl = window.location.pathname + (redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '');
+              window.history.replaceState({}, '', newUrl);
+              return;
+            }
+          } catch (err) {
+            console.warn('Verify OTP error:', err);
+          }
+        }
+
+        // 3. Handle confirmed=true flag or direct token from email link
+        if (isConfirmedParam || tokenParam) {
+          const targetEmail = emailParam || email.trim();
+          if (targetEmail) {
+            await confirmEmail(targetEmail, tokenParam || undefined);
+          }
+          setConfirmedNotice(true);
+          setRequiresConfirmation(false);
+          setErrorMessage(null);
+        }
+
+        // 4. Handle implicit hash containing access_token
+        if (hash && (hash.includes('access_token') || hash.includes('type=signup'))) {
+          setConfirmedNotice(true);
+          setRequiresConfirmation(false);
+          setErrorMessage(null);
+        }
+      } catch (err) {
+        console.warn('URL confirmation check error:', err);
+      }
+    };
+
+    handleUrlConfirmation();
+  }, [confirmEmail, email, redirectUrl, showToast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +213,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
     try {
       const res = await resendConfirmation(targetEmail);
       if (res.success) {
+        // If message notes that account is already confirmed
+        if (res.message?.includes('already verified') || res.message?.includes('already confirmed')) {
+          setConfirmedNotice(true);
+          setRequiresConfirmation(false);
+          setErrorMessage(null);
+        }
         showToast(res.message || 'Confirmation email resent! Please check your inbox.', 'success');
       } else {
         showToast(res.error || 'Failed to resend confirmation email.', 'error');
@@ -107,6 +227,79 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
       showToast('Error resending confirmation email.', 'error');
     } finally {
       setIsResending(false);
+    }
+  };
+
+  // User confirmed in email and wants to refresh status & log in
+  const handleManualConfirmCheck = async () => {
+    const targetEmail = unconfirmedEmail || email.trim();
+    if (!targetEmail) return;
+
+    setIsCheckingConfirmation(true);
+    try {
+      await confirmEmail(targetEmail);
+      setConfirmedNotice(true);
+      setRequiresConfirmation(false);
+      setErrorMessage(null);
+
+      // If password was already typed, immediately attempt sign-in
+      if (password) {
+        const result = await signIn(targetEmail, password);
+        if (result.success) {
+          showToast('Account confirmed and logged in successfully!', 'success');
+          if (redirectUrl && redirectUrl !== '/login') {
+            onNavigate(redirectUrl);
+          } else {
+            onNavigate('/');
+          }
+          return;
+        }
+      }
+
+      showToast('Account status updated to confirmed! Please enter your password to sign in.', 'success');
+    } catch {
+      showToast('Could not refresh status. Please try entering your password.', 'info');
+    } finally {
+      setIsCheckingConfirmation(false);
+    }
+  };
+
+  // Direct 6-digit code verification
+  const handleVerifyOtpCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetEmail = unconfirmedEmail || email.trim();
+    if (!targetEmail || !otpCode.trim()) {
+      showToast('Please enter your verification code.', 'error');
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const res = await confirmEmail(targetEmail, otpCode.trim());
+      if (res.success) {
+        setConfirmedNotice(true);
+        setRequiresConfirmation(false);
+        setErrorMessage(null);
+        setShowOtpInput(false);
+        showToast('Account verified successfully!', 'success');
+
+        if (password) {
+          const signinRes = await signIn(targetEmail, password);
+          if (signinRes.success) {
+            if (redirectUrl && redirectUrl !== '/login') {
+              onNavigate(redirectUrl);
+            } else {
+              onNavigate('/');
+            }
+          }
+        }
+      } else {
+        showToast(res.error || 'Invalid code. Please check your email.', 'error');
+      }
+    } catch {
+      showToast('Failed to verify confirmation code.', 'error');
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -173,28 +366,75 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
 
           {/* Pending Confirmation Notice */}
           {requiresConfirmation && (
-            <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs space-y-2.5">
+            <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs space-y-3 shadow-xs">
               <div className="flex items-start space-x-2.5">
                 <MailCheck className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-amber-950 block">Account Pending Email Confirmation</span>
-                  <p className="text-amber-800 mt-0.5">
-                    We sent a verification link to <strong>{unconfirmedEmail || email}</strong> from Supabase. Your account must be confirmed before you can log in.
+                  <span className="font-bold text-amber-950 block text-sm">Account Pending Email Confirmation</span>
+                  <p className="text-amber-800 mt-1">
+                    We sent a verification link to <strong>{unconfirmedEmail || email}</strong> from Supabase.
+                    If you clicked the link in your email, click <strong>"I've Confirmed"</strong> below to refresh your status immediately.
                   </p>
                 </div>
               </div>
 
-              <div className="pt-1 flex items-center space-x-2">
+              <div className="pt-1 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleManualConfirmCheck}
+                  disabled={isCheckingConfirmation}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs transition-colors flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                >
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${isCheckingConfirmation ? 'animate-spin' : ''}`} />
+                  <span>{isCheckingConfirmation ? 'Verifying...' : "I've Confirmed My Email"}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={isResending}
-                  className="px-3 py-1.5 bg-amber-200/80 hover:bg-amber-300 text-amber-900 rounded font-semibold text-[11px] transition-colors flex items-center space-x-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-amber-200/90 hover:bg-amber-300 text-amber-950 rounded font-semibold text-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
                 >
                   <RefreshCw className={`w-3 h-3 ${isResending ? 'animate-spin' : ''}`} />
-                  <span>{isResending ? 'Resending...' : 'Resend Confirmation Email'}</span>
+                  <span>{isResending ? 'Resending...' : 'Resend Email'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowOtpInput(!showOtpInput)}
+                  className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100/50 text-amber-900 rounded font-semibold text-xs transition-colors flex items-center space-x-1 cursor-pointer"
+                >
+                  <KeyRound className="w-3 h-3 text-amber-700" />
+                  <span>{showOtpInput ? 'Hide Code Input' : 'Enter 6-digit Code'}</span>
                 </button>
               </div>
+
+              {/* Enter 6-digit code form */}
+              {showOtpInput && (
+                <div className="pt-2 border-t border-amber-200/60 mt-2 space-y-2">
+                  <span className="text-[11px] font-semibold text-amber-950 block">
+                    Received a 6-digit confirmation code from Supabase?
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      maxLength={8}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder="e.g. 123456"
+                      className="px-3 py-1.5 bg-white border border-amber-300 rounded text-xs font-mono text-stone-900 focus:outline-none focus:ring-1 focus:ring-[#0A6C74] w-36"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtpCode}
+                      disabled={isVerifyingOtp || !otpCode.trim()}
+                      className="px-3 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded text-xs font-semibold disabled:opacity-50 transition-colors cursor-pointer"
+                    >
+                      {isVerifyingOtp ? 'Verifying...' : 'Activate Account'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -281,42 +521,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* 1-Click Fast Fill Test Accounts */}
-          <div className="pt-4 border-t border-stone-200 space-y-2">
-            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
-              1-Click Instant Demo Access:
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('customer@redseavoyages.com', 'customer123')}
-                className="p-2 border border-stone-200 rounded-lg text-left hover:bg-stone-50 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center space-x-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-xs font-semibold text-stone-800 group-hover:text-[#0A6C74]">
-                    Demo Customer
-                  </span>
-                </div>
-                <span className="text-[10px] text-stone-500 block truncate">Sarah Jenkins</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin@redseavoyages.com', 'admin123')}
-                className="p-2 border border-stone-200 rounded-lg text-left hover:bg-stone-50 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center space-x-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#0A6C74]" />
-                  <span className="text-xs font-semibold text-stone-800 group-hover:text-[#0A6C74]">
-                    Demo Admin
-                  </span>
-                </div>
-                <span className="text-[10px] text-stone-500 block truncate">Capt. Youssef</span>
-              </button>
-            </div>
-          </div>
 
           {/* Footer Navigation */}
           <div className="pt-2 text-center text-xs text-stone-600 space-y-2">

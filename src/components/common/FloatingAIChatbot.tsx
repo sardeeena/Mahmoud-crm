@@ -32,6 +32,7 @@ const QUICK_PROMPTS = [
   { label: '👨‍👩‍👧 For Kids', prompt: 'Which excursion is best suited for families with young children?' },
   { label: '🏎️ Desert Safari', prompt: 'Tell me about the quad bike and desert safari with Bedouin dinner.' },
   { label: '🤿 Scuba Diving', prompt: 'I have never dived before. Can I do a beginner scuba dive?' },
+  { label: '📅 How to Book', prompt: 'How does excursion booking work? Can I pay cash upon hotel pickup?' },
 ];
 
 export const FloatingAIChatbot: React.FC<FloatingAIChatbotProps> = ({
@@ -145,7 +146,7 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
     : 'bottom-5 sm:bottom-6';
 
   return (
-    <div className={`fixed right-20 sm:right-24 ${bottomPositionClass} z-40 select-none print:hidden`}>
+    <div className={`fixed left-4 sm:left-6 ${bottomPositionClass} z-40 select-none print:hidden`}>
       
       {/* Floating Teaser Greeting Bubble */}
       <AnimatePresence>
@@ -155,7 +156,7 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute bottom-16 right-0 w-64 bg-[#0E1B2A] text-white p-3.5 rounded-2xl shadow-2xl border border-[#0A6C74]/50 pointer-events-auto"
+            className="absolute bottom-16 left-0 w-72 bg-[#0E1B2A] text-white p-3.5 rounded-2xl shadow-2xl border border-[#0A6C74]/50 pointer-events-auto"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-2">
@@ -167,7 +168,7 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
               <button
                 type="button"
                 onClick={() => setShowTeaser(false)}
-                className="text-slate-400 hover:text-white p-0.5"
+                className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -181,7 +182,7 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
                 setIsOpen(true);
                 setShowTeaser(false);
               }}
-              className="mt-2.5 w-full py-1.5 px-3 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+              className="mt-2.5 w-full py-1.5 px-3 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1 transition-colors cursor-pointer shadow-xs"
             >
               <span>Chat with AI Concierge</span>
               <ArrowRight className="w-3 h-3" />
@@ -244,7 +245,7 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 15, scale: 0.95 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="absolute bottom-16 sm:bottom-18 right-0 w-[calc(100vw-1.5rem)] sm:w-[410px] h-[560px] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-stone-200/90 flex flex-col overflow-hidden z-50 origin-bottom-right"
+            className="absolute bottom-16 sm:bottom-18 left-0 w-[calc(100vw-2rem)] sm:w-[410px] h-[560px] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-stone-200/90 flex flex-col overflow-hidden z-50 origin-bottom-left"
           >
             {/* Header */}
             <div className="bg-[#0E1B2A] text-white p-4 relative border-b border-slate-800">

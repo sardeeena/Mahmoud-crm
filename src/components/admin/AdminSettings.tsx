@@ -118,7 +118,7 @@ export const AdminSettings: React.FC = () => {
             <div>
               <h2 className="text-sm font-bold text-white">PostgreSQL & Storage Backend</h2>
               <p className="text-xs text-stone-400">
-                {isSupabaseConfigured() ? 'Live Supabase integration active' : 'Local sandbox fallback active with demo dataset'}
+                {isSupabaseConfigured() ? 'Live Supabase integration active' : 'Local storage cache active — Enter Supabase credentials to sync with cloud database'}
               </p>
             </div>
           </div>
@@ -128,7 +128,7 @@ export const AdminSettings: React.FC = () => {
               ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
               : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
           }`}>
-            {isSupabaseConfigured() ? 'Connected' : 'Sandbox Mode'}
+            {isSupabaseConfigured() ? 'Connected' : 'Offline / Standalone'}
           </span>
         </div>
 
