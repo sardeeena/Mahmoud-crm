@@ -228,25 +228,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ redirectUrl, onNavig
               </button>
             </div>
 
-            {/* Dev / Test Confirmation Shortcut */}
-            <div className="pt-3 border-t border-stone-100">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-slate-600">
-                <span className="font-semibold text-slate-800 block mb-1">
-                  Testing in AI Studio preview?
-                </span>
-                <p className="mb-2">
-                  Simulate the incoming Supabase confirmation email click to instantly activate this account:
-                </p>
-                <button
-                  type="button"
-                  onClick={handleDevConfirm}
-                  disabled={isConfirmingDev}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-xs transition-colors flex items-center justify-center space-x-1 mx-auto cursor-pointer"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  <span>{isConfirmingDev ? 'Confirming...' : 'Simulate Supabase Email Confirmation'}</span>
-                </button>
-              </div>
+            {/* Assistance note */}
+            <div className="pt-3 border-t border-stone-100 text-center">
+              <p className="text-[11px] text-stone-500">
+                Did not receive the verification email? Make sure to inspect your spam or junk folder, or click <strong>Resend Confirmation Email</strong> above.
+              </p>
             </div>
 
           </div>

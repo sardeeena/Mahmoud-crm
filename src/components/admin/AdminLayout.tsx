@@ -96,7 +96,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="flex items-center space-x-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              <strong>Supabase Sandbox Mode:</strong> Currently utilizing local persistence with pre-seeded demo records. Connect your live Supabase project in{' '}
+              <strong>Supabase Connection:</strong> Currently utilizing local storage fallback. Connect your live Supabase project in{' '}
               <button
                 type="button"
                 onClick={() => onSelectTab('settings')}
@@ -104,7 +104,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               >
                 Settings &gt; Supabase
               </button>{' '}
-              to sync with your remote PostgreSQL instance.
+              to sync tours, bookings, and media with your cloud PostgreSQL database.
             </span>
           </div>
           <button

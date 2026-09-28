@@ -29,6 +29,7 @@ import { Booking } from './types/booking';
 import { bookingRepository } from './services/bookingRepository';
 import { saveBookingDraft, loadBookingDraft } from './services/draftStorage';
 import { getPublishedTours, getTourBySlug } from './services/tourService';
+import { isSupabaseConfigured } from './services/supabaseClient';
 import { seoService } from './services/seoService';
 import { TourDetailSkeleton } from './components/tours/TourDetailSkeleton';
 import { Compass } from 'lucide-react';
@@ -54,7 +55,7 @@ import { AdminSettings } from './components/admin/AdminSettings';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 
 function MainApp() {
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading, refreshUser } = useAuth();
   const [currentCurrency, setCurrentCurrency] = useState<CurrencyConfig>(CURRENCY_CONFIGS.EUR);
 
   // Live published tours loaded dynamically from Supabase
@@ -375,6 +376,13 @@ function MainApp() {
       navigate(`/admin/${tab}`);
     }
   };
+
+  // When accessing an admin route, ensure live role is verified directly against profiles table
+  useEffect(() => {
+    if (isAdminRoute && user && !isAdmin && isSupabaseConfigured()) {
+      refreshUser();
+    }
+  }, [isAdminRoute, user, isAdmin, refreshUser]);
 
   // If loading user auth state on initial visit to /admin
   if (isAdminRoute && authLoading) {

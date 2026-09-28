@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Plus, Edit2, Trash2, CheckCircle, ExternalLink } from 'lucide-react';
+import { MapPin, Plus, Edit2, Trash2, CheckCircle, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getDestinations } from '../../services/tourService';
 import { DbDestination } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
+import { useToast } from '../../contexts/ToastContext';
 
 export const AdminDestinationsList: React.FC = () => {
+  const { showToast } = useToast();
   const [destinations, setDestinations] = useState<DbDestination[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingDest, setEditingDest] = useState<Partial<DbDestination> | null>(null);
+  const [destinationToDelete, setDestinationToDelete] = useState<DbDestination | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -109,18 +113,28 @@ export const AdminDestinationsList: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this coastal destination?')) return;
+  const confirmDeleteDestination = async () => {
+    if (!destinationToDelete) return;
+    setIsDeleting(true);
+
     if (!isSupabaseConfigured()) {
-      setDestinations(destinations.filter((d) => d.id !== id));
+      setDestinations(destinations.filter((d) => d.id !== destinationToDelete.id));
+      showToast(`Destination "${destinationToDelete.name}" removed from local state`, 'info');
+      setDestinationToDelete(null);
+      setIsDeleting(false);
       return;
     }
+
     try {
-      const { error } = await supabase.from('destinations').delete().eq('id', id);
+      const { error } = await supabase.from('destinations').delete().eq('id', destinationToDelete.id);
       if (error) throw error;
+      showToast(`Destination "${destinationToDelete.name}" permanently deleted`, 'success');
       await loadData();
+      setDestinationToDelete(null);
     } catch (err: any) {
-      alert(formatSupabaseError(err));
+      showToast(formatSupabaseError(err), 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -195,7 +209,7 @@ export const AdminDestinationsList: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(d.id)}
+                  onClick={() => setDestinationToDelete(d)}
                   className="p-1 text-stone-400 hover:text-red-400"
                   title="Delete destination"
                 >
@@ -206,6 +220,39 @@ export const AdminDestinationsList: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {destinationToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-lg max-w-sm w-full p-6 space-y-4 shadow-xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Destination</h3>
+            </div>
+            <p className="text-stone-300">
+              Are you sure you want to delete <span className="font-semibold text-white">"{destinationToDelete.name}"</span>? Any tours linked to this hub will be unassigned.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDestinationToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 text-stone-300 rounded font-medium hover:bg-stone-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteDestination}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EDIT MODAL */}
       {editingDest && (

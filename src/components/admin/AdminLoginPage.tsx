@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Lock, Mail, Compass, AlertCircle, ArrowLeft, ShieldCheck, Key, Eye, EyeOff, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { isUserAdmin } from '../../services/authService';
 import { ClientRateLimiter, sanitizeString } from '../../lib/security';
 
 interface AdminLoginPageProps {
@@ -15,12 +16,19 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
   onBackToSite,
   redirectUrl,
 }) => {
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState('admin@redseavoyages.com');
+  const { user, isAdmin, signOut, signIn } = useAuth();
+  const [email, setEmail] = useState(() => user?.email || 'admin@redseavoyages.com');
   const [password, setPassword] = useState('admin123');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // If already authenticated with admin privileges, automatically enter CMS
+  useEffect(() => {
+    if (user && isAdmin) {
+      onSuccess(redirectUrl);
+    }
+  }, [user, isAdmin, onSuccess, redirectUrl]);
 
   // Security: Brute-force rate limiter (max 5 failed attempts, 45 seconds cooldown)
   const rateLimiter = useMemo(() => new ClientRateLimiter('admin_login', 5, 45000), []);
@@ -64,8 +72,17 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
     setLoading(false);
 
     if (result.success) {
-      rateLimiter.reset();
-      onSuccess(redirectUrl);
+      const userRole = result.user?.role;
+      const hasAdminPrivileges = isUserAdmin(result.user || null);
+
+      if (hasAdminPrivileges) {
+        rateLimiter.reset();
+        onSuccess(redirectUrl);
+      } else {
+        setErrorMsg(
+          `Access Denied: Your account (${cleanEmail}) is currently assigned the "${userRole || 'customer'}" role in Supabase. Administrator authorization is required to enter the Admin CMS. To grant admin access, execute the promotion SQL snippet in your Supabase SQL Editor.`
+        );
+      }
     } else {
       const updatedLimit = rateLimiter.recordFailedAttempt();
       setRateLimitState(updatedLimit);
@@ -81,6 +98,13 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
         );
       }
     }
+  };
+
+  const handleSwitchAccount = async () => {
+    await signOut();
+    setEmail('');
+    setPassword('');
+    setErrorMsg(null);
   };
 
   const fillDemoCredentials = () => {
@@ -138,6 +162,29 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
             <div className="p-3 bg-amber-950/70 border border-amber-700/80 rounded-lg text-xs text-amber-200 flex items-center space-x-2">
               <Clock className="w-4 h-4 text-amber-400 shrink-0" />
               <span>Security lockout active. Please wait {rateLimitState.remainingSeconds}s.</span>
+            </div>
+          )}
+
+          {/* Currently Logged In as Non-Admin Notice */}
+          {user && !isAdmin && (
+            <div className="p-3 bg-amber-950/60 border border-amber-700 rounded-lg text-xs text-amber-200 space-y-2">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block">Currently signed in as:</span>
+                  <span className="font-mono text-[11px] text-amber-300">{user.email} (Role: {user.role})</span>
+                  <p className="text-[11px] text-amber-200/90 mt-1">
+                    This account is not recognized as an administrator in Supabase. Please sign in with an admin account or promote this email in Supabase SQL Editor.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSwitchAccount}
+                className="w-full py-1.5 bg-amber-900/80 hover:bg-amber-800 text-white rounded text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                Sign Out to Switch Accounts
+              </button>
             </div>
           )}
 

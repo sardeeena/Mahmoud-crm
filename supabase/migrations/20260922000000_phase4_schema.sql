@@ -1,14 +1,68 @@
 -- ==============================================================================
--- RED SEA VOYAGES & MARITIME EXCURSIONS - PHASE 4 DATABASE SCHEMA & RLS
+-- RED SEA VOYAGES & MARITIME EXCURSIONS - COMPREHENSIVE SUPABASE DATABASE SCHEMA
 -- ==============================================================================
--- Run this migration in your Supabase SQL Editor.
--- Compatible with PostgreSQL 15+ and current Supabase Auth & Storage.
+-- Production-ready PostgreSQL 15+ Schema Migration for Supabase.
+--
+-- Security & Access Model:
+--   • PUBLIC USERS:
+--       - Read access ONLY to published tours, active destinations, categories,
+--         and active pickup locations & extras.
+--       - Can create bookings and customer reservation profiles.
+--       - Can look up their own reservation by booking reference.
+--       - Can request booking cancellation.
+--   • AUTHENTICATED USERS:
+--       - Can view and manage their own profile and linked bookings.
+--   • AUTHENTICATED ADMINISTRATORS:
+--       - Full CRUD privileges on all tours, media, itinerary, pricing,
+--         categories, destinations, pickup locations, extras, customers, and bookings.
+--
+-- PostgreSQL & Supabase Standards:
+--   ✓ Extensions: uuid-ossp, pgcrypto
+--   ✓ Strict Foreign Keys with ON DELETE CASCADE / SET NULL / RESTRICT
+--   ✓ Single & Compound Indexes on query filters, slugs, and RLS columns
+--   ✓ Optimized RLS using (SELECT auth.uid()) for statement-level caching
+--   ✓ Non-recursive, search_path-secured SECURITY DEFINER functions (public.is_admin())
+--   ✓ Automated updated_at triggers on all mutating tables
+--   ✓ Synchronized user profile triggers on auth.users (signup & confirmation)
+--   ✓ Privilege escalation protection trigger on public.profiles
+--   ✓ Supabase Storage buckets & policies (tour-media, avatars, vouchers)
+--   ✓ Auth account backfill and public.set_admin_role_by_email() utility
+-- ==============================================================================
 
--- 1. EXTENSIONS
+
+-- ==============================================================================
+-- SECTION 1: EXTENSIONS
+-- ==============================================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. USER PROFILES & ROLES TABLE
--- Extends Supabase auth.users with custom application role, email verification status & metadata
+
+-- ==============================================================================
+-- SECTION 2: AUTOMATION & TIMESTAMP FUNCTIONS
+-- ==============================================================================
+
+-- 2.1 Automated updated_at timestamp function
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+
+-- ==============================================================================
+-- SECTION 3: CORE TABLES & INDEXES
+-- ==============================================================================
+
+-- ------------------------------------------------------------------------------
+-- 3.1 PROFILES TABLE
+-- ------------------------------------------------------------------------------
+-- Extends Supabase auth.users with RBAC role ('admin', 'manager', 'staff', 'customer')
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
@@ -24,93 +78,20 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Index on profiles role for fast authorization checks
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
 CREATE INDEX IF NOT EXISTS idx_profiles_confirmed ON public.profiles(is_confirmed);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(LOWER(email));
 
--- Helper function: check if currently authenticated user is an admin or manager
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-    SELECT EXISTS (
-        SELECT 1 FROM public.profiles
-        WHERE id = auth.uid()
-        AND role IN ('admin', 'manager')
-    );
-$$;
-
--- Trigger to automatically create a profile row when a new user signs up in Supabase Auth
--- Sets is_confirmed based on whether auth.users.email_confirmed_at is present
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-    INSERT INTO public.profiles (
-        id, 
-        email, 
-        full_name, 
-        role, 
-        phone, 
-        country, 
-        country_code, 
-        is_confirmed,
-        confirmation_sent_at
-    )
-    VALUES (
-        new.id,
-        new.email,
-        COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-        COALESCE(new.raw_user_meta_data->>'role', 'customer'),
-        new.raw_user_meta_data->>'phone',
-        new.raw_user_meta_data->>'country',
-        new.raw_user_meta_data->>'country_code',
-        (new.email_confirmed_at IS NOT NULL),
-        COALESCE(new.confirmation_sent_at, NOW())
-    )
-    ON CONFLICT (id) DO UPDATE
-    SET 
-        email = EXCLUDED.email,
-        is_confirmed = (new.email_confirmed_at IS NOT NULL),
-        updated_at = NOW();
-    RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
-
--- Trigger to mark profile as confirmed once user clicks Supabase email confirmation link
-CREATE OR REPLACE FUNCTION public.handle_user_confirmed()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-    IF OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL THEN
-        UPDATE public.profiles
-        SET is_confirmed = TRUE, updated_at = NOW()
-        WHERE id = NEW.id;
-    END IF;
-    RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_confirmed ON auth.users;
-CREATE TRIGGER on_auth_user_confirmed
-    AFTER UPDATE ON auth.users
-    FOR EACH ROW EXECUTE PROCEDURE public.handle_user_confirmed();
+DROP TRIGGER IF EXISTS trigger_profiles_updated_at ON public.profiles;
+CREATE TRIGGER trigger_profiles_updated_at
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 
--- 3. DESTINATIONS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.2 DESTINATIONS TABLE
+-- ------------------------------------------------------------------------------
+-- Geographical hubs along the Red Sea coast (Hurghada, El Gouna, Makadi Bay, etc.)
 CREATE TABLE IF NOT EXISTS public.destinations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -131,9 +112,18 @@ CREATE TABLE IF NOT EXISTS public.destinations (
 
 CREATE INDEX IF NOT EXISTS idx_destinations_slug ON public.destinations(slug);
 CREATE INDEX IF NOT EXISTS idx_destinations_status ON public.destinations(status);
+CREATE INDEX IF NOT EXISTS idx_destinations_sort ON public.destinations(sort_order);
+
+DROP TRIGGER IF EXISTS trigger_destinations_updated_at ON public.destinations;
+CREATE TRIGGER trigger_destinations_updated_at
+    BEFORE UPDATE ON public.destinations
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 
--- 4. CATEGORIES TABLE
+-- ------------------------------------------------------------------------------
+-- 3.3 CATEGORIES TABLE
+-- ------------------------------------------------------------------------------
+-- Excursion themes (Boat Trips, Snorkeling, Diving, Desert Safari, Private Charters)
 CREATE TABLE IF NOT EXISTS public.categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -152,9 +142,18 @@ CREATE TABLE IF NOT EXISTS public.categories (
 
 CREATE INDEX IF NOT EXISTS idx_categories_slug ON public.categories(slug);
 CREATE INDEX IF NOT EXISTS idx_categories_status ON public.categories(status);
+CREATE INDEX IF NOT EXISTS idx_categories_sort ON public.categories(sort_order);
+
+DROP TRIGGER IF EXISTS trigger_categories_updated_at ON public.categories;
+CREATE TRIGGER trigger_categories_updated_at
+    BEFORE UPDATE ON public.categories
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 
--- 5. TOURS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.4 TOURS TABLE
+-- ------------------------------------------------------------------------------
+-- Primary catalog storing excursion parameters, pricing tiers, and operational rules
 CREATE TABLE IF NOT EXISTS public.tours (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
@@ -195,9 +194,17 @@ CREATE INDEX IF NOT EXISTS idx_tours_slug ON public.tours(slug);
 CREATE INDEX IF NOT EXISTS idx_tours_status ON public.tours(status);
 CREATE INDEX IF NOT EXISTS idx_tours_destination ON public.tours(destination_id);
 CREATE INDEX IF NOT EXISTS idx_tours_featured ON public.tours(featured);
+CREATE INDEX IF NOT EXISTS idx_tours_sort_order ON public.tours(sort_order);
+
+DROP TRIGGER IF EXISTS trigger_tours_updated_at ON public.tours;
+CREATE TRIGGER trigger_tours_updated_at
+    BEFORE UPDATE ON public.tours
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 
--- 6. TOUR CATEGORIES (M2M)
+-- ------------------------------------------------------------------------------
+-- 3.5 TOUR CATEGORIES (Many-to-Many Bridge)
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_categories (
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
     category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
@@ -205,9 +212,12 @@ CREATE TABLE IF NOT EXISTS public.tour_categories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tour_categories_cat ON public.tour_categories(category_id);
+CREATE INDEX IF NOT EXISTS idx_tour_categories_tour ON public.tour_categories(tour_id);
 
 
--- 7. TOUR IMAGES TABLE
+-- ------------------------------------------------------------------------------
+-- 3.6 TOUR MEDIA: IMAGES
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -221,9 +231,12 @@ CREATE TABLE IF NOT EXISTS public.tour_images (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tour_images_tour ON public.tour_images(tour_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_tour_images_primary ON public.tour_images(tour_id) WHERE is_primary = TRUE;
 
 
--- 8. TOUR VIDEOS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.7 TOUR MEDIA: VIDEOS
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_videos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -237,10 +250,12 @@ CREATE TABLE IF NOT EXISTS public.tour_videos (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_tour_videos_tour ON public.tour_videos(tour_id);
+CREATE INDEX IF NOT EXISTS idx_tour_videos_tour ON public.tour_videos(tour_id, sort_order);
 
 
--- 9. TOUR ITINERARY TABLE
+-- ------------------------------------------------------------------------------
+-- 3.8 TOUR ITINERARY
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_itinerary (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -254,7 +269,9 @@ CREATE TABLE IF NOT EXISTS public.tour_itinerary (
 CREATE INDEX IF NOT EXISTS idx_tour_itinerary_tour ON public.tour_itinerary(tour_id, sort_order);
 
 
--- 10. TOUR INCLUSIONS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.9 TOUR INCLUSIONS
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_inclusions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -266,7 +283,9 @@ CREATE TABLE IF NOT EXISTS public.tour_inclusions (
 CREATE INDEX IF NOT EXISTS idx_tour_inclusions_tour ON public.tour_inclusions(tour_id, sort_order);
 
 
--- 11. TOUR EXCLUSIONS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.10 TOUR EXCLUSIONS
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_exclusions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -278,7 +297,9 @@ CREATE TABLE IF NOT EXISTS public.tour_exclusions (
 CREATE INDEX IF NOT EXISTS idx_tour_exclusions_tour ON public.tour_exclusions(tour_id, sort_order);
 
 
--- 12. TOUR HIGHLIGHTS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.11 TOUR HIGHLIGHTS
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_highlights (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -290,7 +311,9 @@ CREATE TABLE IF NOT EXISTS public.tour_highlights (
 CREATE INDEX IF NOT EXISTS idx_tour_highlights_tour ON public.tour_highlights(tour_id, sort_order);
 
 
--- 13. TOUR FAQS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.12 TOUR FAQS
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_faqs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -303,7 +326,10 @@ CREATE TABLE IF NOT EXISTS public.tour_faqs (
 CREATE INDEX IF NOT EXISTS idx_tour_faqs_tour ON public.tour_faqs(tour_id, sort_order);
 
 
--- 14. PICKUP LOCATIONS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.13 PICKUP LOCATIONS TABLE
+-- ------------------------------------------------------------------------------
+-- Transfer operational zones with custom surcharges (Hurghada Central, El Gouna, Makadi Bay, etc.)
 CREATE TABLE IF NOT EXISTS public.pickup_locations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT NOT NULL UNIQUE,
@@ -318,16 +344,32 @@ CREATE TABLE IF NOT EXISTS public.pickup_locations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_pickup_locations_code ON public.pickup_locations(code);
+CREATE INDEX IF NOT EXISTS idx_pickup_locations_active ON public.pickup_locations(is_active);
 
--- 15. TOUR PICKUP ASSIGNMENTS (M2M)
+DROP TRIGGER IF EXISTS trigger_pickup_locations_updated_at ON public.pickup_locations;
+CREATE TRIGGER trigger_pickup_locations_updated_at
+    BEFORE UPDATE ON public.pickup_locations
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ------------------------------------------------------------------------------
+-- 3.14 TOUR PICKUP LOCATIONS (Many-to-Many Bridge)
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_pickup_locations (
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
     pickup_location_id UUID NOT NULL REFERENCES public.pickup_locations(id) ON DELETE CASCADE,
     PRIMARY KEY (tour_id, pickup_location_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_tour_pickup_loc_tour ON public.tour_pickup_locations(tour_id);
+CREATE INDEX IF NOT EXISTS idx_tour_pickup_loc_pickup ON public.tour_pickup_locations(pickup_location_id);
 
--- 16. TOUR EXTRAS TABLE
+
+-- ------------------------------------------------------------------------------
+-- 3.15 TOUR EXTRAS TABLE
+-- ------------------------------------------------------------------------------
+-- Add-ons (GoPro Rental, Seafood Platter, Hotel Transfer Upgrades, Intro Scuba)
 CREATE TABLE IF NOT EXISTS public.tour_extras (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -341,16 +383,31 @@ CREATE TABLE IF NOT EXISTS public.tour_extras (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_tour_extras_active ON public.tour_extras(is_active);
 
--- 17. TOUR ASSIGNED EXTRAS (M2M)
+DROP TRIGGER IF EXISTS trigger_tour_extras_updated_at ON public.tour_extras;
+CREATE TRIGGER trigger_tour_extras_updated_at
+    BEFORE UPDATE ON public.tour_extras
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ------------------------------------------------------------------------------
+-- 3.16 TOUR ASSIGNED EXTRAS (Many-to-Many Bridge)
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tour_assigned_extras (
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
     extra_id UUID NOT NULL REFERENCES public.tour_extras(id) ON DELETE CASCADE,
     PRIMARY KEY (tour_id, extra_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_tour_assigned_extras_tour ON public.tour_assigned_extras(tour_id);
+CREATE INDEX IF NOT EXISTS idx_tour_assigned_extras_extra ON public.tour_assigned_extras(extra_id);
 
--- 18. TOUR AVAILABILITY TABLE
+
+-- ------------------------------------------------------------------------------
+-- 3.17 TOUR AVAILABILITY TABLE
+-- ------------------------------------------------------------------------------
+-- Date-specific operational capacity, blackout dates, and sold-out flags
 CREATE TABLE IF NOT EXISTS public.tour_availability (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -366,8 +423,16 @@ CREATE TABLE IF NOT EXISTS public.tour_availability (
 
 CREATE INDEX IF NOT EXISTS idx_tour_avail_lookup ON public.tour_availability(tour_id, date);
 
+DROP TRIGGER IF EXISTS trigger_tour_availability_updated_at ON public.tour_availability;
+CREATE TRIGGER trigger_tour_availability_updated_at
+    BEFORE UPDATE ON public.tour_availability
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
--- 19. CUSTOMERS TABLE
+
+-- ------------------------------------------------------------------------------
+-- 3.18 CUSTOMERS TABLE
+-- ------------------------------------------------------------------------------
+-- Guest CRM records linked optionally to auth.users account
 CREATE TABLE IF NOT EXISTS public.customers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -383,11 +448,19 @@ CREATE TABLE IF NOT EXISTS public.customers (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_customers_email ON public.customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON public.customers(LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_customers_user_id ON public.customers(user_id);
 
+DROP TRIGGER IF EXISTS trigger_customers_updated_at ON public.customers;
+CREATE TRIGGER trigger_customers_updated_at
+    BEFORE UPDATE ON public.customers
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
--- 20. BOOKINGS TABLE
+
+-- ------------------------------------------------------------------------------
+-- 3.19 BOOKINGS TABLE
+-- ------------------------------------------------------------------------------
+-- Guest reservations with financial totals, guest counts, and status tracking
 CREATE TABLE IF NOT EXISTS public.bookings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     booking_reference TEXT NOT NULL UNIQUE,
@@ -417,11 +490,20 @@ CREATE TABLE IF NOT EXISTS public.bookings (
 
 CREATE INDEX IF NOT EXISTS idx_bookings_reference ON public.bookings(booking_reference);
 CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON public.bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON public.bookings(customer_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_tour_id ON public.bookings(tour_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_date ON public.bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON public.bookings(status);
 
+DROP TRIGGER IF EXISTS trigger_bookings_updated_at ON public.bookings;
+CREATE TRIGGER trigger_bookings_updated_at
+    BEFORE UPDATE ON public.bookings
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
--- 21. BOOKING EXTRAS (Detail Breakdown)
+
+-- ------------------------------------------------------------------------------
+-- 3.20 BOOKING EXTRAS (Line Items Breakdown)
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.booking_extras (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
@@ -437,7 +519,9 @@ CREATE TABLE IF NOT EXISTS public.booking_extras (
 CREATE INDEX IF NOT EXISTS idx_booking_extras_booking ON public.booking_extras(booking_id);
 
 
--- 22. REVIEWS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.21 REVIEWS TABLE
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.reviews (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tour_id UUID REFERENCES public.tours(id) ON DELETE CASCADE,
@@ -454,9 +538,12 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_tour ON public.reviews(tour_id, is_published);
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON public.reviews(rating);
 
 
--- 23. SEO METADATA TABLE
+-- ------------------------------------------------------------------------------
+-- 3.22 SEO METADATA TABLE
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.seo_metadata (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     entity_type TEXT NOT NULL CHECK (entity_type IN ('tour', 'destination', 'category', 'page')),
@@ -478,9 +565,17 @@ CREATE TABLE IF NOT EXISTS public.seo_metadata (
 );
 
 CREATE INDEX IF NOT EXISTS idx_seo_lookup ON public.seo_metadata(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_seo_page_slug ON public.seo_metadata(page_slug);
+
+DROP TRIGGER IF EXISTS trigger_seo_metadata_updated_at ON public.seo_metadata;
+CREATE TRIGGER trigger_seo_metadata_updated_at
+    BEFORE UPDATE ON public.seo_metadata
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 
--- 24. SITE SETTINGS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.23 SITE SETTINGS TABLE
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.site_settings (
     key TEXT PRIMARY KEY,
     value JSONB NOT NULL,
@@ -489,11 +584,18 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
     updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
+DROP TRIGGER IF EXISTS trigger_site_settings_updated_at ON public.site_settings;
+CREATE TRIGGER trigger_site_settings_updated_at
+    BEFORE UPDATE ON public.site_settings
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
--- 25. AUDIT LOGS TABLE
+
+-- ------------------------------------------------------------------------------
+-- 3.24 AUDIT LOGS TABLE
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    user_id REFERENCES auth.users(id) ON DELETE SET NULL,
     action TEXT NOT NULL,
     entity_type TEXT NOT NULL,
     entity_id TEXT,
@@ -503,9 +605,12 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON public.audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON public.audit_logs(user_id);
 
 
--- 26. NEWSLETTER SUBSCRIPTIONS TABLE
+-- ------------------------------------------------------------------------------
+-- 3.25 NEWSLETTER SUBSCRIPTIONS TABLE
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.newsletter_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT NOT NULL UNIQUE,
@@ -517,15 +622,230 @@ CREATE TABLE IF NOT EXISTS public.newsletter_subscriptions (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_newsletter_email ON public.newsletter_subscriptions(email);
+CREATE INDEX IF NOT EXISTS idx_newsletter_email ON public.newsletter_subscriptions(LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_newsletter_status ON public.newsletter_subscriptions(status);
 
+DROP TRIGGER IF EXISTS trigger_newsletter_updated_at ON public.newsletter_subscriptions;
+CREATE TRIGGER trigger_newsletter_updated_at
+    BEFORE UPDATE ON public.newsletter_subscriptions
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
 
 -- ==============================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- SECTION 4: SECURITY DEFINER FUNCTIONS & AUTH TRIGGERS
 -- ==============================================================================
 
--- Enable RLS across all tables
+-- ------------------------------------------------------------------------------
+-- 4.1 IS_ADMIN() FUNCTION
+-- ------------------------------------------------------------------------------
+-- Non-recursive helper: evaluates current user role with SECURITY DEFINER and STABLE.
+-- Prevents infinite recursion when public.profiles RLS policies are evaluated.
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+STABLE
+AS $$
+DECLARE
+    current_role text;
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RETURN false;
+    END IF;
+
+    -- 1. Primary check: public.profiles table
+    SELECT role INTO current_role
+    FROM public.profiles
+    WHERE id = auth.uid();
+
+    IF current_role IN ('admin', 'manager', 'staff') THEN
+        RETURN true;
+    END IF;
+
+    -- 2. Fallback check: auth.users metadata if profile record is syncing
+    SELECT COALESCE(raw_user_meta_data->>'role', raw_app_meta_data->>'role') INTO current_role
+    FROM auth.users
+    WHERE id = auth.uid();
+
+    RETURN current_role IN ('admin', 'manager', 'staff');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;
+
+
+-- ------------------------------------------------------------------------------
+-- 4.2 ROLE PROTECTION TRIGGER (PREVENT SELF-ESCALATION)
+-- ------------------------------------------------------------------------------
+-- Prevents ordinary users from modifying their role column to 'admin' via API update calls.
+CREATE OR REPLACE FUNCTION public.protect_profile_role()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+BEGIN
+    IF NEW.role IS DISTINCT FROM OLD.role AND NOT public.is_admin() THEN
+        NEW.role = OLD.role;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_protect_profile_role ON public.profiles;
+CREATE TRIGGER trigger_protect_profile_role
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.protect_profile_role();
+
+
+-- ------------------------------------------------------------------------------
+-- 4.3 USER REGISTRATION PROFILE CREATOR (AFTER INSERT ON auth.users)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+BEGIN
+    INSERT INTO public.profiles (
+        id, 
+        email, 
+        full_name, 
+        role, 
+        phone, 
+        country, 
+        country_code, 
+        is_confirmed,
+        confirmation_sent_at
+    )
+    VALUES (
+        new.id,
+        new.email,
+        COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+        COALESCE(new.raw_user_meta_data->>'role', 'customer'),
+        new.raw_user_meta_data->>'phone',
+        new.raw_user_meta_data->>'country',
+        new.raw_user_meta_data->>'country_code',
+        (new.email_confirmed_at IS NOT NULL),
+        COALESCE(new.confirmation_sent_at, NOW())
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET 
+        email = EXCLUDED.email,
+        is_confirmed = (new.email_confirmed_at IS NOT NULL),
+        updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+
+-- ------------------------------------------------------------------------------
+-- 4.4 EMAIL CONFIRMATION SYNCHRONIZER (AFTER UPDATE ON auth.users)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.handle_user_confirmed()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+BEGIN
+    IF OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL THEN
+        UPDATE public.profiles
+        SET is_confirmed = TRUE, updated_at = NOW()
+        WHERE id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_confirmed ON auth.users;
+CREATE TRIGGER on_auth_user_confirmed
+    AFTER UPDATE ON auth.users
+    FOR EACH ROW EXECUTE PROCEDURE public.handle_user_confirmed();
+
+
+-- ------------------------------------------------------------------------------
+-- 4.5 CONVENIENCE FUNCTION: SET ADMIN ROLE BY EMAIL
+-- ------------------------------------------------------------------------------
+-- Secure function to promote accounts to administrator directly from the SQL Editor:
+-- SELECT public.set_admin_role_by_email('diamond.entertainment70@gmail.com');
+CREATE OR REPLACE FUNCTION public.set_admin_role_by_email(target_email text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+    found_user_id uuid;
+    clean_email text;
+BEGIN
+    clean_email := LOWER(TRIM(target_email));
+    
+    SELECT id INTO found_user_id 
+    FROM auth.users 
+    WHERE LOWER(email) = clean_email;
+
+    IF found_user_id IS NULL THEN
+        RETURN 'Error: User ' || target_email || ' was not found in auth.users. The user must register or sign up first before being assigned a role.';
+    END IF;
+
+    -- Upsert profile record with role = 'admin'
+    INSERT INTO public.profiles (
+        id,
+        email,
+        full_name,
+        role,
+        is_confirmed,
+        updated_at
+    )
+    VALUES (
+        found_user_id,
+        clean_email,
+        split_part(clean_email, '@', 1),
+        'admin',
+        true,
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET 
+        role = 'admin',
+        is_confirmed = true,
+        updated_at = NOW();
+
+    -- Synchronize auth.users raw_user_meta_data
+    UPDATE auth.users
+    SET raw_user_meta_data = jsonb_set(
+        COALESCE(raw_user_meta_data, '{}'::jsonb),
+        '{role}',
+        '"admin"'::jsonb
+    )
+    WHERE id = found_user_id;
+
+    RETURN 'Success: Account ' || clean_email || ' (User ID: ' || found_user_id || ') is now an active administrator.';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.set_admin_role_by_email(text) TO postgres, service_role;
+
+
+-- ==============================================================================
+-- SECTION 5: ROW-LEVEL SECURITY (RLS) POLICIES
+-- ==============================================================================
+-- Architecture:
+-- 1. All tables have RLS enabled (100% coverage).
+-- 2. Uses (SELECT auth.uid()) for statement-level query plan caching (Supabase performance standard).
+-- 3. Public users: Read published tours/content; Insert bookings & customers; lookup booking by reference.
+-- 4. Authenticated users: Read & update own profile and linked bookings.
+-- 5. Authenticated administrators: Full CRUD across all tables.
+
+-- Enable RLS across all 25 tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.destinations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
@@ -550,33 +870,58 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seo_metadata ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.newsletter_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- ------------------------------------------------------------------------------
--- PROFILES POLICIES
+-- 5.1 PROFILES POLICIES (Non-recursive)
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can manage all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Public can view own profile" ON public.profiles;
+
 CREATE POLICY "Users can read own profile"
     ON public.profiles FOR SELECT
-    USING (auth.uid() = id OR public.is_admin());
+    TO authenticated
+    USING ((SELECT auth.uid()) = id);
+
+CREATE POLICY "Admins can view all profiles"
+    ON public.profiles FOR SELECT
+    TO authenticated
+    USING (public.is_admin());
 
 CREATE POLICY "Users can update own profile"
     ON public.profiles FOR UPDATE
-    USING (auth.uid() = id)
-    WITH CHECK (auth.uid() = id);
+    TO authenticated
+    USING ((SELECT auth.uid()) = id)
+    WITH CHECK ((SELECT auth.uid()) = id);
 
 CREATE POLICY "Admins can manage all profiles"
     ON public.profiles FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
 
 -- ------------------------------------------------------------------------------
--- DESTINATIONS & CATEGORIES POLICIES
+-- 5.2 DESTINATIONS & CATEGORIES POLICIES
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Public can view published destinations" ON public.destinations;
+DROP POLICY IF EXISTS "Admins manage destinations" ON public.destinations;
+
 CREATE POLICY "Public can view published destinations"
     ON public.destinations FOR SELECT
     USING (status = 'published' OR public.is_admin());
 
 CREATE POLICY "Admins manage destinations"
     ON public.destinations FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Public can view published categories" ON public.categories;
+DROP POLICY IF EXISTS "Admins manage categories" ON public.categories;
 
 CREATE POLICY "Public can view published categories"
     ON public.categories FOR SELECT
@@ -584,222 +929,315 @@ CREATE POLICY "Public can view published categories"
 
 CREATE POLICY "Admins manage categories"
     ON public.categories FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
 
 -- ------------------------------------------------------------------------------
--- TOURS POLICIES (Strict Draft / Published security)
+-- 5.3 TOURS POLICIES (STRICT: Only Admins can modify, Public can only read published)
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Public can view published tours" ON public.tours;
+DROP POLICY IF EXISTS "Admins can insert tours" ON public.tours;
+DROP POLICY IF EXISTS "Admins can update tours" ON public.tours;
+DROP POLICY IF EXISTS "Admins can delete tours" ON public.tours;
+
+-- Public read: only published tours (admins can also inspect draft/archived tours)
 CREATE POLICY "Public can view published tours"
     ON public.tours FOR SELECT
     USING (status = 'published' OR public.is_admin());
 
+-- Modifications restricted exclusively to authenticated administrators
 CREATE POLICY "Admins can insert tours"
     ON public.tours FOR INSERT
+    TO authenticated
     WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can update tours"
     ON public.tours FOR UPDATE
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete tours"
     ON public.tours FOR DELETE
+    TO authenticated
     USING (public.is_admin());
 
+
 -- ------------------------------------------------------------------------------
--- TOUR RELATED ENTITIES POLICIES (Images, Videos, Itinerary, etc.)
+-- 5.4 TOUR SUB-ENTITIES POLICIES (Images, Videos, Itinerary, Checklist, FAQs, Categories)
 -- ------------------------------------------------------------------------------
+-- Read access: Allowed only if parent tour is published (or if caller is admin).
+-- Write access: Strictly restricted to authenticated administrators.
+
+DROP POLICY IF EXISTS "Public can read tour media for published tours" ON public.tour_images;
+DROP POLICY IF EXISTS "Admins manage tour images" ON public.tour_images;
 CREATE POLICY "Public can read tour media for published tours"
     ON public.tour_images FOR SELECT
     USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_images.tour_id AND (tours.status = 'published' OR public.is_admin())));
-
 CREATE POLICY "Admins manage tour images"
     ON public.tour_images FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read tour videos" ON public.tour_videos;
+DROP POLICY IF EXISTS "Admins manage tour videos" ON public.tour_videos;
 CREATE POLICY "Public can read tour videos"
     ON public.tour_videos FOR SELECT
     USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_videos.tour_id AND (tours.status = 'published' OR public.is_admin())));
-
 CREATE POLICY "Admins manage tour videos"
     ON public.tour_videos FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can view tour categories" ON public.tour_categories;
+DROP POLICY IF EXISTS "Admins manage tour categories" ON public.tour_categories;
 CREATE POLICY "Public can view tour categories"
     ON public.tour_categories FOR SELECT
-    USING (TRUE);
-
+    USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_categories.tour_id AND (tours.status = 'published' OR public.is_admin())));
 CREATE POLICY "Admins manage tour categories"
     ON public.tour_categories FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read itinerary" ON public.tour_itinerary;
+DROP POLICY IF EXISTS "Admins manage itinerary" ON public.tour_itinerary;
 CREATE POLICY "Public can read itinerary"
     ON public.tour_itinerary FOR SELECT
     USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_itinerary.tour_id AND (tours.status = 'published' OR public.is_admin())));
-
 CREATE POLICY "Admins manage itinerary"
     ON public.tour_itinerary FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read inclusions" ON public.tour_inclusions;
+DROP POLICY IF EXISTS "Admins manage inclusions" ON public.tour_inclusions;
 CREATE POLICY "Public can read inclusions"
     ON public.tour_inclusions FOR SELECT
     USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_inclusions.tour_id AND (tours.status = 'published' OR public.is_admin())));
-
 CREATE POLICY "Admins manage inclusions"
     ON public.tour_inclusions FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read exclusions" ON public.tour_exclusions;
+DROP POLICY IF EXISTS "Admins manage exclusions" ON public.tour_exclusions;
 CREATE POLICY "Public can read exclusions"
     ON public.tour_exclusions FOR SELECT
     USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_exclusions.tour_id AND (tours.status = 'published' OR public.is_admin())));
-
 CREATE POLICY "Admins manage exclusions"
     ON public.tour_exclusions FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read highlights" ON public.tour_highlights;
+DROP POLICY IF EXISTS "Admins manage highlights" ON public.tour_highlights;
 CREATE POLICY "Public can read highlights"
     ON public.tour_highlights FOR SELECT
     USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_highlights.tour_id AND (tours.status = 'published' OR public.is_admin())));
-
 CREATE POLICY "Admins manage highlights"
     ON public.tour_highlights FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read faqs" ON public.tour_faqs;
+DROP POLICY IF EXISTS "Admins manage faqs" ON public.tour_faqs;
 CREATE POLICY "Public can read faqs"
     ON public.tour_faqs FOR SELECT
     USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_faqs.tour_id AND (tours.status = 'published' OR public.is_admin())));
-
 CREATE POLICY "Admins manage faqs"
     ON public.tour_faqs FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read pickup locations" ON public.pickup_locations;
+DROP POLICY IF EXISTS "Admins manage pickup locations" ON public.pickup_locations;
 CREATE POLICY "Public can read pickup locations"
     ON public.pickup_locations FOR SELECT
     USING (is_active = TRUE OR public.is_admin());
-
 CREATE POLICY "Admins manage pickup locations"
     ON public.pickup_locations FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read tour pickup links" ON public.tour_pickup_locations;
+DROP POLICY IF EXISTS "Admins manage tour pickup links" ON public.tour_pickup_locations;
 CREATE POLICY "Public can read tour pickup links"
     ON public.tour_pickup_locations FOR SELECT
-    USING (TRUE);
-
+    USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_pickup_locations.tour_id AND (tours.status = 'published' OR public.is_admin())));
 CREATE POLICY "Admins manage tour pickup links"
     ON public.tour_pickup_locations FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read active extras" ON public.tour_extras;
+DROP POLICY IF EXISTS "Admins manage tour extras" ON public.tour_extras;
 CREATE POLICY "Public can read active extras"
     ON public.tour_extras FOR SELECT
     USING (is_active = TRUE OR public.is_admin());
-
 CREATE POLICY "Admins manage tour extras"
     ON public.tour_extras FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read tour assigned extras" ON public.tour_assigned_extras;
+DROP POLICY IF EXISTS "Admins manage tour assigned extras" ON public.tour_assigned_extras;
 CREATE POLICY "Public can read tour assigned extras"
     ON public.tour_assigned_extras FOR SELECT
-    USING (TRUE);
-
+    USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_assigned_extras.tour_id AND (tours.status = 'published' OR public.is_admin())));
 CREATE POLICY "Admins manage tour assigned extras"
     ON public.tour_assigned_extras FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read availability" ON public.tour_availability;
+DROP POLICY IF EXISTS "Admins manage availability" ON public.tour_availability;
 CREATE POLICY "Public can read availability"
     ON public.tour_availability FOR SELECT
-    USING (TRUE);
-
+    USING (EXISTS (SELECT 1 FROM public.tours WHERE tours.id = tour_availability.tour_id AND (tours.status = 'published' OR public.is_admin())));
 CREATE POLICY "Admins manage availability"
     ON public.tour_availability FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read published reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins manage reviews" ON public.reviews;
 CREATE POLICY "Public can read published reviews"
     ON public.reviews FOR SELECT
     USING (is_published = TRUE OR public.is_admin());
-
 CREATE POLICY "Admins manage reviews"
     ON public.reviews FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read SEO metadata" ON public.seo_metadata;
+DROP POLICY IF EXISTS "Admins manage SEO metadata" ON public.seo_metadata;
 CREATE POLICY "Public can read SEO metadata"
     ON public.seo_metadata FOR SELECT
     USING (TRUE);
-
 CREATE POLICY "Admins manage SEO metadata"
     ON public.seo_metadata FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Public can read site settings" ON public.site_settings;
+DROP POLICY IF EXISTS "Admins manage site settings" ON public.site_settings;
 CREATE POLICY "Public can read site settings"
     ON public.site_settings FOR SELECT
     USING (TRUE);
-
 CREATE POLICY "Admins manage site settings"
     ON public.site_settings FOR ALL
-    USING (public.is_admin());
-
-CREATE POLICY "Admins read audit logs"
-    ON public.audit_logs FOR SELECT
-    USING (public.is_admin());
-
-CREATE POLICY "Admins write audit logs"
-    ON public.audit_logs FOR INSERT
+    TO authenticated
+    USING (public.is_admin())
     WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins read audit logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "Admins write audit logs" ON public.audit_logs;
+CREATE POLICY "Admins read audit logs"
+    ON public.audit_logs FOR SELECT
+    TO authenticated
+    USING (public.is_admin());
+CREATE POLICY "Admins write audit logs"
+    ON public.audit_logs FOR INSERT
+    TO authenticated
+    WITH CHECK (public.is_admin());
+
+
 -- ------------------------------------------------------------------------------
--- CUSTOMERS & BOOKINGS POLICIES (Customer privacy + Direct booking creation)
+-- 5.5 CUSTOMERS, BOOKINGS & EXTRAS POLICIES (Guest creation + Admin management)
 -- ------------------------------------------------------------------------------
--- Anyone booking an excursion can insert their customer info
+-- Customers Table
+DROP POLICY IF EXISTS "Public can insert customer on booking" ON public.customers;
+DROP POLICY IF EXISTS "Users can view own customer record" ON public.customers;
+DROP POLICY IF EXISTS "Users can update own customer record" ON public.customers;
+DROP POLICY IF EXISTS "Admins can view all customers" ON public.customers;
+DROP POLICY IF EXISTS "Admins can update customers" ON public.customers;
+
+-- Guests can insert their customer contact details when creating a reservation
 CREATE POLICY "Public can insert customer on booking"
     ON public.customers FOR INSERT
     WITH CHECK (TRUE);
 
--- Only admins or the customer themselves can view customer record
+-- Authenticated customers can view their own profile
 CREATE POLICY "Users can view own customer record"
     ON public.customers FOR SELECT
-    USING (user_id = auth.uid() OR public.is_admin());
+    USING (user_id = (SELECT auth.uid()) OR public.is_admin());
 
 CREATE POLICY "Users can update own customer record"
     ON public.customers FOR UPDATE
-    USING (user_id = auth.uid() OR public.is_admin());
+    USING (user_id = (SELECT auth.uid()) OR public.is_admin());
 
+-- Administrators have full management over customers
 CREATE POLICY "Admins can view all customers"
     ON public.customers FOR SELECT
+    TO authenticated
     USING (public.is_admin());
 
 CREATE POLICY "Admins can update customers"
     ON public.customers FOR UPDATE
+    TO authenticated
     USING (public.is_admin());
 
--- Anyone can insert a booking (public reservation portal)
+-- Bookings Table
+DROP POLICY IF EXISTS "Public can insert booking" ON public.bookings;
+DROP POLICY IF EXISTS "Users can view linked bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Public lookup booking by reference" ON public.bookings;
+DROP POLICY IF EXISTS "Public update booking cancellation" ON public.bookings;
+DROP POLICY IF EXISTS "Admins manage bookings" ON public.bookings;
+
+-- Anyone can submit a booking reservation
 CREATE POLICY "Public can insert booking"
     ON public.bookings FOR INSERT
     WITH CHECK (TRUE);
 
--- Authenticated users can view their own bookings linked to user_id or customer profile
+-- Authenticated guests can view their own linked bookings
 CREATE POLICY "Users can view linked bookings"
     ON public.bookings FOR SELECT
     USING (
-        user_id = auth.uid() 
-        OR customer_id IN (SELECT id FROM public.customers WHERE user_id = auth.uid())
+        user_id = (SELECT auth.uid())
+        OR customer_id IN (SELECT id FROM public.customers WHERE user_id = (SELECT auth.uid()))
         OR public.is_admin()
     );
 
--- Customers can view their own booking if they know their booking_reference
+-- Anyone can look up a booking if they possess the unique booking reference
 CREATE POLICY "Public lookup booking by reference"
     ON public.bookings FOR SELECT
-    USING (TRUE);
+    USING (booking_reference IS NOT NULL);
 
--- Customers can request cancellation on their own booking (or update cancellation_reason)
+-- Customers can submit a cancellation request on their confirmed/pending booking
 CREATE POLICY "Public update booking cancellation"
     ON public.bookings FOR UPDATE
-    USING (TRUE)
-    WITH CHECK (TRUE);
+    USING (status IN ('confirmed', 'pending'))
+    WITH CHECK (status = 'cancellation_requested');
 
--- Admins can delete or archive bookings
+-- Administrators have full management over bookings
 CREATE POLICY "Admins manage bookings"
     ON public.bookings FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
--- Booking extras items
+-- Booking Extras Line Items Table
+DROP POLICY IF EXISTS "Public insert booking extras" ON public.booking_extras;
+DROP POLICY IF EXISTS "Public view booking extras" ON public.booking_extras;
+DROP POLICY IF EXISTS "Admins manage booking extras" ON public.booking_extras;
+
 CREATE POLICY "Public insert booking extras"
     ON public.booking_extras FOR INSERT
     WITH CHECK (TRUE);
@@ -810,13 +1248,17 @@ CREATE POLICY "Public view booking extras"
 
 CREATE POLICY "Admins manage booking extras"
     ON public.booking_extras FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
 
 -- ------------------------------------------------------------------------------
--- NEWSLETTER SUBSCRIPTIONS POLICIES
+-- 5.6 NEWSLETTER SUBSCRIPTIONS POLICIES
 -- ------------------------------------------------------------------------------
-ALTER TABLE public.newsletter_subscriptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public can insert newsletter subscription" ON public.newsletter_subscriptions;
+DROP POLICY IF EXISTS "Public can view own newsletter status" ON public.newsletter_subscriptions;
+DROP POLICY IF EXISTS "Admins can manage newsletter subscriptions" ON public.newsletter_subscriptions;
 
 CREATE POLICY "Public can insert newsletter subscription"
     ON public.newsletter_subscriptions FOR INSERT
@@ -828,48 +1270,110 @@ CREATE POLICY "Public can view own newsletter status"
 
 CREATE POLICY "Admins can manage newsletter subscriptions"
     ON public.newsletter_subscriptions FOR ALL
-    USING (public.is_admin());
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
 
 
 -- ==============================================================================
--- SUPABASE STORAGE BUCKET CONFIGURATION & POLICIES
+-- SECTION 6: SUPABASE STORAGE BUCKETS & POLICIES
 -- ==============================================================================
--- Creates 'tour-media' bucket if storage schema is available
+
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-    'tour-media',
-    'tour-media',
-    true,
-    10485760, -- 10MB limit per file
-    ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'video/mp4', 'video/webm']
-)
+VALUES 
+    (
+        'tour-media',
+        'tour-media',
+        true,
+        26214400, -- 25MB limit per file
+        ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'video/mp4', 'video/webm']
+    ),
+    (
+        'avatars',
+        'avatars',
+        true,
+        5242880, -- 5MB limit per file
+        ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+    ),
+    (
+        'vouchers',
+        'vouchers',
+        false, -- Private bucket accessed via signed URLs or authenticated RLS
+        10485760, -- 10MB limit per file
+        ARRAY['application/pdf']
+    )
 ON CONFLICT (id) DO UPDATE
-SET public = true,
-    file_size_limit = 10485760;
+SET public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Storage RLS: Public read
+-- Storage Objects Policies
 DROP POLICY IF EXISTS "Public can view tour media files" ON storage.objects;
 CREATE POLICY "Public can view tour media files"
     ON storage.objects FOR SELECT
     USING (bucket_id = 'tour-media');
 
--- Storage RLS: Admin upload
+DROP POLICY IF EXISTS "Public can view avatar files" ON storage.objects;
+CREATE POLICY "Public can view avatar files"
+    ON storage.objects FOR SELECT
+    USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Users can view own vouchers" ON storage.objects;
+CREATE POLICY "Users can view own vouchers"
+    ON storage.objects FOR SELECT
+    TO authenticated
+    USING (bucket_id = 'vouchers' AND (owner = (SELECT auth.uid()) OR public.is_admin()));
+
+-- Administrator media management
 DROP POLICY IF EXISTS "Admins can upload tour media" ON storage.objects;
 CREATE POLICY "Admins can upload tour media"
     ON storage.objects FOR INSERT
     TO authenticated
     WITH CHECK (bucket_id = 'tour-media' AND public.is_admin());
 
--- Storage RLS: Admin update
 DROP POLICY IF EXISTS "Admins can update tour media" ON storage.objects;
 CREATE POLICY "Admins can update tour media"
     ON storage.objects FOR UPDATE
     TO authenticated
     USING (bucket_id = 'tour-media' AND public.is_admin());
 
--- Storage RLS: Admin delete
 DROP POLICY IF EXISTS "Admins can delete tour media" ON storage.objects;
 CREATE POLICY "Admins can delete tour media"
     ON storage.objects FOR DELETE
     TO authenticated
     USING (bucket_id = 'tour-media' AND public.is_admin());
+
+
+-- ==============================================================================
+-- SECTION 7: PROFILE BACKFILL FOR EXISTING ACCOUNTS
+-- ==============================================================================
+INSERT INTO public.profiles (
+    id,
+    email,
+    full_name,
+    role,
+    is_confirmed,
+    created_at,
+    updated_at
+)
+SELECT 
+    u.id,
+    u.email,
+    COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)),
+    COALESCE(u.raw_user_meta_data->>'role', 'customer'),
+    (u.email_confirmed_at IS NOT NULL),
+    COALESCE(u.created_at, NOW()),
+    NOW()
+FROM auth.users u
+ON CONFLICT (id) DO UPDATE
+SET 
+    email = EXCLUDED.email,
+    is_confirmed = EXCLUDED.is_confirmed,
+    updated_at = NOW();
+
+-- ==============================================================================
+-- SECTION 8: INITIAL ADMINISTRATOR PROMOTION
+-- ==============================================================================
+-- To promote your account to administrator, run in Supabase SQL Editor:
+-- SELECT public.set_admin_role_by_email('diamond.entertainment70@gmail.com');
+-- ==============================================================================

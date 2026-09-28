@@ -1,4 +1,4 @@
-export type LanguageCode = 'en' | 'de' | 'ru';
+export type LanguageCode = 'en' | 'de' | 'ru' | 'it' | 'ro';
 
 export interface LanguageConfig {
   code: LanguageCode;
@@ -20,6 +20,18 @@ export const SUPPORTED_LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     localName: 'Deutsch',
     flag: '🇩🇪',
   },
+  it: {
+    code: 'it',
+    name: 'Italian',
+    localName: 'Italiano',
+    flag: '🇮🇹',
+  },
+  ro: {
+    code: 'ro',
+    name: 'Romanian',
+    localName: 'Română',
+    flag: '🇷🇴',
+  },
   ru: {
     code: 'ru',
     name: 'Russian',
@@ -27,3 +39,4 @@ export const SUPPORTED_LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     flag: '🇷🇺',
   },
 };
+

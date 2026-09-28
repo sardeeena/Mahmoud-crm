@@ -206,20 +206,31 @@ Every table has `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;` enabled.
 ## ⚙️ Triggers, Functions & Automation
 
 ### 1. `public.is_admin()`
-Fast SQL helper function executed with `SECURITY DEFINER` to verify administrator status without recursive policy lookups:
+Fast SQL helper function executed with `SECURITY DEFINER` and `LANGUAGE plpgsql` to verify administrator status without recursive policy lookups:
 ```sql
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN
-LANGUAGE sql
+RETURNS boolean
+LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, auth, pg_temp
 STABLE
 AS $$
-    SELECT EXISTS (
-        SELECT 1 FROM public.profiles
-        WHERE id = auth.uid()
-        AND role IN ('admin', 'manager')
-    );
+DECLARE
+    current_role text;
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RETURN false;
+    END IF;
+
+    SELECT role INTO current_role
+    FROM public.profiles
+    WHERE id = auth.uid();
+
+    RETURN current_role IN ('admin', 'manager', 'staff');
+END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;
 ```
 
 ### 2. Auto-Profile Generation on Signup (`handle_new_user()`)
@@ -278,11 +289,33 @@ WITH CHECK (bucket_id = 'tour-media' AND public.is_admin());
 3. This populates realistic excursions (Orange Bay, Giftun Snorkeling, Desert ATV Safari, Scuba Diving, Private Yacht Charters), categories, destinations, and sample verified customer reviews.
 
 ### Step 3: Grant First Admin Account
-To grant full administrative privileges to an account:
+To grant full administrative privileges to an account, use the safe helper function or upsert query:
+
 ```sql
-UPDATE public.profiles
-SET role = 'admin'
-WHERE email = 'your-admin-email@example.com';
+-- Method A (Recommended): Call helper function
+SELECT public.set_admin_role_by_email('your-admin-email@example.com');
+
+-- Method B: Direct upsert (guarantees profile exists even if user signed up before migration)
+INSERT INTO public.profiles (id, email, full_name, role, is_confirmed)
+SELECT 
+    id, 
+    email, 
+    COALESCE(raw_user_meta_data->>'full_name', split_part(email, '@', 1)), 
+    'admin', 
+    true
+FROM auth.users
+WHERE LOWER(email) = LOWER('your-admin-email@example.com')
+ON CONFLICT (id) DO UPDATE 
+SET role = 'admin', is_confirmed = true, updated_at = NOW();
+
+-- Also update user metadata in auth.users so JWT mirrors the role
+UPDATE auth.users
+SET raw_user_meta_data = jsonb_set(
+    COALESCE(raw_user_meta_data, '{}'::jsonb),
+    '{role}',
+    '"admin"'::jsonb
+)
+WHERE LOWER(email) = LOWER('your-admin-email@example.com');
 ```
 
 ---

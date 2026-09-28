@@ -20,6 +20,7 @@ import {
   setSchemaMissing,
 } from '../../services/supabaseClient';
 import phase4Sql from '../../../supabase/migrations/20260922000000_phase4_schema.sql?raw';
+import fixAdminAuthSql from '../../../supabase/migrations/20260928000000_fix_admin_auth_rls.sql?raw';
 
 export const AdminSettings: React.FC = () => {
   const currentConfig = getSupabaseConfig();
@@ -28,7 +29,9 @@ export const AdminSettings: React.FC = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [copiedFixSql, setCopiedFixSql] = useState(false);
   const [showSqlPreview, setShowSqlPreview] = useState(false);
+  const [showFixSqlPreview, setShowFixSqlPreview] = useState(false);
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -93,6 +96,12 @@ export const AdminSettings: React.FC = () => {
     navigator.clipboard.writeText(phase4Sql);
     setCopiedSql(true);
     setTimeout(() => setCopiedSql(false), 2500);
+  };
+
+  const copyFixSql = () => {
+    navigator.clipboard.writeText(fixAdminAuthSql);
+    setCopiedFixSql(true);
+    setTimeout(() => setCopiedFixSql(false), 2500);
   };
 
   return (
@@ -190,6 +199,66 @@ export const AdminSettings: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Admin Auth & RLS Fix Card (Direct Solution for SQL Editor & Role Assignments) */}
+      <div className="bg-stone-950 border border-[#0A6C74]/50 rounded-lg p-6 space-y-4 text-xs shadow-lg">
+        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded bg-[#0A6C74]/20 border border-[#0A6C74] flex items-center justify-center text-[#2dd4bf]">
+              <Key className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Admin Authorization & RLS Recursion Hotfix</h3>
+              <p className="text-[11px] text-stone-400">
+                Resolves infinite recursion in <code className="text-[#2dd4bf]">public.profiles</code> policies and guarantees admin logins succeed.
+              </p>
+            </div>
+          </div>
+
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            Recommended Fix
+          </span>
+        </div>
+
+        <p className="text-stone-300 leading-relaxed text-[11px]">
+          If you assigned an administrator role in the Supabase SQL Editor and were redirected back to the login page, run this lightweight hotfix. It replaces recursive policies with strict non-recursive rules, secures <code className="text-[#2dd4bf]">is_admin()</code> with PL/pgSQL, backfills missing profile records, and provides the <code className="text-amber-400">set_admin_role_by_email('your-email')</code> helper.
+        </p>
+
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-stone-800">
+          <span className="text-stone-400 font-mono text-[11px]">
+            File: <code>/supabase/migrations/20260928000000_fix_admin_auth_rls.sql</code>
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowFixSqlPreview(!showFixSqlPreview)}
+              className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-stone-300 rounded border border-stone-700 text-xs font-medium transition-colors"
+            >
+              {showFixSqlPreview ? 'Hide SQL Script' : 'View SQL Script'}
+            </button>
+            <button
+              type="button"
+              onClick={copyFixSql}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#0A6C74] hover:bg-[#08545a] text-white rounded text-xs font-semibold shadow-sm transition-colors"
+            >
+              {copiedFixSql ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedFixSql ? 'Copied Hotfix SQL!' : 'Copy Admin Role Fix SQL'}</span>
+            </button>
+          </div>
+        </div>
+
+        {showFixSqlPreview && (
+          <div className="mt-4 p-4 bg-stone-900 rounded border border-stone-800 space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-stone-800 text-stone-400 text-[11px]">
+              <span>Admin Role & Non-Recursive RLS Hotfix (~120 lines)</span>
+              <span>Run in Supabase Dashboard &gt; SQL Editor</span>
+            </div>
+            <pre className="max-h-64 overflow-y-auto p-3 bg-stone-950 rounded text-[11px] font-mono text-stone-300 leading-relaxed whitespace-pre select-all">
+              {fixAdminAuthSql}
+            </pre>
+          </div>
+        )}
       </div>
 
       {/* Database Schema & RLS Checklist */}

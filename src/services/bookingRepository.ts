@@ -150,10 +150,15 @@ class SupabaseBookingRepository implements IBookingRepository {
     }
 
     try {
+      // Check if an authenticated user session exists to associate user_id
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUserId = authData?.user?.id || null;
+
       // Insert customer record first
       const { data: customerRecord, error: custError } = await supabase
         .from('customers')
         .insert({
+          user_id: currentUserId,
           first_name: booking.customer.firstName,
           last_name: booking.customer.lastName,
           email: booking.customer.email.toLowerCase(),
@@ -185,11 +190,12 @@ class SupabaseBookingRepository implements IBookingRepository {
         }
       }
 
-      // Insert main booking record
+      // Insert main booking record with user_id
       const { data: dbBooking, error: bookError } = await supabase
         .from('bookings')
         .insert({
           booking_reference: booking.bookingReference,
+          user_id: currentUserId,
           tour_id: realTourId,
           customer_id: customerId,
           booking_date: booking.date,
@@ -287,7 +293,32 @@ class SupabaseBookingRepository implements IBookingRepository {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return [];
 
+    if (!isSupabaseConfigured() || isSchemaMissing()) {
+      return this.getLocalBookings().filter((b) => b.customer.email.toLowerCase() === cleanEmail);
+    }
+
     try {
+      // Query bookings directly filtering by customer email or user_id
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          tours (*),
+          customers!inner (*),
+          booking_extras (*)
+        `)
+        .ilike('customers.email', cleanEmail)
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data.map((d: any) => this.mapDbToBooking(d));
+      }
+
+      // Fallback to checking local storage
+      const local = this.getLocalBookings().filter((b) => b.customer.email.toLowerCase() === cleanEmail);
+      if (local.length > 0) return local;
+
+      // If inner join returned empty, try regular listBookings
       const all = await this.listBookings();
       return all.filter((b) => b.customer.email.toLowerCase() === cleanEmail);
     } catch {

@@ -81,7 +81,7 @@ export const ALL_TOURS: Tour[] = [
       { id: 'seafood-upgrade', name: 'Seafood Platter Upgrade', priceEur: 10, description: 'Fresh jumbo grilled prawns and calamari.' },
       { id: 'private-transfer', name: 'Private Hotel Transfer Van', priceEur: 20, description: 'Direct pickup without sharing with other resorts.' }
     ],
-    languages: ['English', 'German', 'Russian', 'French'],
+    languages: ['English', 'German', 'Italian', 'Romanian', 'Russian', 'French'],
     maxGuests: 35,
     pickupAvailable: true,
     pickupInfo: 'Complimentary lobby pickup from Hurghada hotels. Small supplement for El Gouna or Makadi Bay.',
@@ -177,7 +177,7 @@ export const ALL_TOURS: Tour[] = [
     optionalExtras: [
       { id: 'banana-boat', name: 'Banana Boat & Tube Ride', priceEur: 8, description: '10 minutes of fun watersports behind speedboat.' }
     ],
-    languages: ['English', 'German', 'Italian'],
+    languages: ['English', 'German', 'Italian', 'Romanian'],
     maxGuests: 35,
     pickupAvailable: true,
     pickupInfo: 'Hotel lobby pickup included across Hurghada.',
@@ -242,7 +242,7 @@ export const ALL_TOURS: Tour[] = [
     optionalExtras: [
       { id: 'photo-pkg', name: 'Professional Underwater Photos', priceEur: 20, description: 'Delivered digitally by evening.' }
     ],
-    languages: ['English', 'German', 'French', 'Russian'],
+    languages: ['English', 'German', 'Italian', 'Romanian', 'French', 'Russian'],
     maxGuests: 30,
     pickupAvailable: true,
     pickupInfo: 'Pickup from Hurghada resorts between 07:45 - 08:30 AM.',

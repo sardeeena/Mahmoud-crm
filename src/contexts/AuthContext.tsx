@@ -9,6 +9,8 @@ import {
   updateUserPassword,
   signOutAdmin,
   getCurrentAdminUser,
+  isUserAdmin,
+  verifyAdminAccess,
 } from '../services/authService';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { useToast } from './ToastContext';
@@ -26,6 +28,7 @@ interface AuthContextType {
   closeAuthModal: () => void;
   signIn: (email: string, pass: string) => Promise<{ 
     success: boolean; 
+    user?: AppUser | null;
     error?: string; 
     requiresEmailConfirmation?: boolean; 
     unconfirmedEmail?: string 
@@ -55,6 +58,8 @@ interface AuthContextType {
   updateProfile: (data: Partial<AppUser>) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  verifyAdmin: () => Promise<boolean>;
+  checkAdminAccess: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -101,6 +106,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  /**
+   * Queries the 'profiles' table directly in Supabase to verify the user's role.
+   * Eliminates local state reliance and verifies live RBAC authorization.
+   */
+  const checkAdminAccess = useCallback(async (): Promise<boolean> => {
+    if (!isSupabaseConfigured()) {
+      const isDemo = localStorage.getItem('rse_demo_admin');
+      return isDemo === 'true';
+    }
+
+    try {
+      const { data: { user: authUser }, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !authUser) {
+        setUser(null);
+        return false;
+      }
+
+      // Query the 'profiles' table directly for the user's role
+      const { data: profile, error: profErr } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, role, phone, country, avatar_url, is_confirmed')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (profErr || !profile) {
+        return false;
+      }
+
+      const role = profile.role as 'admin' | 'manager' | 'staff' | 'customer';
+      const isAllowed = role === 'admin' || role === 'manager' || role === 'staff';
+
+      // Synchronize the in-memory user state with the live database profile
+      setUser({
+        id: authUser.id,
+        email: authUser.email || '',
+        fullName: profile.full_name || authUser.email?.split('@')[0] || 'Voyager',
+        role,
+        avatarUrl: profile.avatar_url,
+        phoneNumber: profile.phone,
+        country: profile.country,
+        isConfirmed: Boolean(profile.is_confirmed),
+        isDemo: false,
+      });
+
+      return isAllowed;
+    } catch (err) {
+      console.error('Error querying profiles table for admin role:', err);
+      return false;
     }
   }, []);
 
@@ -192,10 +248,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSignIn = async (email: string, pass: string) => {
     setLoading(true);
     const result = await signInUser(email, pass);
-    setUser(result.user);
+    if (result.user) {
+      // Re-verify the live profile immediately to guarantee role accuracy from DB
+      const verified = await getCurrentAdminUser();
+      setUser(verified || result.user);
+    } else {
+      setUser(null);
+    }
     setLoading(false);
     return { 
       success: !result.error && !!result.user, 
+      user: result.user,
       error: result.error,
       requiresEmailConfirmation: result.requiresEmailConfirmation,
       unconfirmedEmail: result.unconfirmedEmail,
@@ -244,7 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return updateUserPassword(newPassword, email || user?.email);
   };
 
-  const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'manager' || user.role === 'staff'));
+  const isAdmin = isUserAdmin(user);
   const isStaff = isAdmin;
   const isCustomer = Boolean(user && user.role === 'customer');
 
@@ -270,6 +333,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateProfile,
         signOut: () => handleSignOut(false),
         refreshUser,
+        verifyAdmin: verifyAdminAccess,
       }}
     >
       {children}

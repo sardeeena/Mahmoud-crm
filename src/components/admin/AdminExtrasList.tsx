@@ -3,8 +3,10 @@ import { Sparkles, Plus, Edit2, Trash2 } from 'lucide-react';
 import { getTourExtras } from '../../services/tourService';
 import { DbTourExtra } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
+import { useToast } from '../../contexts/ToastContext';
 
 export const AdminExtrasList: React.FC = () => {
+  const { showToast } = useToast();
   const [extras, setExtras] = useState<DbTourExtra[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExtra, setEditingExtra] = useState<Partial<DbTourExtra> | null>(null);
@@ -77,9 +79,10 @@ export const AdminExtrasList: React.FC = () => {
         });
       }
       await loadData();
+      showToast('Tour extra saved successfully', 'success');
       setEditingExtra(null);
     } catch (err) {
-      alert(formatSupabaseError(err));
+      showToast(formatSupabaseError(err), 'error');
     } finally {
       setSaving(false);
     }

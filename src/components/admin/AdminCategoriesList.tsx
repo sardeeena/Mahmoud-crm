@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, Plus, Edit2, Trash2, CheckCircle } from 'lucide-react';
+import { Layers, Plus, Edit2, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getCategories } from '../../services/tourService';
 import { DbCategory } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
+import { useToast } from '../../contexts/ToastContext';
 
 export const AdminCategoriesList: React.FC = () => {
+  const { showToast } = useToast();
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCategory, setEditingCategory] = useState<Partial<DbCategory> | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<DbCategory | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -100,18 +104,28 @@ export const AdminCategoriesList: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this tour category?')) return;
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    setIsDeleting(true);
+
     if (!isSupabaseConfigured()) {
-      setCategories(categories.filter((c) => c.id !== id));
+      setCategories(categories.filter((c) => c.id !== categoryToDelete.id));
+      showToast(`Category "${categoryToDelete.name}" removed from local state`, 'info');
+      setCategoryToDelete(null);
+      setIsDeleting(false);
       return;
     }
+
     try {
-      const { error } = await supabase.from('categories').delete().eq('id', id);
+      const { error } = await supabase.from('categories').delete().eq('id', categoryToDelete.id);
       if (error) throw error;
+      showToast(`Category "${categoryToDelete.name}" deleted successfully`, 'success');
       await loadData();
+      setCategoryToDelete(null);
     } catch (err: any) {
-      alert(formatSupabaseError(err));
+      showToast(formatSupabaseError(err), 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -182,7 +196,7 @@ export const AdminCategoriesList: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(c.id)}
+                  onClick={() => setCategoryToDelete(c)}
                   className="p-1 text-stone-400 hover:text-red-400"
                   title="Delete category"
                 >
@@ -193,6 +207,39 @@ export const AdminCategoriesList: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {categoryToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-lg max-w-sm w-full p-6 space-y-4 shadow-xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Category</h3>
+            </div>
+            <p className="text-stone-300">
+              Are you sure you want to delete <span className="font-semibold text-white">"{categoryToDelete.name}"</span>? Excursions will need to be reassigned to other categories.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setCategoryToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 text-stone-300 rounded font-medium hover:bg-stone-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteCategory}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EDIT MODAL */}
       {editingCategory && (

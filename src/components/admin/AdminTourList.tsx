@@ -26,6 +26,7 @@ import {
 } from '../../services/tourService';
 import { DbTour } from '../../types/database';
 import { AdminTab } from './AdminLayout';
+import { useToast } from '../../contexts/ToastContext';
 
 interface AdminTourListProps {
   onNavigateTab: (tab: AdminTab, param?: string) => void;
@@ -36,6 +37,7 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
   onNavigateTab,
   onPreviewTour,
 }) => {
+  const { showToast } = useToast();
   const [tours, setTours] = useState<DbTour[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -69,18 +71,20 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
     const nextStatus = tour.status === 'published' ? 'draft' : 'published';
     try {
       await adminSetTourStatus(tour.id, nextStatus);
+      showToast(`Tour status updated to ${nextStatus}`, 'success');
       await loadTours();
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      showToast(err.message || 'Failed to update status', 'error');
     }
   };
 
   const handleArchive = async (tour: DbTour) => {
     try {
       await adminSetTourStatus(tour.id, 'archived');
+      showToast('Tour archived successfully', 'info');
       await loadTours();
     } catch (err: any) {
-      alert(err.message || 'Failed to archive');
+      showToast(err.message || 'Failed to archive', 'error');
     }
   };
 
@@ -110,9 +114,10 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
         images: full.images.map((img) => ({ image_url: img.image_url, is_primary: img.is_primary, alt_text: img.alt_text })),
       });
 
+      showToast(`Tour duplicated as "${newTitle}"`, 'success');
       await loadTours();
     } catch (err: any) {
-      alert(err.message || 'Failed to duplicate tour');
+      showToast(err.message || 'Failed to duplicate tour', 'error');
     } finally {
       setLoading(false);
     }

@@ -28,7 +28,6 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate
   const [step, setStep] = useState<'request' | 'verify_and_update' | 'completed'>('request');
   const [email, setEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
-  const [demoCode, setDemoCode] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -48,12 +47,8 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate
     try {
       const res = await resetPassword(email.trim());
       if (res.success) {
-        if (res.resetCode) {
-          setDemoCode(res.resetCode);
-          setResetCode(res.resetCode);
-        }
         setStep('verify_and_update');
-        showToast('Password reset instructions dispatched!', 'info');
+        showToast('Password reset instructions dispatched to your email!', 'info');
       } else {
         setErrorMessage(res.error || 'Could not send reset instructions. Please check your email.');
       }
@@ -195,18 +190,6 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate
           {/* Step 2: Enter code & new password */}
           {step === 'verify_and_update' && (
             <form onSubmit={handleUpdatePassword} className="space-y-4">
-              {demoCode && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 space-y-1">
-                  <div className="flex items-center space-x-1.5 font-bold text-emerald-950">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Simulated Reset Code Ready</span>
-                  </div>
-                  <p>
-                    Test recovery code: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-300">{demoCode}</span>
-                  </p>
-                </div>
-              )}
-
               <div>
                 <label htmlFor="reset-code" className="block text-xs font-bold text-stone-700 mb-1">
                   Verification / Reset Code
