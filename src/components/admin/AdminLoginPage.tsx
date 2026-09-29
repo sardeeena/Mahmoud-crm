@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lock, Mail, Compass, AlertCircle, ArrowLeft, ShieldCheck, Key, Eye, EyeOff, Clock } from 'lucide-react';
+import { Lock, Mail, Compass, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { isUserAdmin } from '../../services/authService';
@@ -17,8 +17,8 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
   redirectUrl,
 }) => {
   const { user, isAdmin, signOut, signIn } = useAuth();
-  const [email, setEmail] = useState(() => user?.email || 'admin@redseavoyages.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState(() => user?.email || '');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -104,12 +104,6 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
     await signOut();
     setEmail('');
     setPassword('');
-    setErrorMsg(null);
-  };
-
-  const fillDemoCredentials = () => {
-    setEmail('admin@redseavoyages.com');
-    setPassword('admin123');
     setErrorMsg(null);
   };
 
@@ -265,24 +259,6 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
               )}
             </button>
           </form>
-
-          {/* Quick Demo Helper */}
-          <div className="p-3 bg-stone-950/80 rounded-lg border border-stone-800/80 space-y-2 text-center">
-            <div className="flex items-center justify-center space-x-1 text-stone-400 text-[11px]">
-              <Key className="w-3 h-3 text-amber-400" />
-              <span>Demo Administrator Access:</span>
-            </div>
-            <div className="text-[11px] font-mono text-stone-300 bg-stone-900 py-1 px-2 rounded">
-              admin@redseavoyages.com / admin123
-            </div>
-            <button
-              type="button"
-              onClick={fillDemoCredentials}
-              className="text-[11px] text-[#2dd4bf] hover:underline block mx-auto font-medium cursor-pointer"
-            >
-              Auto-fill Demo Credentials
-            </button>
-          </div>
         </div>
       </div>
 

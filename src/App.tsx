@@ -31,6 +31,7 @@ import { saveBookingDraft, loadBookingDraft } from './services/draftStorage';
 import { getPublishedTours, getTourBySlug } from './services/tourService';
 import { isSupabaseConfigured } from './services/supabaseClient';
 import { seoService } from './services/seoService';
+import { sanitizeRedirectUrl } from './lib/security';
 import { TourDetailSkeleton } from './components/tours/TourDetailSkeleton';
 import { Compass } from 'lucide-react';
 
@@ -47,15 +48,19 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminTourList } from './components/admin/AdminTourList';
 import { AdminTourEditor } from './components/admin/AdminTourEditor';
 import { AdminBookingsList } from './components/admin/AdminBookingsList';
+import { AdminInquiriesList } from './components/admin/AdminInquiriesList';
+import { AdminCustomersList } from './components/admin/AdminCustomersList';
+import { AdminNewsletterList } from './components/admin/AdminNewsletterList';
 import { AdminDestinationsList } from './components/admin/AdminDestinationsList';
 import { AdminCategoriesList } from './components/admin/AdminCategoriesList';
 import { AdminPickupList } from './components/admin/AdminPickupList';
 import { AdminExtrasList } from './components/admin/AdminExtrasList';
 import { AdminSettings } from './components/admin/AdminSettings';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
+import { HelpInquiryModal } from './components/common/HelpInquiryModal';
 
 function MainApp() {
-  const { user, isAdmin, loading: authLoading, refreshUser } = useAuth();
+  const { user, isAdmin, loading: authLoading, refreshUser, checkAdminAccess } = useAuth();
   const [currentCurrency, setCurrentCurrency] = useState<CurrencyConfig>(CURRENCY_CONFIGS.EUR);
 
   // Live published tours loaded dynamically from Supabase
@@ -65,6 +70,8 @@ function MainApp() {
   // Drawer / Modal states
   const [isWishlistOpen, setIsWishlistOpen] = useState<boolean>(false);
   const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
+  const [isHelpInquiryOpen, setIsHelpInquiryOpen] = useState<boolean>(false);
+  const [helpSelectedTour, setHelpSelectedTour] = useState<Tour | null>(null);
 
   // Client-side router path & search query
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -377,32 +384,51 @@ function MainApp() {
     }
   };
 
-  // When accessing an admin route, ensure live role is verified directly against profiles table
-  useEffect(() => {
-    if (isAdminRoute && user && !isAdmin && isSupabaseConfigured()) {
-      refreshUser();
-    }
-  }, [isAdminRoute, user, isAdmin, refreshUser]);
+  // Track direct database profiles table verification status for admin routes
+  const [adminCheckStatus, setAdminCheckStatus] = useState<'idle' | 'checking' | 'authorized' | 'unauthorized'>('idle');
 
-  // If loading user auth state on initial visit to /admin
-  if (isAdminRoute && authLoading) {
-    return (
-      <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4 text-stone-300">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-[#0A6C74] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs">Verifying administrator session...</p>
-        </div>
-      </div>
-    );
-  }
+  // On each admin route mount (except the login page itself), query the 'profiles' table directly
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (isAdminRoute && currentPath !== '/admin/login') {
+      setAdminCheckStatus('checking');
+
+      checkAdminAccess()
+        .then((isAuthorized) => {
+          if (isCancelled) return;
+          if (isAuthorized) {
+            setAdminCheckStatus('authorized');
+          } else {
+            setAdminCheckStatus('unauthorized');
+            // If the role check fails, redirect the admin dashboard to the login page
+            const targetRedirect = currentPath && currentPath !== '/admin' ? currentPath : '/admin';
+            navigate(`/admin/login?redirect=${encodeURIComponent(targetRedirect)}`);
+          }
+        })
+        .catch((err) => {
+          console.error('Direct profiles table role check error on admin route mount:', err);
+          if (isCancelled) return;
+          setAdminCheckStatus('unauthorized');
+          navigate(`/admin/login?redirect=${encodeURIComponent(currentPath)}`);
+        });
+    } else {
+      setAdminCheckStatus('idle');
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentPath, isAdminRoute, checkAdminAccess]);
 
   // 1. Admin Login View: /admin/login
   if (currentPath === '/admin/login') {
-    const redirectParam = searchParams.get('redirect') || '/admin';
+    const rawRedirect = searchParams.get('redirect');
+    const redirectParam = rawRedirect ? sanitizeRedirectUrl(rawRedirect, '/admin') : '/admin';
     return (
       <AdminLoginPage
         redirectUrl={redirectParam}
-        onSuccess={(target) => navigate(target || '/admin')}
+        onSuccess={(target) => navigate(sanitizeRedirectUrl(target, '/admin'))}
         onBackToSite={() => navigate('/')}
       />
     );
@@ -410,13 +436,27 @@ function MainApp() {
 
   // 2. Admin Protected Area: /admin/*
   if (isAdminRoute) {
-    if (!isAdmin) {
+    // If auth is resolving or active database query to 'profiles' table is running:
+    if (authLoading || adminCheckStatus === 'checking' || adminCheckStatus === 'idle') {
       return (
-        <AdminLoginPage
-          redirectUrl={currentPath}
-          onSuccess={(target) => navigate(target || '/admin')}
-          onBackToSite={() => navigate('/')}
-        />
+        <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4 text-stone-300">
+          <div className="text-center space-y-3">
+            <div className="w-8 h-8 border-2 border-[#0A6C74] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs">Verifying administrator permissions with database...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // If role check failed, properly redirect to login page (the useEffect triggers navigate)
+    if (adminCheckStatus === 'unauthorized' || !isAdmin) {
+      return (
+        <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4 text-stone-300">
+          <div className="text-center space-y-3">
+            <div className="w-8 h-8 border-2 border-[#0A6C74] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs">Unauthorized: Redirecting to administrator login...</p>
+          </div>
+        </div>
       );
     }
 
@@ -434,7 +474,7 @@ function MainApp() {
       }
     } else if (
       adminSubRoute?.main &&
-      ['bookings', 'customers', 'destinations', 'categories', 'availability', 'extras', 'pickup', 'reviews', 'media', 'seo', 'settings'].includes(
+      ['bookings', 'inquiries', 'customers', 'newsletter', 'destinations', 'categories', 'availability', 'extras', 'pickup', 'reviews', 'media', 'seo', 'settings'].includes(
         adminSubRoute.main
       )
     ) {
@@ -478,7 +518,11 @@ function MainApp() {
 
         {activeAdminTab === 'bookings' && <AdminBookingsList />}
 
-        {activeAdminTab === 'customers' && <AdminBookingsList />}
+        {activeAdminTab === 'inquiries' && <AdminInquiriesList />}
+
+        {activeAdminTab === 'customers' && <AdminCustomersList />}
+
+        {activeAdminTab === 'newsletter' && <AdminNewsletterList />}
 
         {activeAdminTab === 'destinations' && <AdminDestinationsList />}
 
@@ -505,7 +549,8 @@ function MainApp() {
   const renderCurrentView = () => {
     // Auth: Login Page
     if (currentPath === '/login') {
-      const redirectParam = searchParams.get('redirect') || undefined;
+      const rawRedirect = searchParams.get('redirect');
+      const redirectParam = rawRedirect ? sanitizeRedirectUrl(rawRedirect, '/') : undefined;
       return (
         <LoginPage
           redirectUrl={redirectParam}
@@ -516,7 +561,8 @@ function MainApp() {
 
     // Auth: Register Page
     if (currentPath === '/register') {
-      const redirectParam = searchParams.get('redirect') || undefined;
+      const rawRedirect = searchParams.get('redirect');
+      const redirectParam = rawRedirect ? sanitizeRedirectUrl(rawRedirect, '/') : undefined;
       return (
         <RegisterPage
           redirectUrl={redirectParam}
@@ -731,6 +777,10 @@ function MainApp() {
         onNavigateSection={handleNavigateSection}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenCompare={() => setIsCompareOpen(true)}
+        onOpenHelpInquiry={() => {
+          setHelpSelectedTour(null);
+          setIsHelpInquiryOpen(true);
+        }}
       />
 
       {/* Main View Flow with Smooth Page Entrance */}
@@ -762,6 +812,10 @@ function MainApp() {
         onOpenRegister={() => navigate('/register')}
         onOpenResetPassword={() => navigate('/reset-password')}
         onOpenAdmin={() => navigate('/admin')}
+        onOpenHelpInquiry={() => {
+          setHelpSelectedTour(null);
+          setIsHelpInquiryOpen(true);
+        }}
       />
 
       {/* Floating AI Concierge Chatbot (floating button on left side) */}
@@ -801,6 +855,17 @@ function MainApp() {
           onOpenCompareModal={() => setIsCompareOpen(true)}
         />
       )}
+
+      {/* Global Help & Support Inquiry Modal */}
+      <HelpInquiryModal
+        isOpen={isHelpInquiryOpen}
+        onClose={() => {
+          setIsHelpInquiryOpen(false);
+          setHelpSelectedTour(null);
+        }}
+        selectedTour={helpSelectedTour}
+        tours={liveTours}
+      />
     </div>
   );
 }

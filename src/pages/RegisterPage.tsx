@@ -22,7 +22,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { COUNTRY_DIAL_CODES } from '../data/bookingData';
-import { isValidEmail } from '../lib/security';
+import { isValidEmail, validatePasswordStrength, sanitizeString, authRateLimiter, sanitizeRedirectUrl } from '../lib/security';
 
 interface RegisterPageProps {
   redirectUrl?: string;
@@ -65,18 +65,29 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ redirectUrl, onNavig
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!fullName.trim()) {
-      setErrorMessage('Please enter your full name.');
+    const limit = authRateLimiter.check();
+    if (limit.isLocked) {
+      setErrorMessage(`Too many registration attempts. Please wait ${limit.remainingSeconds} seconds.`);
       return;
     }
 
-    if (!email.trim() || !isValidEmail(email)) {
+    const cleanName = sanitizeString(fullName);
+    const cleanEmail = sanitizeString(email).toLowerCase();
+    const cleanPhone = sanitizeString(phoneNumber);
+
+    if (!cleanName || cleanName.length < 2) {
+      setErrorMessage('Please enter your full legal name.');
+      return;
+    }
+
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
+    const strength = validatePasswordStrength(password);
+    if (!strength.isValid) {
+      setErrorMessage(strength.errors[0] || 'Password does not meet security requirements.');
       return;
     }
 
@@ -93,23 +104,26 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ redirectUrl, onNavig
     setIsSubmitting(true);
     try {
       const result = await signUp({
-        fullName: fullName.trim(),
-        email: email.trim(),
+        fullName: cleanName,
+        email: cleanEmail,
         password,
         countryCode,
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: cleanPhone,
         country: country.trim(),
       });
 
       if (result.success) {
+        authRateLimiter.reset();
         setIsPendingConfirmation(true);
-        setConfirmedEmail(email.trim());
+        setConfirmedEmail(cleanEmail);
         setTestToken(result.confirmationToken);
         showToast('Confirmation email dispatched by Supabase. Please check your inbox.', 'info', 6000);
       } else {
+        authRateLimiter.recordFailedAttempt();
         setErrorMessage(result.error || 'Could not complete registration. Please try again.');
       }
     } catch {
+      authRateLimiter.recordFailedAttempt();
       setErrorMessage('An unexpected error occurred during registration. Please try again.');
     } finally {
       setIsSubmitting(false);

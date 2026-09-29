@@ -11,6 +11,7 @@ import {
   getCurrentAdminUser,
   isUserAdmin,
   verifyAdminAccess,
+  LOCAL_ACTIVE_USER_KEY,
 } from '../services/authService';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { useToast } from './ToastContext';
@@ -110,23 +111,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   /**
-   * Queries the 'profiles' table directly in Supabase to verify the user's role.
-   * Eliminates local state reliance and verifies live RBAC authorization.
+   * Queries the 'profiles' table directly in Supabase for the user's current role.
+   * Completely replaces cached local state with a live database verification.
    */
   const checkAdminAccess = useCallback(async (): Promise<boolean> => {
     if (!isSupabaseConfigured()) {
-      const isDemo = localStorage.getItem('rse_demo_admin');
-      return isDemo === 'true';
+      const stored = localStorage.getItem(LOCAL_ACTIVE_USER_KEY);
+      if (!stored) return false;
+      try {
+        const u = JSON.parse(stored) as AppUser;
+        return u.role === 'admin' || u.role === 'manager' || u.role === 'staff';
+      } catch {
+        return false;
+      }
     }
 
     try {
       const { data: { user: authUser }, error: userErr } = await supabase.auth.getUser();
       if (userErr || !authUser) {
         setUser(null);
+        localStorage.removeItem(LOCAL_ACTIVE_USER_KEY);
         return false;
       }
 
-      // Query the 'profiles' table directly for the user's role
+      // Query the 'profiles' table directly for the user's role in PostgreSQL
       const { data: profile, error: profErr } = await supabase
         .from('profiles')
         .select('id, email, full_name, role, phone, country, avatar_url, is_confirmed')
@@ -134,26 +142,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (profErr || !profile) {
+        console.warn('Admin check: profile not found in profiles table', profErr);
         return false;
       }
 
       const role = profile.role as 'admin' | 'manager' | 'staff' | 'customer';
       const isAllowed = role === 'admin' || role === 'manager' || role === 'staff';
 
-      // Synchronize the in-memory user state with the live database profile
-      setUser({
-        id: authUser.id,
-        email: authUser.email || '',
-        fullName: profile.full_name || authUser.email?.split('@')[0] || 'Voyager',
-        role,
-        avatarUrl: profile.avatar_url,
-        phoneNumber: profile.phone,
-        country: profile.country,
-        isConfirmed: Boolean(profile.is_confirmed),
-        isDemo: false,
-      });
-
-      return isAllowed;
+      if (isAllowed) {
+        // Synchronize the in-memory user state with the live database profile
+        const updatedUser: AppUser = {
+          id: authUser.id,
+          email: authUser.email || profile.email || '',
+          fullName: profile.full_name || authUser.email?.split('@')[0] || 'Voyager',
+          role,
+          avatarUrl: profile.avatar_url,
+          phoneNumber: profile.phone,
+          country: profile.country,
+          isConfirmed: Boolean(profile.is_confirmed),
+        };
+        setUser(updatedUser);
+        localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(updatedUser));
+        return true;
+      } else {
+        // Not an authorized admin: update role
+        setUser((prev) => (prev ? { ...prev, role } : null));
+        return false;
+      }
     } catch (err) {
       console.error('Error querying profiles table for admin role:', err);
       return false;
@@ -334,6 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut: () => handleSignOut(false),
         refreshUser,
         verifyAdmin: verifyAdminAccess,
+        checkAdminAccess,
       }}
     >
       {children}

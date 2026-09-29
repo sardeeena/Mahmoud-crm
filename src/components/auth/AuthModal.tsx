@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth, AuthModalView } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
-import { sanitizeString } from '../../lib/security';
+import { sanitizeString, isValidEmail, validatePasswordStrength, authRateLimiter } from '../../lib/security';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -105,9 +105,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // 1. Handle Login
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = sanitizeString(email);
+    const limit = authRateLimiter.check();
+    if (limit.isLocked) {
+      setErrorMsg(`Too many attempts. Please wait ${limit.remainingSeconds} seconds before trying again.`);
+      return;
+    }
+
+    const cleanEmail = sanitizeString(email).toLowerCase();
     if (!cleanEmail || !password) {
       setErrorMsg('Please enter both your email and password.');
+      return;
+    }
+
+    if (!isValidEmail(cleanEmail)) {
+      setErrorMsg('Please enter a valid email address format.');
       return;
     }
 
@@ -118,9 +129,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
 
     if (result.success) {
+      authRateLimiter.reset();
       onClose();
       if (onSuccess) onSuccess();
     } else {
+      authRateLimiter.recordFailedAttempt();
       setErrorMsg(result.error || 'Unable to sign in. Please verify your credentials.');
     }
   };
@@ -128,17 +141,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // 2. Handle Register
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = sanitizeString(email);
-    const cleanName = sanitizeString(fullName);
-    const cleanPhone = sanitizeString(phone);
-
-    if (!cleanEmail || !password || !cleanName) {
-      setErrorMsg('Please fill in your full name, email, and password.');
+    const limit = authRateLimiter.check();
+    if (limit.isLocked) {
+      setErrorMsg(`Too many registration attempts. Please wait ${limit.remainingSeconds} seconds.`);
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+    const cleanEmail = sanitizeString(email).toLowerCase();
+    const cleanName = sanitizeString(fullName);
+    const cleanPhone = sanitizeString(phone);
+
+    if (!cleanName || cleanName.length < 2) {
+      setErrorMsg('Please enter your full legal name.');
+      return;
+    }
+
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      setErrorMsg('Please enter a valid email address format.');
+      return;
+    }
+
+    const strengthCheck = validatePasswordStrength(password);
+    if (!strengthCheck.isValid) {
+      setErrorMsg(strengthCheck.errors[0] || 'Password does not meet security requirements.');
       return;
     }
 
@@ -165,6 +190,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
 
     if (result.success) {
+      authRateLimiter.reset();
       if (result.needsEmailConfirmation) {
         setRegisteredEmail(cleanEmail);
         setNeedsVerificationNotice(true);
@@ -173,6 +199,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (onSuccess) onSuccess();
       }
     } else {
+      authRateLimiter.recordFailedAttempt();
       setErrorMsg(result.error || 'Registration failed. Please try again.');
     }
   };
@@ -180,9 +207,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // 3. Handle Forgot Password
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = sanitizeString(email);
-    if (!cleanEmail) {
-      setErrorMsg('Please enter your email address.');
+    const limit = authRateLimiter.check();
+    if (limit.isLocked) {
+      setErrorMsg(`Too many requests. Please wait ${limit.remainingSeconds} seconds.`);
+      return;
+    }
+
+    const cleanEmail = sanitizeString(email).toLowerCase();
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      setErrorMsg('Please enter a valid email address.');
       return;
     }
 
@@ -193,8 +226,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
 
     if (result.success) {
+      authRateLimiter.reset();
       setSuccessMsg(`We have dispatched password reset instructions to ${cleanEmail}. Please check your inbox and click the recovery link.`);
     } else {
+      authRateLimiter.recordFailedAttempt();
       setErrorMsg(result.error || 'Failed to send reset email. Please try again.');
     }
   };
@@ -210,18 +245,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } else {
       setErrorMsg(res.error || 'Could not resend verification email.');
     }
-  };
-
-  // Quick Demo account fill
-  const fillDemoAccount = (role: 'admin' | 'customer') => {
-    if (role === 'admin') {
-      setEmail('admin@redseavoyages.com');
-      setPassword('admin123');
-    } else {
-      setEmail('guest@redseavoyages.com');
-      setPassword('password123');
-    }
-    setErrorMsg(null);
   };
 
   if (!isOpen) return null;
@@ -425,29 +448,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </>
                     )}
                   </button>
-
-                  {/* One-click Demo Accounts */}
-                  <div className="pt-2 border-t border-stone-100">
-                    <p className="text-[11px] font-medium text-stone-500 mb-2 text-center">
-                      Quick Demo Accounts (Instant Testing):
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => fillDemoAccount('customer')}
-                        className="py-1.5 px-2 bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-700 text-[11px] rounded-lg transition-colors text-center"
-                      >
-                        Guest Demo (Customer)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => fillDemoAccount('admin')}
-                        className="py-1.5 px-2 bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-700 text-[11px] rounded-lg transition-colors text-center"
-                      >
-                        Captain Youssef (Admin)
-                      </button>
-                    </div>
-                  </div>
                 </form>
               )}
 

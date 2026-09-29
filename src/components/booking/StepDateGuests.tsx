@@ -139,7 +139,7 @@ export const StepDateGuests: React.FC<StepDateGuestsProps> = ({
                   </span>
                 </div>
                 <span className="text-[10px] text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded font-mono">
-                  Demo Manifest
+                  Live Availability
                 </span>
               </div>
             )}

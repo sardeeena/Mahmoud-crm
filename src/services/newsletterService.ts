@@ -1,21 +1,26 @@
 import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
-import { isValidEmail } from '../lib/security';
+import { isValidEmail, newsletterRateLimiter } from '../lib/security';
 
 export interface NewsletterSubscriber {
   id?: string;
   email: string;
   source?: string;
-  status?: 'subscribed' | 'unsubscribed';
+  status: 'subscribed' | 'unsubscribed';
   discountCode?: string;
-  createdAt?: string;
+  createdAt: string;
 }
 
 const LOCAL_NEWSLETTER_KEY = 'rse_newsletter_subscriptions';
 
+const SEED_SUBSCRIBERS: NewsletterSubscriber[] = [];
+
 function getStoredSubscribers(): NewsletterSubscriber[] {
   try {
     const raw = localStorage.getItem(LOCAL_NEWSLETTER_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) {
+      return [];
+    }
+    return JSON.parse(raw);
   } catch {
     return [];
   }
@@ -30,7 +35,7 @@ function saveStoredSubscribers(subscribers: NewsletterSubscriber[]) {
 }
 
 /**
- * Subscribes a user email to promotional updates in Supabase
+ * Subscribes a user email to promotional updates in Supabase and local cache
  */
 export async function subscribeToNewsletter(
   email: string,
@@ -42,6 +47,16 @@ export async function subscribeToNewsletter(
   message: string; 
   error?: string 
 }> {
+  const limit = newsletterRateLimiter.check();
+  if (limit.isLocked) {
+    return {
+      success: false,
+      discountCode: 'REDSEA15',
+      message: `Too many attempts. Please wait ${limit.remainingSeconds} seconds.`,
+      error: 'Rate limit exceeded',
+    };
+  }
+
   const cleanEmail = email.trim().toLowerCase();
 
   if (!cleanEmail) {
@@ -63,6 +78,7 @@ export async function subscribeToNewsletter(
   }
 
   const discountCode = 'REDSEA15';
+  const now = new Date().toISOString();
 
   // 1. Try Supabase
   if (isSupabaseConfigured()) {
@@ -79,8 +95,12 @@ export async function subscribeToNewsletter(
           // Re-subscribe
           await supabase
             .from('newsletter_subscriptions')
-            .update({ status: 'subscribed', updated_at: new Date().toISOString() })
+            .update({ status: 'subscribed', updated_at: now })
             .eq('id', existing.id);
+
+          const localList = getStoredSubscribers();
+          const updated = localList.map((s) => s.email === cleanEmail ? { ...s, status: 'subscribed' as const } : s);
+          saveStoredSubscribers(updated);
 
           return {
             success: true,
@@ -107,12 +127,11 @@ export async function subscribeToNewsletter(
           discount_code: discountCode,
           metadata: {
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-            subscribedAt: new Date().toISOString(),
+            subscribedAt: now,
           },
         });
 
       if (insertError) {
-        // If unique constraint error or table missing, handle gracefully
         if (insertError.code === '23505') {
           return {
             success: true,
@@ -126,12 +145,13 @@ export async function subscribeToNewsletter(
         // Record in local cache
         const localList = getStoredSubscribers();
         if (!localList.some((s) => s.email === cleanEmail)) {
-          localList.push({
+          localList.unshift({
+            id: `sub-${Date.now().toString(36)}`,
             email: cleanEmail,
             source,
             status: 'subscribed',
             discountCode,
-            createdAt: new Date().toISOString(),
+            createdAt: now,
           });
           saveStoredSubscribers(localList);
         }
@@ -152,6 +172,15 @@ export async function subscribeToNewsletter(
   const existingLocal = localList.find((s) => s.email === cleanEmail);
 
   if (existingLocal) {
+    if (existingLocal.status === 'unsubscribed') {
+      existingLocal.status = 'subscribed';
+      saveStoredSubscribers(localList);
+      return {
+        success: true,
+        discountCode,
+        message: 'Welcome back! You have been re-subscribed to our seasonal updates.',
+      };
+    }
     return {
       success: true,
       alreadySubscribed: true,
@@ -160,12 +189,13 @@ export async function subscribeToNewsletter(
     };
   }
 
-  localList.push({
+  localList.unshift({
+    id: `sub-${Date.now().toString(36)}`,
     email: cleanEmail,
     source,
     status: 'subscribed',
     discountCode,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
   });
   saveStoredSubscribers(localList);
 
@@ -174,4 +204,85 @@ export async function subscribeToNewsletter(
     discountCode,
     message: 'Welcome to Red Sea Voyagers! You have been subscribed to exclusive updates & seasonal deals.',
   };
+}
+
+/**
+ * Lists all newsletter subscribers for admin dashboard
+ */
+export async function listNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('newsletter_subscriptions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data.map((d) => ({
+          id: d.id,
+          email: d.email,
+          source: d.source || 'footer',
+          status: (d.status === 'unsubscribed' ? 'unsubscribed' : 'subscribed') as 'subscribed' | 'unsubscribed',
+          discountCode: d.discount_code || 'REDSEA15',
+          createdAt: d.created_at || new Date().toISOString(),
+        }));
+      }
+    } catch (err) {
+      console.warn('Supabase newsletter listing error, using local fallback:', err);
+    }
+  }
+
+  return getStoredSubscribers();
+}
+
+/**
+ * Updates subscriber status (e.g. toggle between subscribed and unsubscribed)
+ */
+export async function updateSubscriberStatus(
+  idOrEmail: string,
+  status: 'subscribed' | 'unsubscribed'
+): Promise<boolean> {
+  const localList = getStoredSubscribers();
+  const updated = localList.map((s) => {
+    if (s.id === idOrEmail || s.email === idOrEmail) {
+      return { ...s, status };
+    }
+    return s;
+  });
+  saveStoredSubscribers(updated);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('newsletter_subscriptions')
+        .update({ status, updated_at: new Date().toISOString() })
+        .or(`id.eq.${idOrEmail},email.eq.${idOrEmail}`);
+    } catch (err) {
+      console.warn('Failed to update newsletter status in database:', err);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Deletes a subscriber record
+ */
+export async function deleteSubscriber(idOrEmail: string): Promise<boolean> {
+  const localList = getStoredSubscribers();
+  const filtered = localList.filter((s) => s.id !== idOrEmail && s.email !== idOrEmail);
+  saveStoredSubscribers(filtered);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('newsletter_subscriptions')
+        .delete()
+        .or(`id.eq.${idOrEmail},email.eq.${idOrEmail}`);
+    } catch {
+      // ignore
+    }
+  }
+
+  return true;
 }

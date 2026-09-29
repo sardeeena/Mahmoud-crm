@@ -19,7 +19,9 @@ import {
   Database,
   Plus,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  HelpCircle,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
@@ -30,7 +32,9 @@ export type AdminTab =
   | 'tour_new'
   | 'tour_edit'
   | 'bookings'
+  | 'inquiries'
   | 'customers'
+  | 'newsletter'
   | 'destinations'
   | 'categories'
   | 'availability'
@@ -76,7 +80,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       ],
     },
     { id: 'bookings', label: 'Bookings', icon: CalendarCheck },
+    { id: 'inquiries', label: 'Help Requests', icon: HelpCircle },
     { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'newsletter', label: 'Newsletter', icon: Mail },
     { id: 'destinations', label: 'Destinations', icon: MapPin },
     { id: 'categories', label: 'Categories', icon: Layers },
     { id: 'availability', label: 'Availability', icon: Calendar },
@@ -120,7 +126,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="flex items-center space-x-2">
             <Database className="w-4 h-4 text-sky-400 shrink-0" />
             <span>
-              <strong>Supabase Connected (Migration Pending):</strong> Tables not found in schema cache. Demo tours and bookings are active in local sandbox mode. Run the Phase 4 SQL migration script in your Supabase SQL Editor.
+              <strong>Supabase Connected (Migration Pending):</strong> Tables not yet detected in database schema. Run the Phase 4 SQL migration script in your Supabase SQL Editor to enable full table synchronization.
             </span>
           </div>
           <button

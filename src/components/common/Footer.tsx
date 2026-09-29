@@ -8,7 +8,8 @@ import {
   ShieldCheck, 
   MessageCircle,
   CreditCard,
-  CheckCircle2
+  CheckCircle2,
+  HelpCircle
 } from 'lucide-react';
 import { NewsletterSubscribe } from './NewsletterSubscribe';
 
@@ -20,6 +21,7 @@ interface FooterProps {
   onOpenRegister?: () => void;
   onOpenResetPassword?: () => void;
   onOpenAdmin?: () => void;
+  onOpenHelpInquiry?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -30,6 +32,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenRegister,
   onOpenResetPassword,
   onOpenAdmin,
+  onOpenHelpInquiry,
 }) => {
   return (
     <footer className="bg-[#0E1B2A] text-slate-400 text-xs border-t border-slate-800">
@@ -241,6 +244,18 @@ export const Footer: React.FC<FooterProps> = ({
                   My Booking & Voucher
                 </button>
               </li>
+              {onOpenHelpInquiry && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={onOpenHelpInquiry}
+                    className="text-amber-300 hover:text-white transition-colors flex items-center space-x-1"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Require Help & Concierge</span>
+                  </button>
+                </li>
+              )}
               {onOpenLogin && (
                 <li>
                   <button

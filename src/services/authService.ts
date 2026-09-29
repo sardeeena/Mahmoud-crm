@@ -11,7 +11,6 @@ export interface AppUser {
   phone?: string;
   countryCode?: string;
   country?: string;
-  isDemo?: boolean;
   isConfirmed?: boolean;
   createdAt?: string;
 }
@@ -24,29 +23,6 @@ export interface AuthState {
   error: string | null;
 }
 
-export const DEMO_ADMIN: AppUser = {
-  id: 'demo-admin-uuid-000000000001',
-  email: 'admin@redseavoyages.com',
-  fullName: 'Captain Youssef (Super Admin)',
-  role: 'admin',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-  isDemo: true,
-  isConfirmed: true,
-};
-
-export const DEMO_CUSTOMER: AppUser = {
-  id: 'demo-cust-uuid-000000000002',
-  email: 'customer@redseavoyages.com',
-  fullName: 'Sarah Jenkins',
-  role: 'customer',
-  phoneNumber: '7700 900123',
-  countryCode: '+44',
-  country: 'United Kingdom',
-  avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
-  isDemo: true,
-  isConfirmed: true,
-};
-
 interface StoredLocalUser {
   user: AppUser;
   passwordHash: string;
@@ -55,8 +31,8 @@ interface StoredLocalUser {
   confirmationSentAt?: string;
 }
 
-const LOCAL_USERS_KEY = 'rse_registered_users';
-const LOCAL_ACTIVE_USER_KEY = 'rse_active_user';
+export const LOCAL_USERS_KEY = 'rse_registered_users';
+export const LOCAL_ACTIVE_USER_KEY = 'rse_active_user';
 
 export function getStoredLocalUsers(): StoredLocalUser[] {
   try {
@@ -108,20 +84,7 @@ export async function signInUser(
 ): Promise<{ user: AppUser | null; error?: string; requiresEmailConfirmation?: boolean; unconfirmedEmail?: string }> {
   const cleanEmail = email.trim().toLowerCase();
 
-  // 1. Check Demo Customer
-  if (cleanEmail === 'customer@redseavoyages.com' && password === 'customer123') {
-    localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(DEMO_CUSTOMER));
-    return { user: DEMO_CUSTOMER };
-  }
-
-  // 2. Check Demo Admin
-  if (cleanEmail === 'admin@redseavoyages.com' && password === 'admin123') {
-    localStorage.setItem('rse_demo_admin', 'true');
-    localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(DEMO_ADMIN));
-    return { user: DEMO_ADMIN };
-  }
-
-  // 3. Try Supabase Auth FIRST if configured (Supabase is source of truth for email verification)
+  // 1. Try Supabase Auth FIRST if configured (Supabase is source of truth for email verification)
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -215,13 +178,9 @@ export async function signInUser(
           phoneNumber: profilePhone,
           country: profileCountry,
           isConfirmed: true,
-          isDemo: false,
         };
 
         localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(authedUser));
-        if (authedUser.role === 'admin' || authedUser.role === 'manager' || authedUser.role === 'staff') {
-          localStorage.setItem('rse_demo_admin', 'true');
-        }
         return { user: authedUser };
       }
 
@@ -295,9 +254,6 @@ export async function signInUser(
     }
 
     localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(matchedLocal.user));
-    if (matchedLocal.user.role === 'admin' || matchedLocal.user.role === 'manager') {
-      localStorage.setItem('rse_demo_admin', 'true');
-    }
     return { user: matchedLocal.user };
   }
 
@@ -760,16 +716,10 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
         phoneNumber: profilePhone,
         country: profileCountry,
         isConfirmed: true,
-        isDemo: false,
       };
 
       // Keep local cache aligned with the live database role
       localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(authedUser));
-      if (hasAdminRole) {
-        localStorage.setItem('rse_demo_admin', 'true');
-      } else {
-        localStorage.removeItem('rse_demo_admin');
-      }
 
       return authedUser;
     } catch (sbErr) {
@@ -778,13 +728,7 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
     }
   }
 
-  // 2. Only if Supabase is NOT configured (Offline Demo Mode):
-  const isDemo = localStorage.getItem('rse_demo_admin');
-  if (isDemo === 'true') {
-    return DEMO_ADMIN;
-  }
-
-  // 3. Fallback: Check active user in local storage (sandbox mode)
+  // 2. Fallback: Check active user in local storage (sandbox mode)
   const activeUserRaw = localStorage.getItem(LOCAL_ACTIVE_USER_KEY);
   if (activeUserRaw) {
     try {
@@ -804,8 +748,14 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
  */
 export async function verifyAdminAccess(): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    const isDemo = localStorage.getItem('rse_demo_admin');
-    return isDemo === 'true';
+    const activeUserRaw = localStorage.getItem(LOCAL_ACTIVE_USER_KEY);
+    if (!activeUserRaw) return false;
+    try {
+      const u = JSON.parse(activeUserRaw) as AppUser;
+      return isUserAdmin(u);
+    } catch {
+      return false;
+    }
   }
 
   try {

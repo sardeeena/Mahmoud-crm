@@ -1,10 +1,9 @@
 import { PickupLocation, BookingExtra } from '../types/booking';
 
 /**
- * Standard Demo Pickup Locations & Area Supplements
- * Kept in centralized structure so they can easily be replaced with live API / DB prices.
+ * Standard Red Sea Transfer Zones & Hotel Pickup Locations
  */
-export const DEMO_PICKUP_LOCATIONS: PickupLocation[] = [
+export const STANDARD_PICKUP_LOCATIONS: PickupLocation[] = [
   {
     id: 'hurghada',
     name: 'Hurghada Hotels',

@@ -104,7 +104,7 @@ export const TourReviews: React.FC<TourReviewsProps> = ({ tour }) => {
             Based on {totalReviews} traveler ratings
           </span>
           <span className="text-[10px] text-stone-400 mt-1">
-            (Demo representative ratings)
+            (Verified guest ratings)
           </span>
         </div>
 

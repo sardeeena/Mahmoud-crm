@@ -2,7 +2,7 @@ import React from 'react';
 import { MapPin, CheckCircle2, ArrowRight, ArrowLeft, MessageCircle, HelpCircle, Building } from 'lucide-react';
 import { PickupLocation } from '../../types/booking';
 import { CurrencyConfig } from '../../types';
-import { DEMO_PICKUP_LOCATIONS } from '../../data/bookingData';
+import { STANDARD_PICKUP_LOCATIONS } from '../../data/bookingData';
 import { formatCurrencyAmount } from '../../services/pricingService';
 import { getWhatsAppSupportUrl } from '../../services/exportService';
 
@@ -25,7 +25,7 @@ export const StepPickup: React.FC<StepPickupProps> = ({
   onNext,
   onBack,
 }) => {
-  const selectedLocation = DEMO_PICKUP_LOCATIONS.find((l) => l.id === selectedPickupId) || DEMO_PICKUP_LOCATIONS[0];
+  const selectedLocation = STANDARD_PICKUP_LOCATIONS.find((l) => l.id === selectedPickupId) || STANDARD_PICKUP_LOCATIONS[0];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -44,7 +44,7 @@ export const StepPickup: React.FC<StepPickupProps> = ({
 
         {/* Pickup Location Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          {DEMO_PICKUP_LOCATIONS.map((loc) => {
+          {STANDARD_PICKUP_LOCATIONS.map((loc) => {
             const isSelected = selectedPickupId === loc.id;
             return (
               <div

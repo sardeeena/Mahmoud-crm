@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { sanitizeString, isValidEmail, sanitizeRedirectUrl, authRateLimiter } from '../lib/security';
 
 interface LoginPageProps {
   redirectUrl?: string;
@@ -50,8 +51,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
   // If user is already authenticated (e.g. from Supabase email link session), redirect smoothly
   useEffect(() => {
     if (user) {
-      if (redirectUrl && redirectUrl !== '/login') {
-        onNavigate(redirectUrl);
+      const safeUrl = sanitizeRedirectUrl(redirectUrl, '/');
+      if (safeUrl !== '/login') {
+        onNavigate(safeUrl);
       } else {
         onNavigate('/');
       }
@@ -175,31 +177,47 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
     setErrorMessage(null);
     setRequiresConfirmation(false);
 
-    if (!email.trim() || !password) {
+    const limit = authRateLimiter.check();
+    if (limit.isLocked) {
+      setErrorMessage(`Too many sign-in attempts. Please wait ${limit.remainingSeconds} seconds before trying again.`);
+      return;
+    }
+
+    const cleanEmail = sanitizeString(email).toLowerCase();
+    if (!cleanEmail || !password) {
       setErrorMessage('Please enter both your email and password.');
+      return;
+    }
+
+    if (!isValidEmail(cleanEmail)) {
+      setErrorMessage('Please enter a valid email address format.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await signIn(email.trim(), password);
+      const result = await signIn(cleanEmail, password);
       if (result.success) {
+        authRateLimiter.reset();
         showToast('Welcome back! You have successfully signed in.', 'success');
-        if (redirectUrl && redirectUrl !== '/login') {
-          onNavigate(redirectUrl);
+        const safeUrl = sanitizeRedirectUrl(redirectUrl, '/');
+        if (safeUrl !== '/login') {
+          onNavigate(safeUrl);
         } else {
           onNavigate('/');
         }
       } else {
+        authRateLimiter.recordFailedAttempt();
         if (result.requiresEmailConfirmation) {
           setRequiresConfirmation(true);
-          setUnconfirmedEmail(result.unconfirmedEmail || email.trim());
+          setUnconfirmedEmail(result.unconfirmedEmail || cleanEmail);
           setErrorMessage(result.error || 'Your account is pending email confirmation. Please check your inbox.');
         } else {
           setErrorMessage(result.error || 'Invalid email or password. Please verify your credentials.');
         }
       }
     } catch {
+      authRateLimiter.recordFailedAttempt();
       setErrorMessage('A connection error occurred while signing in. Please try again.');
     } finally {
       setIsSubmitting(false);

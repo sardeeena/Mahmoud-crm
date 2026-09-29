@@ -16,7 +16,8 @@ import {
   LogIn,
   LogOut,
   ShieldCheck,
-  UserPlus
+  UserPlus,
+  HelpCircle,
 } from 'lucide-react';
 import { CurrencyConfig } from '../../types';
 import { CURRENCY_CONFIGS } from '../../data/toursData';
@@ -40,6 +41,7 @@ interface HeaderProps {
   onNavigateAdmin?: () => void;
   onOpenWishlist?: () => void;
   onOpenCompare?: () => void;
+  onOpenHelpInquiry?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -56,6 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateAdmin,
   onOpenWishlist,
   onOpenCompare,
+  onOpenHelpInquiry,
 }) => {
   const { language, setLanguage, currentLanguageConfig, supportedLanguages, t } = useLanguage();
   const { wishlistCount } = useWishlist();
@@ -573,6 +576,19 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
+          {/* Require Help Button */}
+          {onOpenHelpInquiry && (
+            <button
+              type="button"
+              onClick={onOpenHelpInquiry}
+              className="hidden md:inline-flex items-center px-3 py-2 text-xs font-semibold text-stone-700 hover:text-[#0A6C74] hover:bg-stone-100 rounded-xl transition-all cursor-pointer border border-stone-200/80 bg-white"
+              title="Require Help, Concierge & Custom Tours"
+            >
+              <HelpCircle className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+              <span>Require Help</span>
+            </button>
+          )}
+
           {/* Book Excursion */}
           <motion.button
             whileHover={{ scale: 1.03 }}
@@ -847,6 +863,19 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   {t('mobile.findBookingSubtitle')}
                 </button>
+                {onOpenHelpInquiry && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenHelpInquiry();
+                    }}
+                    className="w-full py-2.5 px-4 text-center font-semibold text-sm bg-stone-850 bg-[#0A6C74]/10 hover:bg-[#0A6C74]/20 text-[#0A6C74] rounded border border-[#0A6C74]/30 flex items-center justify-center space-x-2"
+                  >
+                    <HelpCircle className="w-4 h-4 text-[#0A6C74]" />
+                    <span>Require Help & Support</span>
+                  </button>
+                )}
                 <a
                   href="https://wa.me/201023456789"
                   target="_blank"

@@ -241,3 +241,80 @@ export const safeStorage = {
     }
   },
 };
+
+/**
+ * Escapes characters for HTML text nodes to prevent XSS in dynamic rendering
+ */
+export function escapeHtml(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Sanitizes redirect URLs to guard against Open Redirect vulnerabilities
+ * Ensures target is a relative path starting with '/' and not '//'
+ */
+export function sanitizeRedirectUrl(targetUrl: string | undefined | null, fallback = '/'): string {
+  if (!targetUrl || typeof targetUrl !== 'string') {
+    return fallback;
+  }
+  const trimmed = targetUrl.trim();
+  // Disallow absolute protocol URLs (http:, https:, javascript:, data:) and protocol-relative (//)
+  if (
+    !trimmed.startsWith('/') ||
+    trimmed.startsWith('//') ||
+    trimmed.includes('\\') ||
+    /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)
+  ) {
+    return fallback;
+  }
+  return trimmed;
+}
+
+/**
+ * Validates password strength for registration and security updates
+ */
+export function validatePasswordStrength(password: string): {
+  isValid: boolean;
+  score: number;
+  errors: string[];
+} {
+  const errors: string[] = [];
+  if (!password || password.length < 8) {
+    errors.push('Password must be at least 8 characters long.');
+  }
+
+  let score = 0;
+  if (password.length >= 8) score += 1;
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
+  if (/\d/.test(password)) score += 1;
+  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) score += 1;
+
+  if (!/[a-zA-Z]/.test(password)) {
+    errors.push('Password must include at least one letter.');
+  }
+  if (!/\d/.test(password)) {
+    errors.push('Password must include at least one number.');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    score,
+    errors,
+  };
+}
+
+/**
+ * Pre-configured Application Rate Limiters
+ */
+export const authRateLimiter = new ClientRateLimiter('auth_actions', 5, 60000);
+export const bookingRateLimiter = new ClientRateLimiter('booking_submissions', 6, 60000);
+export const inquiryRateLimiter = new ClientRateLimiter('inquiry_submissions', 4, 60000);
+export const newsletterRateLimiter = new ClientRateLimiter('newsletter_signups', 5, 60000);
+export const reviewRateLimiter = new ClientRateLimiter('tour_reviews', 3, 60000);
+
