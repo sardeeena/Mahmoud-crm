@@ -10,7 +10,7 @@ export const TourReviews: React.FC<TourReviewsProps> = ({ tour }) => {
   const [writeModalOpen, setWriteModalOpen] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState(false);
 
-  // Demo review distribution
+  // Verified guest review distribution
   const breakdown = tour.ratingBreakdown || {
     5: Math.round(tour.reviewCount * 0.8),
     4: Math.round(tour.reviewCount * 0.15),

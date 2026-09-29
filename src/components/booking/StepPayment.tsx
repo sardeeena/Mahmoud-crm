@@ -109,7 +109,7 @@ export const StepPayment: React.FC<StepPaymentProps> = ({
             </div>
           </div>
 
-          {/* Pay Online (Disabled in DEMO_MODE) */}
+          {/* Pay Online (Gateway Coming Soon) */}
           <div className="p-4 rounded-sm border border-stone-200 bg-stone-50/80 opacity-85">
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-3">

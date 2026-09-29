@@ -33,7 +33,7 @@ export const APP_CONFIG = {
 
   // Payment configuration
   PAYMENT_SETTINGS: {
-    ALLOW_PAY_ONLINE: false, // Disabled in DEMO_MODE until Stripe / Paymob gateway is connected
+    ALLOW_PAY_ONLINE: false, // Disabled until Stripe / Paymob merchant gateway is connected
     ONLINE_PAYMENT_NOTICE: 'Online credit card payment will be available soon with 3D Secure checkout. For now, please select "Pay at Hotel Pickup" to secure your booking without upfront charge.',
     ALLOW_PAY_AT_PICKUP: true,
     ACCEPTED_PAYMENT_CURRENCIES: ['EUR', 'USD', 'GBP', 'EGP'],
