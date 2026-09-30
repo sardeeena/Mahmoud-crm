@@ -1,373 +1,345 @@
-# ⚡ Supabase Architecture & Database Blueprint
+# ⚡ Supabase Architecture & Complete Production Setup Guide
 
-> Comprehensive documentation for the Supabase (PostgreSQL 15+) relational database, Row-Level Security (RLS) policies, database triggers, storage buckets, and integration patterns powering **Red Sea Excursions & Voyages**.
+> Comprehensive end-to-end guide for provisioning, configuring, securing, and deploying **Supabase** (PostgreSQL 15+, Supabase Auth, Row-Level Security, Storage Buckets, and Triggers) for **Red Sea Excursions & Voyages**.
 
 ---
 
 ## 📑 Table of Contents
 
-1. [Database Overview](#-database-overview)
-2. [Connection & Environment Configuration](#-connection--environment-configuration)
-3. [Schema Architecture & Entity Relationship](#-schema-architecture--entity-relationship)
-4. [Detailed Table Specifications](#-detailed-table-specifications)
-5. [Row-Level Security (RLS) Matrix](#-row-level-security-rls-matrix)
-6. [Triggers, Functions & Automation](#-triggers-functions--automation)
-7. [Supabase Storage Buckets](#-supabase-storage-buckets)
-8. [Database Migration & Seeding Guide](#-database-migration--seeding-guide)
-9. [Frontend Client Integration Patterns](#-frontend-client-integration-patterns)
-10. [Troubleshooting & Diagnostics](#-troubleshooting--diagnostics)
+1. [Quick-Start: Launch in 5 Minutes](#-quick-start-launch-in-5-minutes)
+2. [Database Architecture & Entity Diagram](#-database-architecture--entity-diagram)
+3. [Step 1: Create Your Supabase Project](#-step-1-create-your-supabase-project)
+4. [Step 2: Environment Variables & Connection Setup](#-step-2-environment-variables--connection-setup)
+5. [Step 3: Run the Complete Schema Migration](#-step-3-run-the-complete-schema-migration)
+6. [Step 4: Seed the Production Excursion Catalog](#-step-4-seed-the-production-excursion-catalog)
+7. [Step 5: Configure Supabase Authentication](#-step-5-configure-supabase-authentication)
+8. [Step 6: Promote Your Administrator Account](#-step-6-promote-your-administrator-account)
+9. [Step 7: Verify Storage Buckets](#-step-7-verify-storage-buckets)
+10. [Step 8: Verify Live Database in Admin CMS](#-step-8-verify-live-database-in-admin-cms)
+11. [Complete 33-Table Schema Reference](#-complete-33-table-schema-reference)
+12. [Row-Level Security (RLS) Security Matrix](#-row-level-security-rls-security-matrix)
+13. [Troubleshooting & Diagnostics](#-troubleshooting--diagnostics)
 
 ---
 
-## 🌐 Database Overview
+## ⚡ Quick-Start: Launch in 5 Minutes
 
-The backend uses **Supabase** with a fully normalized PostgreSQL 15 database designed for high read throughput, complex relational joins (tours with itineraries, galleries, inclusions, exclusions, and FAQs), and secure transactional bookings.
+Follow these quick steps to connect your Supabase database to the website:
 
-- **Total Tables**: 27 relational tables
-- **Multi-Role RBAC**: `admin`, `manager`, `staff`, and `customer`
-- **Security**: 100% of tables have Row-Level Security (`RLS`) enabled
-- **Fallback Protection**: Client-side resilience layer that gracefully falls back to structured static data if the database is unreachable or unseeded.
+1. **Create Project**: Go to [supabase.com](https://supabase.com), create a new project (select a region close to your primary visitors, e.g., Frankfurt `eu-central-1` or London `eu-west-2`).
+2. **Copy Keys**: In **Project Settings > API**, copy the **Project URL** and **anon public key**.
+3. **Set Environment**: Put them in your `.env` file or enter them directly in the website under `/admin` > **Settings**.
+4. **Execute Schema**: Copy `/supabase/migrations/20260922000000_phase4_schema.sql` and run it in the Supabase **SQL Editor**.
+5. **Execute Seed**: Copy `/supabase/seed.sql` and run it in the **SQL Editor** to populate verified Red Sea excursions, categories, pickup points, and fleet vessels.
+6. **Promote Admin**: In the SQL Editor, run:
+   ```sql
+   SELECT public.set_admin_role_by_email('your-email@domain.com');
+   ```
+7. **Verify**: Visit `/admin` on your website. The connection status indicator will turn green: **Connected (Live Supabase integration active)**.
 
 ---
 
-## 🔑 Connection & Environment Configuration
+## 🏗️ Database Architecture & Entity Diagram
 
-### Required Credentials
-Obtain your project API keys from your Supabase Dashboard: **Project Settings > API**.
+The database is built on **PostgreSQL 15** with high normalization, strict relational integrity, single-query relational joins, and 100% Row-Level Security (RLS) coverage across all 33 tables:
 
-```env
-# .env or Vite Environment
+```
+                  auth.users (Supabase Managed)
+                       │
+                       ▼ (1:1 via trigger)
+                    profiles ◄──────────────────────────────┐
+                       │                                    │
+                       ▼                                    │
+                   customers                                │
+                       │                                    │
+                       ▼                                    │
+                    bookings ───────────────────────────────┘ (user_id)
+                       │
+                       ├──► booking_extras ◄──► tour_extras
+                       ├──► booking_passengers (manifests)
+                       │
+                       ▼
+                     tours ◄──────────────► categories (via tour_categories)
+                       │
+                       ├──► destinations (destination_id)
+                       ├──► tour_images & tour_videos
+                       ├──► tour_itinerary (minute-by-minute timeline)
+                       ├──► tour_inclusions & tour_exclusions
+                       ├──► tour_highlights & tour_faqs
+                       ├──► tour_availability (capacity caps & blackout dates)
+                       ├──► tour_vessels ◄──► vessels (marine fleet & yachts)
+                       ├──► tour_assigned_extras ◄──► tour_extras
+                       ├──► tour_pickup_locations ◄──► pickup_locations
+                       └──► reviews (verified traveler ratings)
+
+ Auxiliary & Operations Engines:
+   ├── inquiries (Concierge & Help Requests)
+   ├── newsletter_subscriptions (Marketing & Promos)
+   ├── coupons (Promo codes & vouchers)
+   ├── guides (Captains, divemasters, guides)
+   ├── faqs (Global categorized questions)
+   ├── weather_bulletins (Daily sea conditions & Coast Guard status)
+   ├── seo_metadata (Rich OpenGraph & structured data)
+   ├── site_settings (Company info & operational parameters)
+   └── audit_logs (Security & administrative event history)
+```
+
+---
+
+## 🔑 Step 1: Create Your Supabase Project
+
+1. Log in to [Supabase](https://app.supabase.com).
+2. Click **New Project** and choose your organization.
+3. Configure the project:
+   - **Name**: `Red Sea Excursions` (or your company name).
+   - **Database Password**: Generate and store a strong password.
+   - **Region**: Choose a region close to your target audience (e.g. Frankfurt, London, or Bahrain).
+   - **Pricing Plan**: Free tier or Pro tier.
+4. Click **Create new project** and wait ~60 seconds for provisioning.
+
+---
+
+## 🌐 Step 2: Environment Variables & Connection Setup
+
+### Option A: Via `.env` (Recommended for Local Dev & Production Builds)
+Create a `.env` file in the root of the project with:
+
+```bash
+# Supabase API Credentials (Project Settings > API)
 VITE_SUPABASE_URL="https://<your-project-id>.supabase.co"
-VITE_SUPABASE_ANON_KEY="<your-public-anon-key>"
+VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-### In-App Configuration Override
-For rapid previewing, testing, and staging environments, the application includes an **in-browser credential manager** in `src/services/supabaseClient.ts`:
-- Credentials can be directly entered or updated in the Admin Settings view (`/admin`).
-- Saved keys are stored in `localStorage` under `rse_supabase_url` and `rse_supabase_anon_key` without requiring a container restart.
+### Option B: In-Browser Credential Manager (Instant, Zero Container Restart)
+The application includes an in-browser key manager located in the Admin CMS:
+1. Navigate to `/admin` in your browser.
+2. In the sidebar, select **Settings**.
+3. Under **PostgreSQL & Storage Backend**, enter your **Supabase URL** and **Anon Key**.
+4. Click **Test Connection & Save Credentials**.
+5. The system tests live query capability with `public.destinations` and activates the live database instantly.
+
+> **Security Note**: Only the public `anon` key should ever be used on the client. Never provide the `service_role` secret to the frontend.
 
 ---
 
-## 🏗️ Schema Architecture & Entity Relationship
+## 📜 Step 3: Run the Complete Schema Migration
 
+The migration file is located at:
 ```
- auth.users
-     │
-     ▼ (1:1 via trigger)
-  profiles ◄─────────────┐
-     │                   │
-     │                   │
-     ▼                   │
- customers               │
-     │                   │
-     ▼                   │
-  bookings ──────────────┘ (user_id)
-     │
-     ├──► booking_extras
-     │
-     ▼
-   tours ◄──────────────► categories (via tour_categories)
-     │
-     ├──► destinations (destination_id)
-     ├──► tour_images
-     ├──► tour_videos
-     ├──► tour_itinerary
-     ├──► tour_inclusions
-     ├──► tour_exclusions
-     ├──► tour_highlights
-     ├──► tour_faqs
-     ├──► tour_availability
-     ├──► tour_assigned_extras ◄──► tour_extras
-     ├──► tour_pickup_locations ◄──► pickup_locations
-     └──► reviews
+/supabase/migrations/20260922000000_phase4_schema.sql
 ```
 
----
+1. Open your **Supabase Dashboard** > click **SQL Editor** in the left sidebar.
+2. Click **New Query**.
+3. Copy the entire contents of `20260922000000_phase4_schema.sql` and paste it into the editor.
+4. Click **Run** (or press `Ctrl+Enter` / `Cmd+Enter`).
+5. **Expected Output**: `Success. No rows returned.`
 
-## 📋 Detailed Table Specifications
-
-### 1. `profiles`
-Extends `auth.users` with user roles, contact metadata, and verification states.
-
-| Column | Type | Constraints / Default | Description |
-|---|---|---|---|
-| `id` | `UUID` | PRIMARY KEY, REFERENCES `auth.users(id)` ON DELETE CASCADE | Matches auth user ID |
-| `email` | `TEXT` | NOT NULL | User email address |
-| `full_name` | `TEXT` | NULL | Full name of the user |
-| `avatar_url` | `TEXT` | NULL | Profile image link |
-| `phone` | `TEXT` | NULL | Contact mobile number |
-| `country` | `TEXT` | NULL | Country of residence |
-| `country_code` | `TEXT` | NULL | ISO 2-letter country code |
-| `is_confirmed` | `BOOLEAN` | DEFAULT `FALSE` | Email confirmation state |
-| `role` | `TEXT` | DEFAULT `'customer'`, CHECK (`'admin'`,`'manager'`,`'staff'`,`'customer'`) | RBAC role |
-| `created_at` | `TIMESTAMPTZ` | DEFAULT `NOW()` | Registration timestamp |
-| `updated_at` | `TIMESTAMPTZ` | DEFAULT `NOW()` | Last modification |
-
-### 2. `destinations`
-Geographic hubs along the Egyptian Red Sea coast.
-
-| Column | Type | Details |
-|---|---|---|
-| `id` | `UUID` | PRIMARY KEY DEFAULT `gen_random_uuid()` |
-| `name` | `TEXT` | Destination title (e.g., 'Hurghada', 'El Gouna', 'Marsa Alam') |
-| `slug` | `TEXT` | UNIQUE URL slug |
-| `tagline` | `TEXT` | Short promotional header |
-| `description` | `TEXT` | Long description |
-| `main_image` | `TEXT` | Cover image URL |
-| `gallery` | `TEXT[]` | Additional imagery array |
-| `distance_from_airport` | `TEXT` | Travel transit estimate |
-| `status` | `TEXT` | `'draft'` \| `'published'` \| `'archived'` |
-
-### 3. `tours`
-Core excursion entity storing pricing, operational parameters, and content.
-
-| Column | Type | Constraints / Default | Description |
-|---|---|---|---|
-| `id` | `UUID` | PRIMARY KEY DEFAULT `gen_random_uuid()` | Unique tour identifier |
-| `title` | `TEXT` | NOT NULL | Excursion name |
-| `slug` | `TEXT` | NOT NULL, UNIQUE | SEO-friendly slug |
-| `short_description`| `TEXT` | NULL | Listing preview summary |
-| `description` | `TEXT` | NULL | Complete overview |
-| `destination_id` | `UUID` | REFERENCES `destinations(id)` ON DELETE SET NULL | Geographic hub |
-| `duration` | `TEXT` | DEFAULT `'Full Day (approx. 7 hours)'` | Formatted duration label |
-| `duration_type` | `TEXT` | CHECK (`'Half Day'`, `'Full Day'`, `'Multi Day'`) | Categorical duration |
-| `duration_hours`| `NUMERIC(4,1)`| DEFAULT `7.0` | Numeric duration in hours |
-| `tour_type` | `TEXT` | CHECK (`'Shared'`, `'Private'`) | Shared group vs. private charter |
-| `status` | `TEXT` | DEFAULT `'draft'`, CHECK (`'draft'`,`'published'`,`'archived'`) | Publication status |
-| `featured` | `BOOLEAN` | DEFAULT `FALSE` | Featured on homepage hero/grid |
-| `price` | `NUMERIC(10,2)`| NOT NULL, DEFAULT `0.00` | Adult price in EUR |
-| `child_price` | `NUMERIC(10,2)`| DEFAULT `0.00` | Child price (ages 2–11) in EUR |
-| `infant_price` | `NUMERIC(10,2)`| DEFAULT `0.00` | Infant price in EUR |
-| `private_price`| `NUMERIC(10,2)`| DEFAULT `0.00` | Flat rate if booked as private |
-| `currency` | `TEXT` | DEFAULT `'EUR'` | Base currency |
-| `max_guests` | `INT` | DEFAULT `35` | Maximum capacity per group |
-| `pickup_available`| `BOOLEAN` | DEFAULT `TRUE` | Hotel transfer service included |
-| `departure_time`| `TEXT` | DEFAULT `'08:30 AM'` | Standard hotel lobby pickup time |
-| `rating` | `NUMERIC(2,1)`| DEFAULT `4.9` | Aggregate average rating |
-| `review_count` | `INT` | DEFAULT `0` | Total verified reviews count |
-
-### 4. Relational Sub-Tables for Tours
-- **`tour_categories`**: Many-to-many link between `tours` and `categories`.
-- **`tour_images`**: High-resolution gallery with `sort_order` and `is_primary` flags.
-- **`tour_videos`**: Video links (YouTube, Vimeo, Supabase Storage).
-- **`tour_itinerary`**: Sequential step-by-step itinerary with `time`, `title`, and `description`.
-- **`tour_inclusions` & `tour_exclusions`**: Bulleted checklist items.
-- **`tour_highlights`**: Key experience selling points.
-- **`tour_faqs`**: Common Q&As.
-- **`tour_availability`**: Date-specific availability, sold-out overrides, and booked capacities.
-- **`tour_assigned_extras`**: Links to `tour_extras` (e.g. GoPro rentals, seafood upgrades).
-- **`tour_pickup_locations`**: Links to `pickup_locations` with custom transfer surcharges.
-
-### 5. `bookings` & `booking_extras`
-Guest reservations and itemized receipt breakdown.
-
-| Column | Type | Constraints / Default | Description |
-|---|---|---|---|
-| `id` | `UUID` | PRIMARY KEY DEFAULT `gen_random_uuid()` | Booking ID |
-| `booking_reference` | `TEXT` | NOT NULL, UNIQUE | Public reference code (`RSE-XXXXXX`) |
-| `user_id` | `UUID` | REFERENCES `auth.users(id)` ON DELETE SET NULL | Registered user account (if logged in) |
-| `tour_id` | `UUID` | REFERENCES `tours(id)` ON DELETE RESTRICT | Excursion booked |
-| `customer_id` | `UUID` | REFERENCES `customers(id)` ON DELETE SET NULL | Guest CRM profile |
-| `booking_date` | `DATE` | NOT NULL | Scheduled excursion date |
-| `status` | `TEXT` | CHECK (`'pending'`, `'confirmed'`, `'cancellation_requested'`, `'cancelled'`, `'completed'`, `'no_show'`) | Booking workflow status |
-| `payment_status` | `TEXT` | CHECK (`'pending'`, `'paid'`, `'partially_paid'`, `'refunded'`, `'failed'`) | Payment state |
-| `payment_method` | `TEXT` | CHECK (`'pay_at_pickup'`, `'pay_online'`) | Payment gateway / method |
-| `adult_count` | `INT` | NOT NULL DEFAULT `1` | Number of adults |
-| `child_count` | `INT` | NOT NULL DEFAULT `0` | Number of children |
-| `pickup_hotel_name` | `TEXT` | NULL | Hotel lobby pickup location |
-| `pickup_room_number`| `TEXT` | NULL | Room number for morning check-in |
-| `subtotal` | `NUMERIC(10,2)`| NOT NULL | Base ticket calculation |
-| `extras_total` | `NUMERIC(10,2)`| NOT NULL DEFAULT `0.00` | Add-on sum |
-| `total` | `NUMERIC(10,2)`| NOT NULL | Total booking amount in EUR |
-| `currency` | `TEXT` | DEFAULT `'EUR'` | Booking currency |
+### What this migration creates:
+- **Extensions**: `uuid-ossp` and `pgcrypto`.
+- **33 Relational Tables**: Full schema with cascading foreign keys, default UUIDs, and automated timestamps.
+- **50+ Performance Indexes**: Indexed on foreign keys, slugs, emails, and RLS columns.
+- **Triggers**:
+  - `handle_updated_at`: Automatically stamps `updated_at` on updates.
+  - `on_auth_user_created`: Automatically creates a `public.profiles` row when a user signs up.
+  - `protect_profile_role`: Prevents non-admin users from escalating their own privileges.
+- **Security Functions**:
+  - `public.is_admin()`: High-performance, non-recursive, security definer role checker.
+  - `public.set_admin_role_by_email(email)`: One-command helper to promote admin accounts safely.
+- **Row-Level Security (RLS)**: 100% coverage with optimized `(SELECT auth.uid())` statements.
+- **Storage Buckets**: Pre-configures `tour-media`, `avatars`, and `vouchers` buckets with upload policies.
+- **API Grants**: Explicit grants to `anon` and `authenticated` roles on schema `public`.
 
 ---
 
-## 🔒 Row-Level Security (RLS) Matrix
+## 🐬 Step 4: Seed the Production Excursion Catalog
 
-Every table has `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;` enabled.
-
-| Table | Anonymous / Public | Authenticated Customers | Admin / Staff |
-|---|---|---|---|
-| `profiles` | ❌ No access | Read/Update own profile (`id = auth.uid()`) | Read all (`is_admin()`) |
-| `destinations` | Read published (`status = 'published'`) | Read published | Full CRUD |
-| `categories` | Read published (`status = 'published'`) | Read published | Full CRUD |
-| `tours` | Read published (`status = 'published'`) | Read published | Full CRUD |
-| `tour_images` | Read images of published tours | Read images of published tours | Full CRUD |
-| `tour_itinerary`| Read itinerary of published tours | Read itinerary of published tours | Full CRUD |
-| `tour_inclusions`| Read items of published tours | Read items of published tours | Full CRUD |
-| `bookings` | Insert with reference check | Read own bookings (`user_id = auth.uid()`) | Full CRUD |
-| `booking_extras`| Insert during checkout | Read own booking extras | Full CRUD |
-| `reviews` | Read published reviews | Insert review for verified booking | Full CRUD / Moderation |
-| `customers` | Insert during booking | Read/Update own profile | Full CRUD |
-
----
-
-## ⚙️ Triggers, Functions & Automation
-
-### 1. `public.is_admin()`
-Fast SQL helper function executed with `SECURITY DEFINER` and `LANGUAGE plpgsql` to verify administrator status without recursive policy lookups:
-```sql
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, auth, pg_temp
-STABLE
-AS $$
-DECLARE
-    current_role text;
-BEGIN
-    IF auth.uid() IS NULL THEN
-        RETURN false;
-    END IF;
-
-    SELECT role INTO current_role
-    FROM public.profiles
-    WHERE id = auth.uid();
-
-    RETURN current_role IN ('admin', 'manager', 'staff');
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;
+The seed file is located at:
+```
+/supabase/seed.sql
 ```
 
-### 2. Auto-Profile Generation on Signup (`handle_new_user()`)
-Listens to `AFTER INSERT ON auth.users`:
-- Extracts user email and metadata (`full_name`, `phone`, `country`).
-- Creates a synchronized record in `public.profiles`.
-- Checks initial email confirmation status.
+1. In the **Supabase Dashboard** > **SQL Editor**, click **New Query**.
+2. Copy and paste the entire contents of `supabase/seed.sql`.
+3. Click **Run**.
+4. **Expected Output**: `Success. No rows returned.`
 
-### 3. Email Confirmation Syncer (`handle_user_confirmed()`)
-Listens to `AFTER UPDATE ON auth.users`:
-- Automatically updates `profiles.is_confirmed = TRUE` the instant the user clicks their Supabase verification link.
+### What this seeds:
+- **5 Coastal Destinations**: Hurghada, El Gouna, Makadi Bay, Sahl Hasheesh, Safaga & Soma Bay.
+- **8 Excursion Categories**: Boat Trips, Snorkeling, Scuba Diving, Desert Safaris, Private Yacht Charters, Submarine & Glass Bottom, Water Sports, Cultural Tours.
+- **5 Pickup Hubs**: Hurghada Central Marina, El Gouna Luxury Resorts, Makadi Bay Hotel Zone, Sahl Hasheesh Promenade, Soma Bay & Safaga Port.
+- **6 Popular Tour Extras**: Underwater GoPro Camera, Seafood Platter Upgrade, Private Transfer Van, Banana Boat Ride, Photo Package, Extra Scuba Tank.
+- **5 Detailed Excursions**: Complete with minute-by-minute itineraries, inclusions, exclusions, what to bring, and rich image galleries.
+- **Active Promotional Coupons**: `WELCOME10` (10% off), `SUMMER15` (15% off), `FAMILY20` (€20 off).
+- **Maritime Fleet Vessels**: Motor yachts, catamarans, and speedboats with capacities and inspection credentials.
+- **Captains & Crew Profiles**: Licensed local captains, PADI divemasters, and multilingual snorkel guides.
+- **Global FAQs & Weather Bulletin**: Essential traveler questions and live marine conditions.
+- **Zero Demo Bookings**: Kept pristine for real traveler reservations.
 
 ---
 
-## 🪣 Supabase Storage Buckets
+## 🔐 Step 5: Configure Supabase Authentication
 
-Configure the following storage buckets in the Supabase Dashboard: **Storage > Buckets**:
+1. Open your **Supabase Dashboard** > **Authentication** > **Providers** > **Email**:
+   - Ensure **Email provider** is **Enabled**.
+   - **Confirm email**: Recommended **ON** for production (or OFF for rapid development).
+   - **Secure email change**: Enabled.
+2. In **Authentication** > **URL Configuration**:
+   - **Site URL**: Your production domain (e.g. `https://redseaexcursions.com` or your preview URL).
+   - **Redirect URLs**: Add the following callback URLs:
+     ```
+     https://your-domain.com/**
+     https://your-domain.com/login
+     http://localhost:3000/**
+     http://localhost:3000/login
+     ```
+3. Email Templates (Optional):
+   - You can customize the confirmation email under **Authentication > Email Templates** to feature your logo and brand colors (`#0A6C74`).
 
-| Bucket Name | Public? | Allowed MIME Types | Max Size | Description |
+---
+
+## 👑 Step 6: Promote Your Administrator Account
+
+To access the CMS at `/admin`, an account must have the `admin` role in `public.profiles`.
+
+1. Go to your website at `/register` or `/login` and create an account using your email (e.g. `diamond.entertainment70@gmail.com`).
+2. Go to **Supabase Dashboard** > **SQL Editor**.
+3. Run the helper function:
+   ```sql
+   SELECT public.set_admin_role_by_email('diamond.entertainment70@gmail.com');
+   ```
+4. **Expected Output**:
+   ```
+   Success: Account diamond.entertainment70@gmail.com (User ID: ...) is now an active administrator.
+   ```
+5. You can now log in at `/admin/login` or click **Admin CMS** in the website footer.
+
+---
+
+## 📦 Step 7: Verify Storage Buckets
+
+The migration automatically creates all three required buckets:
+
+| Bucket Name | Access Level | Allowed MIME Types | Max Size | Description |
 |---|---|---|---|---|
-| `tour-media` | Yes | `image/jpeg`, `image/png`, `image/webp`, `video/mp4` | 25 MB | Tour gallery images, cover photos, and promotional videos |
-| `avatars` | Yes | `image/jpeg`, `image/png`, `image/webp` | 5 MB | Customer and staff profile avatars |
-| `vouchers` | No (RLS) | `application/pdf` | 10 MB | Generated PDF travel vouchers & receipts |
+| `tour-media` | Public | Images (`jpeg`, `png`, `webp`, `avif`) & Videos (`mp4`, `webm`) | 25 MB | Tour galleries, hero banners, and promotional media |
+| `avatars` | Public | Images (`jpeg`, `png`, `webp`, `avif`) | 5 MB | User profile avatars |
+| `vouchers` | Private (RLS) | Documents (`application/pdf`) | 10 MB | Official booking tickets and transfer vouchers |
 
-### Storage Bucket Policies
-```sql
--- Allow public read access to tour media
-CREATE POLICY "Public Tour Media Read"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'tour-media');
-
--- Allow admins full write access to tour media
-CREATE POLICY "Admin Tour Media Upload"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'tour-media' AND public.is_admin());
-```
+To verify:
+1. Open **Supabase Dashboard** > **Storage**.
+2. Confirm `tour-media`, `avatars`, and `vouchers` are listed.
+3. If not present, click **New Bucket**, enter the name, and toggle **Public bucket** as specified in the table above.
 
 ---
 
-## 🚀 Database Migration & Seeding Guide
+## 🎯 Step 8: Verify Live Database in Admin CMS
 
-### Step 1: Run the Schema Migration
-1. Open your **Supabase Dashboard** > **SQL Editor**.
-2. Copy and paste the entire contents of:
+1. In your browser, navigate to `/admin`.
+2. Sign in with your administrator credentials.
+3. Navigate to **Settings** in the CMS sidebar.
+4. Click **Test Connection**.
+5. You will see a live confirmation:
    ```
-   /supabase/migrations/20260922000000_phase4_schema.sql
+   Connection successful! Connected to remote PostgreSQL database. Verified query response: 5 destination(s) retrieved.
    ```
-3. Click **Run** to provision all 27 tables, indexes, triggers, and RLS policies.
-
-### Step 2: Seed Initial Tour Data
-1. In the **SQL Editor**, open:
-   ```
-   /supabase/seed.sql
-   ```
-2. Click **Run**.
-3. This populates realistic excursions (Orange Bay, Giftun Snorkeling, Desert ATV Safari, Scuba Diving, Private Yacht Charters), categories, destinations, and sample verified customer reviews.
-
-### Step 3: Grant First Admin Account
-To grant full administrative privileges to an account, use the safe helper function or upsert query:
-
-```sql
--- Method A (Recommended): Call helper function
-SELECT public.set_admin_role_by_email('your-admin-email@example.com');
-
--- Method B: Direct upsert (guarantees profile exists even if user signed up before migration)
-INSERT INTO public.profiles (id, email, full_name, role, is_confirmed)
-SELECT 
-    id, 
-    email, 
-    COALESCE(raw_user_meta_data->>'full_name', split_part(email, '@', 1)), 
-    'admin', 
-    true
-FROM auth.users
-WHERE LOWER(email) = LOWER('your-admin-email@example.com')
-ON CONFLICT (id) DO UPDATE 
-SET role = 'admin', is_confirmed = true, updated_at = NOW();
-
--- Also update user metadata in auth.users so JWT mirrors the role
-UPDATE auth.users
-SET raw_user_meta_data = jsonb_set(
-    COALESCE(raw_user_meta_data, '{}'::jsonb),
-    '{role}',
-    '"admin"'::jsonb
-)
-WHERE LOWER(email) = LOWER('your-admin-email@example.com');
-```
+6. Visit the **Excursions**, **Bookings**, **Help Inquiries**, **Customers**, and **Newsletter** tabs to manage live data.
 
 ---
 
-## 🔌 Frontend Client Integration Patterns
+## 📋 Complete 33-Table Schema Reference
 
-### Initializing the Client (`src/services/supabaseClient.ts`)
-```typescript
-import { createClient } from '@supabase/supabase-js';
+### 1. User Accounts & Identity
+- `profiles`: Extends Supabase `auth.users` with `full_name`, `avatar_url`, `phone`, `country`, `is_confirmed`, and `role` (`admin`, `manager`, `staff`, `customer`).
 
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    }
-  }
-);
-```
+### 2. Catalog & Discovery
+- `destinations`: Coastal hubs (Hurghada, El Gouna, Makadi Bay, Safaga, Sahl Hasheesh) with descriptions and airport distances.
+- `categories`: Excursion categories (Boat Trips, Snorkeling, Diving, Safari) with icons and display ordering.
+- `tours`: Primary excursions catalog with pricing tiers (`price`, `child_price`, `infant_price`, `private_price`), duration, difficulty, pickup policies, and status (`draft`, `published`, `archived`).
+- `tour_categories`: Many-to-many relationship linking tours to multiple categories.
+- `tour_images`: Gallery images with sort order and primary cover flag.
+- `tour_videos`: Video links (YouTube, Vimeo, Supabase Storage).
+- `tour_itinerary`: Ordered timeline stops (e.g. 08:30 Hotel Pickup, 09:30 Harbor Departure, 11:00 Coral Reef Snorkel).
+- `tour_inclusions`: Included amenities (lunch buffet, snorkeling gear, marina taxes).
+- `tour_exclusions`: Excluded costs (national park entry fee, professional video).
+- `tour_highlights`: Bulleted highlights for cards and overview sections.
+- `tour_faqs`: Excursion-specific frequently asked questions.
+- `tour_availability`: Daily calendar capacities and blackout dates.
 
-### Loading Live Tours with Relational Joins (`src/services/tourService.ts`)
-The `getPublishedTours()` function performs an optimized join:
-```typescript
-const { data, error } = await supabase
-  .from('tours')
-  .select(`
-    *,
-    destinations (name),
-    tour_categories (
-      categories (name)
-    ),
-    tour_images (*),
-    tour_itinerary (*),
-    tour_inclusions (*),
-    tour_exclusions (*),
-    tour_highlights (*),
-    tour_faqs (*)
-  `)
-  .eq('status', 'published')
-  .order('sort_order', { ascending: true });
-```
+### 3. Pricing, Upgrades & Transfers
+- `pickup_locations`: Transfer zones with area pickup notes and optional transfer surcharges.
+- `tour_pickup_locations`: Junction linking tours with valid pickup areas.
+- `tour_extras`: Add-ons (GoPro rental, seafood platter, private transfer).
+- `tour_assigned_extras`: Junction linking tours with available optional extras.
+- `coupons`: Promotional discount codes with percentage or fixed reductions, expiration, and minimum spend rules.
+
+### 4. Fleet & Marine Operations
+- `vessels`: Fleet vessels (yachts, catamarans, speedboats) with passenger capacities and safety inspection dates.
+- `tour_vessels`: Links tours with assigned vessels.
+- `guides`: Captains, PADI divemasters, and snorkel guides with language capabilities and ratings.
+- `weather_bulletins`: Daily maritime reports with sea temperatures, swell heights, wind speeds, and Egyptian Coast Guard clearance status.
+
+### 5. Reservations & Bookings
+- `customers`: Customer registry linking contact info, nationality, hotel name, and room number to optional `auth.users` IDs.
+- `bookings`: Core reservation records with unique reference (`RST-YYYY-XXXX`), party counts, subtotal, pickup details, status (`confirmed`, `pending`, `cancellation_requested`, `cancelled`, `completed`), and payment status (`pending`, `paid`, `refunded`).
+- `booking_extras`: Booked add-ons line items.
+- `booking_passengers`: Full passenger manifest records for maritime coast guard compliance.
+
+### 6. Traveler CRM & Concierge
+- `inquiries`: Direct help requests and concierge inquiries submitted via website modals.
+- `newsletter_subscriptions`: Traveler email subscriptions with assigned promo codes (`REDSEA15`) and source tracking.
+- `reviews`: Verified traveler ratings and reviews with star scores.
+
+### 7. System & Metadata
+- `seo_metadata`: Canonical SEO tags, OpenGraph cards, and search keywords.
+- `site_settings`: Global business hours, WhatsApp hotline numbers, and company legal info.
+- `audit_logs`: Audit trail recording administrative actions.
 
 ---
 
-## 🔍 Troubleshooting & Diagnostics
+## 🛡️ Row-Level Security (RLS) Security Matrix
 
-| Symptom | Probable Cause | Resolution |
-|---|---|---|
-| `PGRST205: Could not find the table` | Database schema not yet run in Supabase SQL editor | Run `supabase/migrations/20260922000000_phase4_schema.sql` in SQL Editor |
-| `new row violates row-level security policy` | User lacks admin role or is creating booking without correct permissions | Ensure user has `role = 'admin'` in `public.profiles` or user ID is correctly attached to request |
-| `JWT expired / Invalid API Key` | Stale or mistyped `VITE_SUPABASE_ANON_KEY` | Re-copy key from Supabase Dashboard > Project Settings > API |
-| Skeleton loader keeps displaying indefinitely | Database query hanging or network blocked | The frontend timeout triggers automatic static fallback after 4 seconds |
+All 33 tables have RLS enabled. The security policy model enforces:
+
+| Entity Type | Public (Anon) | Authenticated Customer | Admin / Staff |
+|---|---|---|---|
+| **Published Tours** | Read Only | Read Only | Full CRUD |
+| **Draft / Archived Tours** | No Access | No Access | Full CRUD |
+| **Destinations & Categories** | Read Only (Published) | Read Only (Published) | Full CRUD |
+| **Pickup Locations & Extras** | Read Only (Active) | Read Only (Active) | Full CRUD |
+| **User Profiles** | No Access | Read & Update Own | Full CRUD |
+| **Customer Records** | Insert on Checkout | View/Update Own Record | Full CRUD |
+| **Bookings** | Insert & Reference Lookup | View Own Linked Bookings | Full CRUD |
+| **Cancellation Requests** | Update to `cancellation_requested` | Update Own Booking | Full CRUD |
+| **Help Inquiries** | Insert New Inquiry | Insert New Inquiry | Full CRUD |
+| **Newsletter Subscriptions** | Insert & Re-subscribe | Insert & Re-subscribe | Full CRUD |
+| **Fleet & Crew** | Read Active | Read Active | Full CRUD |
+| **Storage: `tour-media`** | Read Only | Read Only | Upload, Edit, Delete |
+| **Storage: `vouchers`** | No Access | Read Own Vouchers | Full CRUD |
+
+---
+
+## 🔧 Troubleshooting & Diagnostics
+
+### 1. `PGRST205: Could not find the table '...' in the schema cache`
+- **Cause**: The PostgreSQL tables have not been created yet in Supabase.
+- **Fix**: Open the Supabase **SQL Editor**, paste the contents of `/supabase/migrations/20260922000000_phase4_schema.sql`, and click **Run**.
+
+### 2. `infinite recursion detected in policy for relation "profiles"`
+- **Cause**: An older RLS policy evaluated `public.profiles` using a subquery that called `public.profiles` again.
+- **Fix**: The migration uses the non-recursive `public.is_admin()` function with `SECURITY DEFINER` and statement-level `(SELECT auth.uid()) = id` caching. If upgrading an existing database, run `/supabase/migrations/20260928000000_fix_admin_auth_rls.sql`.
+
+### 3. `Access Denied: Your account is currently assigned the "customer" role`
+- **Cause**: Your user account exists, but has not yet been promoted to administrator.
+- **Fix**: Run in the Supabase SQL Editor:
+  ```sql
+  SELECT public.set_admin_role_by_email('your-email@domain.com');
+  ```
+
+### 4. CORS or Network Errors When Calling Supabase
+- **Cause**: Missing or incorrect `VITE_SUPABASE_URL` format.
+- **Fix**: Ensure your URL follows `https://<project-ref>.supabase.co` without trailing slashes.
+
+### 5. Images Failing to Upload in Admin CMS
+- **Cause**: Storage bucket `tour-media` is missing or upload policy is restricted.
+- **Fix**: Verify in **Storage** that `tour-media` is marked as a **Public bucket**, or re-run Section 6 of the migration script.

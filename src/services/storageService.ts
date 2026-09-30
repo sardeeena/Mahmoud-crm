@@ -159,3 +159,52 @@ export function getOptimizedImageUrl(
 
   return originalUrl;
 }
+
+export interface StorageFileItem {
+  id: string;
+  name: string;
+  url: string;
+  storagePath: string;
+  sizeBytes: number;
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Lists uploaded media files stored in the 'tour-media' bucket
+ */
+export async function listStorageMedia(folder: string = 'tours'): Promise<StorageFileItem[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(MEDIA_BUCKET)
+      .list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data
+      .filter((item) => item.name !== '.emptyFolderPlaceholder')
+      .map((item) => {
+        const storagePath = `${folder}/${item.name}`;
+        const { data: publicData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
+        return {
+          id: item.id || storagePath,
+          name: item.name,
+          url: publicData.publicUrl,
+          storagePath,
+          sizeBytes: (item.metadata as any)?.size || 0,
+          createdAt: item.created_at || new Date().toISOString(),
+          metadata: item.metadata as Record<string, unknown> | undefined,
+        };
+      });
+  } catch (err) {
+    console.warn('Failed to list storage media:', err);
+    return [];
+  }
+}
+

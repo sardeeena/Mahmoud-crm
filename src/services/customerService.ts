@@ -113,7 +113,7 @@ export async function listUnifiedCustomers(): Promise<UnifiedCustomer[]> {
     }
   }
 
-  // 2. Incorporate local registered users (sandbox / demo mode)
+  // 2. Incorporate locally registered user accounts
   try {
     const localUsers = getStoredLocalUsers();
     localUsers.forEach((stored) => {
@@ -139,10 +139,10 @@ export async function listUnifiedCustomers(): Promise<UnifiedCustomer[]> {
     // ignore
   }
 
-  // 3. Fallback seeds if map is empty
+  // 3. Incorporate local customer cache if map is empty
   if (customerMap.size === 0) {
-    const seeds = getStoredCustomers();
-    seeds.forEach((s) => customerMap.set(s.email.toLowerCase(), s));
+    const cached = getStoredCustomers();
+    cached.forEach((s) => customerMap.set(s.email.toLowerCase(), s));
   }
 
   // 4. Correlate with all bookings to compute total bookings & lifetime spend

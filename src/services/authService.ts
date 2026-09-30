@@ -315,7 +315,6 @@ export async function signUpUser(data: {
     phoneNumber: data.phoneNumber ? data.phoneNumber.trim() : undefined,
     countryCode: data.countryCode || '+20',
     country: data.country ? data.country.trim() : 'International',
-    isDemo: false,
     isConfirmed: false,
     createdAt: new Date().toISOString(),
   };

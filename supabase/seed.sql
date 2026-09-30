@@ -1,8 +1,10 @@
 -- ==============================================================================
--- RED SEA VOYAGES & MARITIME EXCURSIONS - PHASE 4 SEED DATA
+-- RED SEA VOYAGES & MARITIME EXCURSIONS - PRODUCTION CATALOG SEED DATA
 -- ==============================================================================
--- NOTE: ALL DATA MARKED AS DEVELOPMENT DEMO SEED DATA.
--- Administrators can edit, unpublish, or delete all records from the Admin CMS.
+-- Seeds production reference catalog: Destinations, Categories, Pickup Locations,
+-- Tour Extras, Published Excursion Catalog (itineraries, inclusions, exclusions,
+-- highlights, FAQs, gallery media), Promo Coupons, Fleet Vessels, Guides, and Bulletins.
+-- Zero demo bookings or test customer records are included.
 
 -- 1. DESTINATIONS
 INSERT INTO public.destinations (id, name, slug, tagline, description, main_image, gallery, distance_from_airport, status, sort_order)
@@ -383,58 +385,7 @@ VALUES
 ON CONFLICT (entity_type, entity_id) DO UPDATE SET seo_title = EXCLUDED.seo_title;
 
 
--- 12. DEMO SEED BOOKING (For testing My Booking and Admin CMS)
-INSERT INTO public.customers (id, first_name, last_name, email, phone, country, hotel)
-VALUES (
-    'c2000000-0000-0000-0000-000000000001',
-    'Markus',
-    'Weber',
-    'markus.weber@outlook.de',
-    '+49 170 1234567',
-    'Germany',
-    'Steigenberger ALDAU Beach Resort'
-)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public.bookings (
-    id, booking_reference, tour_id, customer_id, booking_date, status, payment_status,
-    payment_method, adult_count, child_count, infant_count,
-    pickup_location_id, pickup_hotel_name, pickup_room_number,
-    subtotal, extras_total, discount, total, currency, special_requests
-)
-VALUES (
-    'b2000000-0000-0000-0000-000000000001',
-    'RST-2026-AB4821',
-    't1000000-0000-0000-0000-000000000001',
-    'c2000000-0000-0000-0000-000000000001',
-    CURRENT_DATE + INTERVAL '2 days',
-    'confirmed',
-    'pending',
-    'pay_at_pickup',
-    2, 1, 0,
-    'p1000000-0000-0000-0000-000000000001',
-    'Steigenberger ALDAU Beach Resort',
-    '412',
-    88.00,
-    25.00,
-    0.00,
-    113.00,
-    'EUR',
-    'Please seat us on the upper sun deck. Vegetarian meal for 1 adult.'
-)
-ON CONFLICT (id) DO NOTHING;
-
-
--- 13. DEMO PASSENGERS MANIFEST
-INSERT INTO public.booking_passengers (booking_id, full_name, nationality, passport_or_id_number, passenger_type, is_lead_passenger)
-VALUES 
-('b2000000-0000-0000-0000-000000000001', 'Markus Weber', 'Germany', 'C34K8992', 'adult', TRUE),
-('b2000000-0000-0000-0000-000000000001', 'Elena Weber', 'Germany', 'C34K8993', 'adult', FALSE),
-('b2000000-0000-0000-0000-000000000001', 'Lukas Weber', 'Germany', 'J7729101', 'child', FALSE)
-ON CONFLICT DO NOTHING;
-
-
--- 14. PROMO CODES & COUPONS
+-- 12. PROMO CODES & COUPONS
 INSERT INTO public.coupons (code, description, discount_type, discount_value, min_spend, max_discount, is_active)
 VALUES
 ('WELCOME10', 'Welcome discount 10% off for first-time Red Sea explorers', 'percentage', 10.00, 50.00, 30.00, TRUE),
@@ -443,7 +394,7 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 
 
--- 15. MARITIME VESSELS FLEET
+-- 13. MARITIME VESSELS FLEET
 INSERT INTO public.vessels (id, name, vessel_type, registration_number, port_marina, passenger_capacity, amenities, is_active)
 VALUES
 (
@@ -479,7 +430,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 
--- 16. TOUR VESSEL ASSIGNMENTS
+-- 14. TOUR VESSEL ASSIGNMENTS
 INSERT INTO public.tour_vessels (tour_id, vessel_id, is_default)
 VALUES
 ('t1000000-0000-0000-0000-000000000001', 'v1000000-0000-0000-0000-000000000001', TRUE),
@@ -487,7 +438,7 @@ VALUES
 ON CONFLICT (tour_id, vessel_id) DO NOTHING;
 
 
--- 17. GUIDES & DIVE MASTERS
+-- 15. GUIDES & DIVE MASTERS
 INSERT INTO public.guides (full_name, role, languages, phone, rating, is_active)
 VALUES
 ('Captain Mahmoud Hassan', 'captain', ARRAY['English', 'Arabic'], '+20 100 555 4321', 4.95, TRUE),
@@ -496,7 +447,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 
--- 18. GLOBAL FREQUENTLY ASKED QUESTIONS
+-- 16. GLOBAL FREQUENTLY ASKED QUESTIONS
 INSERT INTO public.faqs (category, question, answer, sort_order, is_published)
 VALUES
 (
@@ -530,7 +481,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 
--- 19. TODAY MARITIME WEATHER BULLETIN
+-- 17. TODAY MARITIME WEATHER BULLETIN
 INSERT INTO public.weather_bulletins (
     harbor_location,
     water_temperature_c,

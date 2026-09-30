@@ -1108,6 +1108,369 @@ export interface Database {
         };
         Relationships: [];
       };
+      newsletter_subscriptions: {
+        Row: {
+          id: string;
+          email: string;
+          source: string;
+          status: 'subscribed' | 'unsubscribed';
+          discount_code: string;
+          metadata: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          source?: string;
+          status?: 'subscribed' | 'unsubscribed';
+          discount_code?: string;
+          metadata?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          source?: string;
+          status?: 'subscribed' | 'unsubscribed';
+          discount_code?: string;
+          metadata?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      inquiries: {
+        Row: {
+          id: string;
+          customer_name: string;
+          email: string;
+          phone: string | null;
+          whatsapp: string | null;
+          tour_id: string | null;
+          tour_title: string | null;
+          subject: string;
+          message: string;
+          status: 'new' | 'contacted' | 'resolved' | 'converted';
+          source: 'web' | 'whatsapp' | 'email' | 'phone';
+          ip_address: string | null;
+          admin_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_name: string;
+          email: string;
+          phone?: string | null;
+          whatsapp?: string | null;
+          tour_id?: string | null;
+          tour_title?: string | null;
+          subject?: string;
+          message: string;
+          status?: 'new' | 'contacted' | 'resolved' | 'converted';
+          source?: 'web' | 'whatsapp' | 'email' | 'phone';
+          ip_address?: string | null;
+          admin_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_name?: string;
+          email?: string;
+          phone?: string | null;
+          whatsapp?: string | null;
+          tour_id?: string | null;
+          tour_title?: string | null;
+          subject?: string;
+          message?: string;
+          status?: 'new' | 'contacted' | 'resolved' | 'converted';
+          source?: 'web' | 'whatsapp' | 'email' | 'phone';
+          ip_address?: string | null;
+          admin_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      coupons: {
+        Row: {
+          id: string;
+          code: string;
+          description: string | null;
+          discount_type: 'percentage' | 'fixed';
+          discount_value: number;
+          min_spend: number | null;
+          max_discount: number | null;
+          valid_from: string | null;
+          valid_until: string | null;
+          usage_limit: number | null;
+          times_used: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          description?: string | null;
+          discount_type: 'percentage' | 'fixed';
+          discount_value: number;
+          min_spend?: number | null;
+          max_discount?: number | null;
+          valid_from?: string | null;
+          valid_until?: string | null;
+          usage_limit?: number | null;
+          times_used?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          description?: string | null;
+          discount_type?: 'percentage' | 'fixed';
+          discount_value?: number;
+          min_spend?: number | null;
+          max_discount?: number | null;
+          valid_from?: string | null;
+          valid_until?: string | null;
+          usage_limit?: number | null;
+          times_used?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      vessels: {
+        Row: {
+          id: string;
+          name: string;
+          vessel_type: 'motor_yacht' | 'speedboat' | 'catamaran' | 'glass_bottom' | 'semi_submarine' | 'safari_jeep';
+          registration_number: string | null;
+          port_marina: string;
+          passenger_capacity: number;
+          crew_capacity: number | null;
+          year_built: number | null;
+          safety_inspection_expiry: string | null;
+          amenities: string[];
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          vessel_type: 'motor_yacht' | 'speedboat' | 'catamaran' | 'glass_bottom' | 'semi_submarine' | 'safari_jeep';
+          registration_number?: string | null;
+          port_marina?: string;
+          passenger_capacity?: number;
+          crew_capacity?: number | null;
+          year_built?: number | null;
+          safety_inspection_expiry?: string | null;
+          amenities?: string[];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          vessel_type?: 'motor_yacht' | 'speedboat' | 'catamaran' | 'glass_bottom' | 'semi_submarine' | 'safari_jeep';
+          registration_number?: string | null;
+          port_marina?: string;
+          passenger_capacity?: number;
+          crew_capacity?: number | null;
+          year_built?: number | null;
+          safety_inspection_expiry?: string | null;
+          amenities?: string[];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tour_vessels: {
+        Row: {
+          id: string;
+          tour_id: string;
+          vessel_id: string;
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tour_id: string;
+          vessel_id: string;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tour_id?: string;
+          vessel_id?: string;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      guides: {
+        Row: {
+          id: string;
+          full_name: string;
+          role: 'captain' | 'dive_master' | 'snorkel_guide' | 'safari_lead' | 'tour_guide';
+          languages: string[];
+          phone: string | null;
+          email: string | null;
+          license_number: string | null;
+          rating: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          full_name: string;
+          role: 'captain' | 'dive_master' | 'snorkel_guide' | 'safari_lead' | 'tour_guide';
+          languages?: string[];
+          phone?: string | null;
+          email?: string | null;
+          license_number?: string | null;
+          rating?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          full_name?: string;
+          role?: 'captain' | 'dive_master' | 'snorkel_guide' | 'safari_lead' | 'tour_guide';
+          languages?: string[];
+          phone?: string | null;
+          email?: string | null;
+          license_number?: string | null;
+          rating?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      faqs: {
+        Row: {
+          id: string;
+          category: 'general' | 'booking' | 'cancellation' | 'marine_safety' | 'transfers';
+          question: string;
+          answer: string;
+          sort_order: number;
+          is_published: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          category: 'general' | 'booking' | 'cancellation' | 'marine_safety' | 'transfers';
+          question: string;
+          answer: string;
+          sort_order?: number;
+          is_published?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          category?: 'general' | 'booking' | 'cancellation' | 'marine_safety' | 'transfers';
+          question?: string;
+          answer?: string;
+          sort_order?: number;
+          is_published?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      weather_bulletins: {
+        Row: {
+          id: string;
+          harbor_location: string;
+          water_temperature_c: number;
+          air_temperature_c: number;
+          swell_height_m: number;
+          wind_speed_knots: number;
+          wind_direction: string;
+          visibility_meters: number;
+          coast_guard_cleared: boolean;
+          advisory_notes: string | null;
+          bulletin_date: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          harbor_location?: string;
+          water_temperature_c: number;
+          air_temperature_c: number;
+          swell_height_m: number;
+          wind_speed_knots: number;
+          wind_direction: string;
+          visibility_meters?: number;
+          coast_guard_cleared?: boolean;
+          advisory_notes?: string | null;
+          bulletin_date?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          harbor_location?: string;
+          water_temperature_c?: number;
+          air_temperature_c?: number;
+          swell_height_m?: number;
+          wind_speed_knots?: number;
+          wind_direction?: string;
+          visibility_meters?: number;
+          coast_guard_cleared?: boolean;
+          advisory_notes?: string | null;
+          bulletin_date?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      booking_passengers: {
+        Row: {
+          id: string;
+          booking_id: string;
+          full_name: string;
+          nationality: string | null;
+          passport_or_id_number: string | null;
+          passenger_type: 'adult' | 'child' | 'infant';
+          is_lead_passenger: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          full_name: string;
+          nationality?: string | null;
+          passport_or_id_number?: string | null;
+          passenger_type?: 'adult' | 'child' | 'infant';
+          is_lead_passenger?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          full_name?: string;
+          nationality?: string | null;
+          passport_or_id_number?: string | null;
+          passenger_type?: 'adult' | 'child' | 'infant';
+          is_lead_passenger?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1116,6 +1479,12 @@ export interface Database {
       is_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
+      };
+      set_admin_role_by_email: {
+        Args: {
+          target_email: string;
+        };
+        Returns: string;
       };
     };
     Enums: {
@@ -1162,3 +1531,12 @@ export type ReviewRow = Tables<'reviews'>;
 export type SeoMetadataRow = Tables<'seo_metadata'>;
 export type SiteSettingRow = Tables<'site_settings'>;
 export type AuditLogRow = Tables<'audit_logs'>;
+export type NewsletterSubscriptionRow = Tables<'newsletter_subscriptions'>;
+export type InquiryRow = Tables<'inquiries'>;
+export type CouponRow = Tables<'coupons'>;
+export type VesselRow = Tables<'vessels'>;
+export type TourVesselRow = Tables<'tour_vessels'>;
+export type GuideRow = Tables<'guides'>;
+export type FaqRow = Tables<'faqs'>;
+export type WeatherBulletinRow = Tables<'weather_bulletins'>;
+export type BookingPassengerRow = Tables<'booking_passengers'>;

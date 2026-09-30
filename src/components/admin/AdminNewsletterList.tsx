@@ -12,11 +12,14 @@ import {
   Calendar,
   Send,
   Users,
+  Plus,
+  X
 } from 'lucide-react';
 import {
   listNewsletterSubscribers,
   updateSubscriberStatus,
   deleteSubscriber,
+  addSubscriberManual,
   NewsletterSubscriber,
 } from '../../services/newsletterService';
 import { useToast } from '../../contexts/ToastContext';
@@ -27,6 +30,12 @@ export const AdminNewsletterList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'subscribed' | 'unsubscribed'>('all');
+
+  // Add Subscriber Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -42,6 +51,19 @@ export const AdminNewsletterList: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    // Listen for live newsletter subscription events from anywhere in the app
+    const handleUpdate = () => {
+      loadData();
+    };
+
+    window.addEventListener('rse_newsletter_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('rse_newsletter_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
   }, []);
 
   const filteredSubscribers = useMemo(() => {
@@ -73,6 +95,29 @@ export const AdminNewsletterList: React.FC = () => {
     if (success) {
       setSubscribers((prev) => prev.filter((item) => item.email !== s.email));
       showToast('Subscriber removed from database.', 'info');
+    }
+  };
+
+  const handleManualAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail.trim()) {
+      setModalError('Please enter an email address.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setModalError(null);
+
+    const res = await addSubscriberManual(newEmail.trim(), 'admin_cms');
+    setIsSubmitting(false);
+
+    if (res.success && res.subscriber) {
+      setSubscribers((prev) => [res.subscriber!, ...prev.filter((s) => s.email !== res.subscriber!.email)]);
+      showToast(`Subscriber ${res.subscriber.email} added and stored in Supabase.`, 'success');
+      setIsAddModalOpen(false);
+      setNewEmail('');
+    } else {
+      setModalError(res.error || 'Failed to add subscriber.');
     }
   };
 
@@ -117,8 +162,16 @@ export const AdminNewsletterList: React.FC = () => {
         <div className="flex items-center space-x-2">
           <button
             type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded-lg text-xs font-semibold shadow transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Subscriber</span>
+          </button>
+          <button
+            type="button"
             onClick={exportCSV}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold shadow transition-colors"
+            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold shadow transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Subscribers</span>
@@ -127,7 +180,7 @@ export const AdminNewsletterList: React.FC = () => {
             type="button"
             onClick={loadData}
             disabled={loading}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold shadow transition-colors"
+            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold shadow transition-colors cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -185,7 +238,7 @@ export const AdminNewsletterList: React.FC = () => {
                 key={status}
                 type="button"
                 onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors ${
+                className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors cursor-pointer ${
                   statusFilter === status
                     ? 'bg-[#0A6C74] text-white'
                     : 'text-stone-400 hover:text-white'
@@ -269,14 +322,14 @@ export const AdminNewsletterList: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleToggleStatus(s)}
-                        className="px-2.5 py-1 bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white rounded text-[11px] font-medium border border-stone-700 transition-colors"
+                        className="px-2.5 py-1 bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white rounded text-[11px] font-medium border border-stone-700 transition-colors cursor-pointer"
                       >
                         {s.status === 'subscribed' ? 'Unsubscribe' : 'Reactivate'}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(s)}
-                        className="p-1 hover:bg-red-950/60 text-stone-500 hover:text-red-400 rounded transition-colors"
+                        className="p-1 hover:bg-red-950/60 text-stone-500 hover:text-red-400 rounded transition-colors cursor-pointer"
                         title="Delete"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -289,6 +342,70 @@ export const AdminNewsletterList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Manual Add Subscriber Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <Mail className="w-4 h-4 text-[#0A6C74]" />
+                <span>Add Newsletter Subscriber</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-stone-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {modalError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded text-xs">
+                {modalError}
+              </div>
+            )}
+
+            <form onSubmit={handleManualAdd} className="space-y-4 text-xs">
+              <div>
+                <label className="text-stone-300 font-semibold block mb-1">
+                  Subscriber Email Address
+                </label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="e.g. traveler@example.com"
+                  className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded text-white focus:outline-none focus:border-[#0A6C74]"
+                  required
+                  autoFocus
+                />
+                <p className="text-[11px] text-stone-500 mt-1">
+                  The email will be saved directly into Supabase table <code className="text-[#2dd4bf]">newsletter_subscriptions</code> with voucher code <code className="text-amber-400 font-mono">REDSEA15</code>.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? 'Adding...' : 'Add Subscriber'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

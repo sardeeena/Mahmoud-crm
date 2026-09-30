@@ -55,9 +55,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       // Verify the user's role in the 'profiles' table directly on dashboard mount
       const isAuthorized = await checkAdminAccess();
       if (!isAuthorized) {
-        if (!isCancelled) {
-          window.location.assign('/admin/login?redirect=' + encodeURIComponent(window.location.pathname));
-        }
         return;
       }
 
@@ -87,8 +84,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     loadData();
 
+    // Listen for real-time newsletter subscriptions
+    const handleNewsletterUpdate = () => {
+      listNewsletterSubscribers().then((subData) => {
+        if (!isCancelled) setSubscribers(subData);
+      }).catch(() => {});
+    };
+
+    window.addEventListener('rse_newsletter_updated', handleNewsletterUpdate);
+    window.addEventListener('storage', handleNewsletterUpdate);
+
     return () => {
       isCancelled = true;
+      window.removeEventListener('rse_newsletter_updated', handleNewsletterUpdate);
+      window.removeEventListener('storage', handleNewsletterUpdate);
     };
   }, [checkAdminAccess]);
 

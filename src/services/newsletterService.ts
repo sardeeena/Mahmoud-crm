@@ -12,8 +12,6 @@ export interface NewsletterSubscriber {
 
 const LOCAL_NEWSLETTER_KEY = 'rse_newsletter_subscriptions';
 
-const SEED_SUBSCRIBERS: NewsletterSubscriber[] = [];
-
 function getStoredSubscribers(): NewsletterSubscriber[] {
   try {
     const raw = localStorage.getItem(LOCAL_NEWSLETTER_KEY);
@@ -31,6 +29,16 @@ function saveStoredSubscribers(subscribers: NewsletterSubscriber[]) {
     localStorage.setItem(LOCAL_NEWSLETTER_KEY, JSON.stringify(subscribers));
   } catch {
     // ignore
+  }
+}
+
+function notifyNewsletterUpdated(subscriber?: NewsletterSubscriber) {
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('rse_newsletter_updated', { detail: subscriber }));
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -84,9 +92,9 @@ export async function subscribeToNewsletter(
   if (isSupabaseConfigured()) {
     try {
       // Check if already subscribed in database
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('newsletter_subscriptions')
-        .select('id, email, status')
+        .select('id, email, status, discount_code, created_at')
         .eq('email', cleanEmail)
         .maybeSingle();
 
@@ -101,6 +109,14 @@ export async function subscribeToNewsletter(
           const localList = getStoredSubscribers();
           const updated = localList.map((s) => s.email === cleanEmail ? { ...s, status: 'subscribed' as const } : s);
           saveStoredSubscribers(updated);
+          notifyNewsletterUpdated({
+            id: existing.id,
+            email: cleanEmail,
+            source,
+            status: 'subscribed',
+            discountCode,
+            createdAt: existing.created_at || now,
+          });
 
           return {
             success: true,
@@ -109,16 +125,30 @@ export async function subscribeToNewsletter(
           };
         }
 
+        // Already active subscriber
+        const localList = getStoredSubscribers();
+        if (!localList.some((s) => s.email === cleanEmail)) {
+          localList.unshift({
+            id: existing.id,
+            email: cleanEmail,
+            source,
+            status: 'subscribed',
+            discountCode: existing.discount_code || discountCode,
+            createdAt: existing.created_at || now,
+          });
+          saveStoredSubscribers(localList);
+        }
+
         return {
           success: true,
           alreadySubscribed: true,
-          discountCode,
-          message: 'You are already subscribed to Red Sea Voyagers! Your 15% promotional voucher code is REDSEA15.',
+          discountCode: existing.discount_code || discountCode,
+          message: `You are already subscribed to Red Sea Voyagers! Your 15% promotional voucher code is ${existing.discount_code || discountCode}.`,
         };
       }
 
       // Insert new subscriber into Supabase table
-      const { error: insertError } = await supabase
+      const { data: inserted, error: insertError } = await supabase
         .from('newsletter_subscriptions')
         .insert({
           email: cleanEmail,
@@ -129,9 +159,12 @@ export async function subscribeToNewsletter(
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
             subscribedAt: now,
           },
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) {
+        // If unique constraint conflict happens
         if (insertError.code === '23505') {
           return {
             success: true,
@@ -143,18 +176,19 @@ export async function subscribeToNewsletter(
         console.warn('Supabase newsletter insert error:', insertError);
       } else {
         // Record in local cache
-        const localList = getStoredSubscribers();
-        if (!localList.some((s) => s.email === cleanEmail)) {
-          localList.unshift({
-            id: `sub-${Date.now().toString(36)}`,
-            email: cleanEmail,
-            source,
-            status: 'subscribed',
-            discountCode,
-            createdAt: now,
-          });
-          saveStoredSubscribers(localList);
-        }
+        const newSub: NewsletterSubscriber = {
+          id: inserted?.id || `sub-${Date.now().toString(36)}`,
+          email: cleanEmail,
+          source,
+          status: 'subscribed',
+          discountCode,
+          createdAt: inserted?.created_at || now,
+        };
+
+        const localList = getStoredSubscribers().filter((s) => s.email !== cleanEmail);
+        localList.unshift(newSub);
+        saveStoredSubscribers(localList);
+        notifyNewsletterUpdated(newSub);
 
         return {
           success: true,
@@ -175,6 +209,7 @@ export async function subscribeToNewsletter(
     if (existingLocal.status === 'unsubscribed') {
       existingLocal.status = 'subscribed';
       saveStoredSubscribers(localList);
+      notifyNewsletterUpdated(existingLocal);
       return {
         success: true,
         discountCode,
@@ -189,15 +224,18 @@ export async function subscribeToNewsletter(
     };
   }
 
-  localList.unshift({
+  const fallbackSub: NewsletterSubscriber = {
     id: `sub-${Date.now().toString(36)}`,
     email: cleanEmail,
     source,
     status: 'subscribed',
     discountCode,
     createdAt: now,
-  });
+  };
+
+  localList.unshift(fallbackSub);
   saveStoredSubscribers(localList);
+  notifyNewsletterUpdated(fallbackSub);
 
   return {
     success: true,
@@ -207,7 +245,7 @@ export async function subscribeToNewsletter(
 }
 
 /**
- * Lists all newsletter subscribers for admin dashboard
+ * Lists all newsletter subscribers for admin dashboard (merges Supabase and local cache)
  */
 export async function listNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
   if (isSupabaseConfigured()) {
@@ -217,8 +255,8 @@ export async function listNewsletterSubscribers(): Promise<NewsletterSubscriber[
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
-        return data.map((d) => ({
+      if (!error && data) {
+        const dbSubscribers: NewsletterSubscriber[] = data.map((d: any) => ({
           id: d.id,
           email: d.email,
           source: d.source || 'footer',
@@ -226,6 +264,29 @@ export async function listNewsletterSubscribers(): Promise<NewsletterSubscriber[
           discountCode: d.discount_code || 'REDSEA15',
           createdAt: d.created_at || new Date().toISOString(),
         }));
+
+        // Merge any local subscriber that hasn't been synced to Supabase yet
+        const localList = getStoredSubscribers();
+        const seenEmails = new Set(dbSubscribers.map((s) => s.email.toLowerCase()));
+        localList.forEach((local) => {
+          if (!seenEmails.has(local.email.toLowerCase())) {
+            dbSubscribers.push(local);
+            // Opportunistically sync to Supabase in the background
+            Promise.resolve(
+              supabase.from('newsletter_subscriptions').insert({
+                email: local.email.toLowerCase(),
+                source: local.source || 'local_sync',
+                status: local.status,
+                discount_code: local.discountCode || 'REDSEA15',
+              })
+            ).catch(() => {});
+          }
+        });
+
+        // Keep local cache fresh
+        saveStoredSubscribers(dbSubscribers);
+
+        return dbSubscribers;
       }
     } catch (err) {
       console.warn('Supabase newsletter listing error, using local fallback:', err);
@@ -233,6 +294,68 @@ export async function listNewsletterSubscribers(): Promise<NewsletterSubscriber[
   }
 
   return getStoredSubscribers();
+}
+
+/**
+ * Manually adds a subscriber from the Admin CMS
+ */
+export async function addSubscriberManual(
+  email: string,
+  source = 'admin_cms'
+): Promise<{ success: boolean; subscriber?: NewsletterSubscriber; error?: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !isValidEmail(cleanEmail)) {
+    return { success: false, error: 'Please enter a valid email address.' };
+  }
+
+  const discountCode = 'REDSEA15';
+  const now = new Date().toISOString();
+
+  let createdId = `sub-${Date.now().toString(36)}`;
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('newsletter_subscriptions')
+        .upsert(
+          {
+            email: cleanEmail,
+            source,
+            status: 'subscribed',
+            discount_code: discountCode,
+            updated_at: now,
+          },
+          { onConflict: 'email' }
+        )
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false, error: formatSupabaseError(error) };
+      }
+      if (data?.id) {
+        createdId = data.id;
+      }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Database error' };
+    }
+  }
+
+  const sub: NewsletterSubscriber = {
+    id: createdId,
+    email: cleanEmail,
+    source,
+    status: 'subscribed',
+    discountCode,
+    createdAt: now,
+  };
+
+  const localList = getStoredSubscribers().filter((s) => s.email !== cleanEmail);
+  localList.unshift(sub);
+  saveStoredSubscribers(localList);
+  notifyNewsletterUpdated(sub);
+
+  return { success: true, subscriber: sub };
 }
 
 /**
@@ -262,6 +385,7 @@ export async function updateSubscriberStatus(
     }
   }
 
+  notifyNewsletterUpdated();
   return true;
 }
 
@@ -284,5 +408,6 @@ export async function deleteSubscriber(idOrEmail: string): Promise<boolean> {
     }
   }
 
+  notifyNewsletterUpdated();
   return true;
 }

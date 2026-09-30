@@ -123,7 +123,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-[11px] text-stone-400 uppercase tracking-widest font-mono">
-            {isSupabaseConfigured() ? 'Supabase Auth Protected' : 'Sandbox Admin Auth'}
+            {isSupabaseConfigured() ? 'Supabase Auth Protected' : 'Local Administrator Auth'}
           </span>
         </div>
       </div>

@@ -55,6 +55,10 @@ import { AdminDestinationsList } from './components/admin/AdminDestinationsList'
 import { AdminCategoriesList } from './components/admin/AdminCategoriesList';
 import { AdminPickupList } from './components/admin/AdminPickupList';
 import { AdminExtrasList } from './components/admin/AdminExtrasList';
+import { AdminReviewsList } from './components/admin/AdminReviewsList';
+import { AdminAvailabilityManager } from './components/admin/AdminAvailabilityManager';
+import { AdminMediaLibrary } from './components/admin/AdminMediaLibrary';
+import { AdminSeoManager } from './components/admin/AdminSeoManager';
 import { AdminSettings } from './components/admin/AdminSettings';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { HelpInquiryModal } from './components/common/HelpInquiryModal';
@@ -532,11 +536,13 @@ function MainApp() {
 
         {activeAdminTab === 'extras' && <AdminExtrasList />}
 
-        {activeAdminTab === 'availability' && <AdminTourList onNavigateTab={handleAdminSelectTab} onPreviewTour={(slug) => navigate(`/excursions/${slug}`)} />}
+        {activeAdminTab === 'reviews' && <AdminReviewsList />}
 
-        {activeAdminTab === 'media' && <AdminTourEditor onNavigateTab={handleAdminSelectTab} onPreviewTour={(slug) => navigate(`/excursions/${slug}`)} />}
+        {activeAdminTab === 'availability' && <AdminAvailabilityManager />}
 
-        {activeAdminTab === 'seo' && <AdminTourEditor onNavigateTab={handleAdminSelectTab} onPreviewTour={(slug) => navigate(`/excursions/${slug}`)} />}
+        {activeAdminTab === 'media' && <AdminMediaLibrary />}
+
+        {activeAdminTab === 'seo' && <AdminSeoManager />}
 
         {activeAdminTab === 'settings' && <AdminSettings />}
       </AdminLayout>

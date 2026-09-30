@@ -19,6 +19,7 @@ import {
   isSchemaMissingError,
   setSchemaMissing,
 } from '../../services/supabaseClient';
+import completeSchemaSql from '../../../supabase/schema.sql?raw';
 import phase4Sql from '../../../supabase/migrations/20260922000000_phase4_schema.sql?raw';
 import fixAdminAuthSql from '../../../supabase/migrations/20260928000000_fix_admin_auth_rls.sql?raw';
 
@@ -28,8 +29,10 @@ export const AdminSettings: React.FC = () => {
   const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [copiedMasterSql, setCopiedMasterSql] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
   const [copiedFixSql, setCopiedFixSql] = useState(false);
+  const [showMasterSqlPreview, setShowMasterSqlPreview] = useState(false);
   const [showSqlPreview, setShowSqlPreview] = useState(false);
   const [showFixSqlPreview, setShowFixSqlPreview] = useState(false);
 
@@ -90,6 +93,12 @@ export const AdminSettings: React.FC = () => {
     } finally {
       setIsTesting(false);
     }
+  };
+
+  const copyMasterSql = () => {
+    navigator.clipboard.writeText(completeSchemaSql);
+    setCopiedMasterSql(true);
+    setTimeout(() => setCopiedMasterSql(false), 2500);
   };
 
   const copyMigrationSql = () => {
@@ -256,6 +265,67 @@ export const AdminSettings: React.FC = () => {
             </div>
             <pre className="max-h-64 overflow-y-auto p-3 bg-stone-950 rounded text-[11px] font-mono text-stone-300 leading-relaxed whitespace-pre select-all">
               {fixAdminAuthSql}
+            </pre>
+          </div>
+        )}
+      </div>
+
+      {/* 1-Step Complete Master Schema & Seed SQL */}
+      <div className="bg-stone-950 border border-emerald-500/50 rounded-lg p-6 space-y-4 text-xs shadow-xl">
+        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded bg-emerald-500/20 border border-emerald-500 flex items-center justify-center text-emerald-400">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                <span>1-Click Master PostgreSQL Schema & Storage Provisioning</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                  100% Complete & Ready
+                </span>
+              </h3>
+              <p className="text-[11px] text-stone-400">
+                Single consolidated script containing all 33 tables, Row-Level Security, storage buckets (<code>tour-media</code>, <code>avatars</code>, <code>vouchers</code>), auth triggers, and reference tours.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-stone-300 leading-relaxed text-[11px]">
+          Execute this script in your Supabase project (<strong>Supabase Dashboard &gt; SQL Editor &gt; New Query &gt; Run</strong>). It is completely idempotent, safe to run on fresh or existing databases, and includes all tables, triggers, indexes, and full production excursion catalog.
+        </p>
+
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-stone-800">
+          <span className="text-stone-400 font-mono text-[11px]">
+            File: <code className="text-emerald-300">/supabase/schema.sql</code> (~2,280 lines)
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowMasterSqlPreview(!showMasterSqlPreview)}
+              className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-stone-300 rounded border border-stone-700 text-xs font-medium transition-colors cursor-pointer"
+            >
+              {showMasterSqlPreview ? 'Hide Script' : 'Preview SQL Script'}
+            </button>
+            <button
+              type="button"
+              onClick={copyMasterSql}
+              className="flex items-center space-x-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold shadow-md transition-colors cursor-pointer"
+            >
+              {copiedMasterSql ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedMasterSql ? 'Copied Master SQL!' : 'Copy Master Schema & Seed SQL'}</span>
+            </button>
+          </div>
+        </div>
+
+        {showMasterSqlPreview && (
+          <div className="mt-4 p-4 bg-stone-900 rounded border border-stone-800 space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-stone-800 text-stone-400 text-[11px]">
+              <span>Master PostgreSQL Schema & Catalog (~2,280 lines)</span>
+              <span>Run in Supabase Dashboard &gt; SQL Editor</span>
+            </div>
+            <pre className="max-h-64 overflow-y-auto p-3 bg-stone-950 rounded text-[11px] font-mono text-stone-300 leading-relaxed whitespace-pre select-all">
+              {completeSchemaSql}
             </pre>
           </div>
         )}

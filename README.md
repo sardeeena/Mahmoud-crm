@@ -173,14 +173,16 @@ The platform provides real-time excursion discovery, automated multi-step bookin
 │       └── database.types.ts    # Direct Supabase CLI generated type declarations
 │
 └── supabase/                    # Database migrations & SQL blueprints
-    ├── seed.sql                 # Comprehensive sample dataset for local or staging databases
+    ├── seed.sql                 # Production reference catalog (destinations, categories, tours, vessels, guides)
     └── migrations/
-        └── 20260922000000_phase4_schema.sql # Complete 27-table production schema & RLS policies
+        └── 20260922000000_phase4_schema.sql # Complete 33-table production schema & RLS policies
 ```
 
 ---
 
 ## 💻 Getting Started & Local Development
+
+For a complete step-by-step walkthrough, see [SETUP_GUIDE.md](./SETUP_GUIDE.md).
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher
@@ -221,10 +223,12 @@ The platform provides real-time excursion discovery, automated multi-step bookin
 ## 🗄️ Database & Supabase Integration
 
 The platform features a resilient two-tier data layer:
-1. **Live Supabase PostgreSQL**: Queries live published tours, itineraries, inclusions, reviews, and bookings.
-2. **Deterministic Fallback**: If Supabase credentials are not configured or the database schema is freshly initializing, the client seamlessly falls back to the high-fidelity mock catalog in `src/data/toursData.ts`.
+1. **Live Supabase PostgreSQL**: Queries live published tours, itineraries, inclusions, reviews, inquiries, newsletter subscribers, and bookings with full Row Level Security (RLS).
+2. **Deterministic Fallback**: If Supabase credentials are not configured or the database schema is freshly initializing, the client seamlessly falls back to local storage and static catalog reference data.
 
-See [SUPABASE.md](./SUPABASE.md) for complete database documentation, schema diagrams, RLS rules, and execution steps.
+For comprehensive database documentation, schema diagrams, RLS rules, and execution steps:
+- 📖 [Complete Supabase Architecture & Guide (SUPABASE.md)](./SUPABASE.md)
+- 🚀 [Website & Supabase Launch Guide (SETUP_GUIDE.md)](./SETUP_GUIDE.md)
 
 ---
 
