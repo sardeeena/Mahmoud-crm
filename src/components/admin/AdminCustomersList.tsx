@@ -15,6 +15,7 @@ import {
   Trash2,
   Building,
   UserCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   listUnifiedCustomers,
@@ -35,6 +36,8 @@ export const AdminCustomersList: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<UnifiedCustomer | null>(null);
   const [editingRole, setEditingRole] = useState(false);
   const [tempRole, setTempRole] = useState<UserRole>('customer');
+  const [customerToDelete, setCustomerToDelete] = useState<UnifiedCustomer | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -81,16 +84,23 @@ export const AdminCustomersList: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this customer record?')) {
-      return;
-    }
-    const success = await deleteCustomerRecord(id);
+  const handleDelete = (cust: UnifiedCustomer) => {
+    setCustomerToDelete(cust);
+  };
+
+  const confirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    setIsDeleting(true);
+    const success = await deleteCustomerRecord(customerToDelete.id);
     if (success) {
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
-      if (selectedCustomer?.id === id) setSelectedCustomer(null);
-      showToast('Customer record deleted.', 'info');
+      setCustomers((prev) => prev.filter((c) => c.id !== customerToDelete.id));
+      if (selectedCustomer?.id === customerToDelete.id) setSelectedCustomer(null);
+      showToast(`Customer record for "${customerToDelete.fullName}" deleted.`, 'info');
+    } else {
+      showToast('Failed to delete customer record.', 'error');
     }
+    setCustomerToDelete(null);
+    setIsDeleting(false);
   };
 
   const exportCSV = () => {
@@ -342,8 +352,8 @@ export const AdminCustomersList: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(cust.id)}
-                        className="p-1.5 hover:bg-red-950/60 text-stone-500 hover:text-red-400 rounded"
+                        onClick={() => handleDelete(cust)}
+                        className="p-1.5 hover:bg-red-950/60 text-stone-500 hover:text-red-400 rounded cursor-pointer"
                         title="Delete Record"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -479,6 +489,39 @@ export const AdminCustomersList: React.FC = () => {
                 className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded text-xs font-medium"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Customer Confirmation Modal */}
+      {customerToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Customer Record</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to delete the traveler record for <strong className="text-white">{customerToDelete.fullName}</strong> (<span className="text-stone-400 font-mono">{customerToDelete.email}</span>)?
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setCustomerToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteCustomer}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
             </div>
           </div>

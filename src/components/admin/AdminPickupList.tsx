@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Car, Plus, Edit2, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Car, Plus, Edit2, Trash2, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
 import { getPickupLocations } from '../../services/tourService';
 import { DbPickupLocation } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
+import { useToast } from '../../contexts/ToastContext';
 
 export const AdminPickupList: React.FC = () => {
+  const { showToast } = useToast();
   const [locations, setLocations] = useState<DbPickupLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingLoc, setEditingLoc] = useState<Partial<DbPickupLocation> | null>(null);
+  const [locationToDelete, setLocationToDelete] = useState<DbPickupLocation | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -91,11 +95,37 @@ export const AdminPickupList: React.FC = () => {
       }
 
       await loadData();
+      showToast('Pickup location saved successfully.', 'success');
       setEditingLoc(null);
     } catch (err: any) {
       setErrorMsg(formatSupabaseError(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmDeleteLocation = async () => {
+    if (!locationToDelete) return;
+    setIsDeleting(true);
+
+    if (!isSupabaseConfigured()) {
+      setLocations(locations.filter((l) => l.id !== locationToDelete.id));
+      showToast(`Pickup zone "${locationToDelete.name}" removed from local state.`, 'info');
+      setLocationToDelete(null);
+      setIsDeleting(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('pickup_locations').delete().eq('id', locationToDelete.id);
+      if (error) throw error;
+      showToast(`Pickup zone "${locationToDelete.name}" permanently deleted.`, 'success');
+      await loadData();
+      setLocationToDelete(null);
+    } catch (err: any) {
+      showToast(formatSupabaseError(err), 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -163,13 +193,22 @@ export const AdminPickupList: React.FC = () => {
                     Active
                   </span>
                 </td>
-                <td className="py-3 px-4 text-right whitespace-nowrap">
+                <td className="py-3 px-4 text-right whitespace-nowrap space-x-1">
                   <button
                     type="button"
                     onClick={() => setEditingLoc(loc)}
-                    className="p-1.5 text-stone-400 hover:text-white"
+                    className="p-1.5 text-stone-400 hover:text-white transition-colors cursor-pointer"
+                    title="Edit pickup zone"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocationToDelete(loc)}
+                    className="p-1.5 text-stone-400 hover:text-red-400 transition-colors cursor-pointer"
+                    title="Delete pickup zone"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </td>
               </tr>
@@ -251,6 +290,39 @@ export const AdminPickupList: React.FC = () => {
                 className="px-4 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded font-semibold disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Zone'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {locationToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Pickup Zone</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to delete pickup zone <strong className="text-white">"{locationToDelete.name}"</strong> (<span className="text-stone-400 font-mono">{locationToDelete.code}</span>)?
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setLocationToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteLocation}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
             </div>
           </div>

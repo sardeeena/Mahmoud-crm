@@ -12,7 +12,8 @@ import {
   RefreshCw,
   AlertCircle,
   HardDrive,
-  FileCheck
+  FileCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   listStorageMedia,
@@ -22,8 +23,10 @@ import {
   MEDIA_BUCKET
 } from '../../services/storageService';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { useToast } from '../../contexts/ToastContext';
 
 export const AdminMediaLibrary: React.FC = () => {
+  const { showToast } = useToast();
   const [mediaItems, setMediaItems] = useState<StorageFileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -32,6 +35,8 @@ export const AdminMediaLibrary: React.FC = () => {
   const [filterType, setFilterType] = useState<'all' | 'image' | 'video'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<StorageFileItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchMedia = async () => {
@@ -76,17 +81,22 @@ export const AdminMediaLibrary: React.FC = () => {
     }
   };
 
-  const handleDelete = async (item: StorageFileItem) => {
-    if (!window.confirm(`Are you sure you want to delete "${item.name}" from Supabase Storage?`)) {
-      return;
-    }
+  const handleDelete = (item: StorageFileItem) => {
+    setItemToDelete(item);
+  };
 
-    const res = await deleteTourMedia(item.storagePath);
+  const confirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    const res = await deleteTourMedia(itemToDelete.storagePath);
     if (res.success) {
-      setMediaItems((prev) => prev.filter((i) => i.id !== item.id));
+      setMediaItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
+      showToast(`Media "${itemToDelete.name}" deleted successfully.`, 'success');
     } else {
-      alert(`Failed to delete: ${res.error || 'Unknown error'}`);
+      showToast(`Failed to delete: ${res.error || 'Unknown storage error'}`, 'error');
     }
+    setItemToDelete(null);
+    setIsDeleting(false);
   };
 
   const copyUrl = (url: string, id: string) => {
@@ -331,6 +341,39 @@ export const AdminMediaLibrary: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Delete Media Confirmation Modal */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Media File</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to delete <strong className="text-white break-all">"{itemToDelete.name}"</strong> from Supabase Storage bucket <code className="text-[#2dd4bf] font-mono">tour-media</code>?
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteItem}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

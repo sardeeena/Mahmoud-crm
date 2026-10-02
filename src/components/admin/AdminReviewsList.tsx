@@ -14,16 +14,19 @@ import {
   ExternalLink,
   ChevronDown,
   X,
-  Check
+  Check,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { adminListTours } from '../../services/tourService';
 import { DbTour, DbReview } from '../../types/database';
 import { RECENT_REVIEWS } from '../../data/toursData';
+import { useToast } from '../../contexts/ToastContext';
 
 const LOCAL_REVIEWS_KEY = 'rse_admin_reviews_cache';
 
 export const AdminReviewsList: React.FC = () => {
+  const { showToast } = useToast();
   const [reviews, setReviews] = useState<DbReview[]>([]);
   const [tours, setTours] = useState<DbTour[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,8 @@ export const AdminReviewsList: React.FC = () => {
   const [ratingFilter, setRatingFilter] = useState<number | 'all'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<DbReview | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // New review form state
   const [newTourId, setNewTourId] = useState('');
@@ -141,32 +146,36 @@ export const AdminReviewsList: React.FC = () => {
   };
 
   // Delete review
-  const handleDelete = async (reviewId: string) => {
-    if (!window.confirm('Are you sure you want to permanently delete this guest review?')) {
-      return;
-    }
+  const handleDelete = (review: DbReview) => {
+    setReviewToDelete(review);
+  };
 
-    const updated = reviews.filter((r) => r.id !== reviewId);
+  const confirmDeleteReview = async () => {
+    if (!reviewToDelete) return;
+    setIsDeleting(true);
+
+    const updated = reviews.filter((r) => r.id !== reviewToDelete.id);
     setReviews(updated);
     localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(updated));
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase.from('reviews').delete().eq('id', reviewId);
+        await supabase.from('reviews').delete().eq('id', reviewToDelete.id);
       } catch (err) {
         console.warn('Failed to delete review in Supabase:', err);
       }
     }
 
-    setActionMessage('Review successfully deleted.');
-    setTimeout(() => setActionMessage(null), 3000);
+    showToast(`Guest review by "${reviewToDelete.author_name}" permanently deleted.`, 'info');
+    setReviewToDelete(null);
+    setIsDeleting(false);
   };
 
   // Create new review
   const handleCreateReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTourId || !newAuthorName.trim() || !newComment.trim()) {
-      alert('Please fill out all required fields.');
+      showToast('Please fill out all required fields (tour, author name, and feedback comment).', 'error');
       return;
     }
 
@@ -499,7 +508,7 @@ export const AdminReviewsList: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => handleDelete(rev.id)}
+                      onClick={() => handleDelete(rev)}
                       className="text-stone-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
                       title="Delete review"
                     >
@@ -631,6 +640,39 @@ export const AdminReviewsList: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Review Confirmation Modal */}
+      {reviewToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Guest Review</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to permanently delete the {reviewToDelete.rating}★ review by <strong className="text-white">{reviewToDelete.author_name}</strong>?
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setReviewToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteReview}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

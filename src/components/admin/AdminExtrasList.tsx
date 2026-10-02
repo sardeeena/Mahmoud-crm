@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Sparkles, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { getTourExtras } from '../../services/tourService';
 import { DbTourExtra } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
@@ -10,6 +10,8 @@ export const AdminExtrasList: React.FC = () => {
   const [extras, setExtras] = useState<DbTourExtra[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExtra, setEditingExtra] = useState<Partial<DbTourExtra> | null>(null);
+  const [extraToDelete, setExtraToDelete] = useState<DbTourExtra | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
@@ -85,6 +87,31 @@ export const AdminExtrasList: React.FC = () => {
       showToast(formatSupabaseError(err), 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmDeleteExtra = async () => {
+    if (!extraToDelete) return;
+    setIsDeleting(true);
+
+    if (!isSupabaseConfigured()) {
+      setExtras(extras.filter((e) => e.id !== extraToDelete.id));
+      showToast(`Tour extra "${extraToDelete.name}" removed from local state.`, 'info');
+      setExtraToDelete(null);
+      setIsDeleting(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('tour_extras').delete().eq('id', extraToDelete.id);
+      if (error) throw error;
+      showToast(`Tour extra "${extraToDelete.name}" deleted successfully.`, 'success');
+      await loadData();
+      setExtraToDelete(null);
+    } catch (err: any) {
+      showToast(formatSupabaseError(err), 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 

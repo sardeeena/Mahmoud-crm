@@ -17,6 +17,7 @@ import {
   FileText,
   Send,
   Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   listInquiries,
@@ -35,6 +36,8 @@ export const AdminInquiriesList: React.FC = () => {
   const [selectedInquiry, setSelectedInquiry] = useState<DbInquiry | null>(null);
   const [adminNoteInput, setAdminNoteInput] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [inquiryToDelete, setInquiryToDelete] = useState<DbInquiry | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -105,19 +108,25 @@ export const AdminInquiriesList: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this help inquiry record?')) {
-      return;
-    }
+  const handleDelete = (inq: DbInquiry) => {
+    setInquiryToDelete(inq);
+  };
 
-    const success = await deleteInquiry(id);
+  const confirmDeleteInquiry = async () => {
+    if (!inquiryToDelete) return;
+    setIsDeleting(true);
+    const success = await deleteInquiry(inquiryToDelete.id);
     if (success) {
-      setInquiries((prev) => prev.filter((item) => item.id !== id));
-      if (selectedInquiry?.id === id) {
+      setInquiries((prev) => prev.filter((item) => item.id !== inquiryToDelete.id));
+      if (selectedInquiry?.id === inquiryToDelete.id) {
         setSelectedInquiry(null);
       }
-      showToast('Inquiry removed.', 'info');
+      showToast(`Inquiry from "${inquiryToDelete.customer_name}" removed.`, 'info');
+    } else {
+      showToast('Failed to remove inquiry.', 'error');
     }
+    setInquiryToDelete(null);
+    setIsDeleting(false);
   };
 
   const openInquiryDetail = (inq: DbInquiry) => {
@@ -345,8 +354,8 @@ export const AdminInquiriesList: React.FC = () => {
                         )}
                         <button
                           type="button"
-                          onClick={() => handleDelete(inq.id)}
-                          className="p-1.5 hover:bg-red-950/60 text-stone-500 hover:text-red-400 rounded"
+                          onClick={() => handleDelete(inq)}
+                          className="p-1.5 hover:bg-red-950/60 text-stone-500 hover:text-red-400 rounded cursor-pointer"
                           title="Delete Record"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -486,6 +495,39 @@ export const AdminInquiriesList: React.FC = () => {
                 className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded text-xs font-medium"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Inquiry Confirmation Modal */}
+      {inquiryToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Inquiry Record</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to remove the inquiry from <strong className="text-white">{inquiryToDelete.customer_name}</strong> regarding <span className="text-stone-400 font-medium">"{inquiryToDelete.subject}"</span>?
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setInquiryToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteInquiry}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
             </div>
           </div>

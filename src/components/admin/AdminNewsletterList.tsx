@@ -13,7 +13,8 @@ import {
   Send,
   Users,
   Plus,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import {
   listNewsletterSubscribers,
@@ -36,6 +37,10 @@ export const AdminNewsletterList: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  // Delete Confirmation State
+  const [subscriberToDelete, setSubscriberToDelete] = useState<NewsletterSubscriber | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -87,15 +92,22 @@ export const AdminNewsletterList: React.FC = () => {
     }
   };
 
-  const handleDelete = async (s: NewsletterSubscriber) => {
-    if (!window.confirm(`Are you sure you want to remove ${s.email} from the newsletter database?`)) {
-      return;
-    }
-    const success = await deleteSubscriber(s.id || s.email);
+  const handleDelete = (s: NewsletterSubscriber) => {
+    setSubscriberToDelete(s);
+  };
+
+  const confirmDeleteSubscriber = async () => {
+    if (!subscriberToDelete) return;
+    setIsDeleting(true);
+    const success = await deleteSubscriber(subscriberToDelete.id || subscriberToDelete.email);
     if (success) {
-      setSubscribers((prev) => prev.filter((item) => item.email !== s.email));
-      showToast('Subscriber removed from database.', 'info');
+      setSubscribers((prev) => prev.filter((item) => item.email !== subscriberToDelete.email));
+      showToast(`Subscriber ${subscriberToDelete.email} removed from database.`, 'info');
+    } else {
+      showToast('Failed to remove subscriber.', 'error');
     }
+    setSubscriberToDelete(null);
+    setIsDeleting(false);
   };
 
   const handleManualAdd = async (e: React.FormEvent) => {
@@ -403,6 +415,39 @@ export const AdminNewsletterList: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Subscriber Confirmation Modal */}
+      {subscriberToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Remove Subscriber</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to remove <strong className="text-white font-mono">{subscriberToDelete.email}</strong> from the newsletter database?
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setSubscriberToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteSubscriber}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? 'Removing...' : 'Confirm Remove'}
+              </button>
+            </div>
           </div>
         </div>
       )}
