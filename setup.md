@@ -60,9 +60,9 @@ The master SQL script provisions **100% of everything** required by the applicat
 ### How to Run:
 1. In your [Supabase Dashboard](https://supabase.com/dashboard), navigate to **SQL Editor** in the left menu.
 2. Click **New Query**.
-3. Open the file **`/supabase/schema.sql`** in this project repository (or click **"Copy Master Schema & Seed SQL"** inside `/admin/settings`).
+3. Open the file **`/supabase_complete_schema.sql`** (or `/supabase/schema.sql`) in this project repository, or click **"Copy Master Schema & Seed SQL"** inside the app at `/admin/settings`.
 4. Paste the entire content into the SQL Editor and click **Run**.
-5. You should see a success message: `Success. No rows returned` or rows affected.
+5. You should see a success message: `Success. No rows returned` (or rows affected).
 
 ---
 

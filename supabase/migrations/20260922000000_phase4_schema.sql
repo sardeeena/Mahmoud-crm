@@ -1730,6 +1730,12 @@ CREATE POLICY "Admins can upload vouchers"
     TO authenticated
     WITH CHECK (bucket_id = 'vouchers' AND public.is_admin());
 
+DROP POLICY IF EXISTS "Admins can delete vouchers" ON storage.objects;
+CREATE POLICY "Admins can delete vouchers"
+    ON storage.objects FOR DELETE
+    TO authenticated
+    USING (bucket_id = 'vouchers' AND public.is_admin());
+
 
 -- ==============================================================================
 -- SECTION 7: PROFILE BACKFILL FOR EXISTING ACCOUNTS

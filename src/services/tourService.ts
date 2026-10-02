@@ -133,7 +133,11 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
   const getFilteredLocal = () => {
     let list = [...localTours];
     if (options?.destination && options.destination !== 'All' && options.destination !== 'All Destinations') {
-      list = list.filter((t) => t.destination.toLowerCase() === options.destination?.toLowerCase());
+      const destQuery = options.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
+      list = list.filter((t) => {
+        const destName = t.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
+        return destName === destQuery || destName.includes(destQuery) || destQuery.includes(destName);
+      });
     }
     if (options?.category && options.category !== 'All' && options.category !== 'All Activities') {
       list = list.filter((t) => t.categories.some((c) => c.toLowerCase() === options.category?.toLowerCase()));
@@ -185,7 +189,7 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
       return getFilteredLocal();
     }
 
-    return data.map((row: any) => {
+    let tours = data.map((row: any) => {
       const destName = row.destinations?.name;
       const catNames = row.tour_categories?.map((tc: any) => tc.categories?.name).filter(Boolean) || [];
 
@@ -200,6 +204,25 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
         faqs: row.tour_faqs || [],
       });
     });
+
+    if (options?.destination && options.destination !== 'All' && options.destination !== 'All Destinations') {
+      const destQuery = options.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
+      tours = tours.filter((t) => {
+        const destName = t.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
+        return destName === destQuery || destName.includes(destQuery) || destQuery.includes(destName);
+      });
+    }
+
+    if (options?.category && options.category !== 'All' && options.category !== 'All Activities') {
+      tours = tours.filter((t) => t.categories.some((c) => c.toLowerCase() === options.category?.toLowerCase()));
+    }
+
+    if (options?.searchQuery) {
+      const q = options.searchQuery.toLowerCase();
+      tours = tours.filter((t) => t.title.toLowerCase().includes(q) || t.shortDescription?.toLowerCase().includes(q));
+    }
+
+    return tours;
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);

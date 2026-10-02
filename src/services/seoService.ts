@@ -319,3 +319,14 @@ export const seoService = {
     };
   },
 };
+
+export {
+  SEO_DEFAULTS,
+  HOMEPAGE_FAQS,
+  generateHomeJsonLd,
+  generateTourJsonLd,
+  generateDestinationJsonLd,
+  generateBreadcrumbsJsonLd,
+  STATIC_ROUTE_SEO,
+  getPageSeo,
+} from './seoConfig';

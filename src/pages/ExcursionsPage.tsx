@@ -164,9 +164,12 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
 
       // 2. Destination select
       if (destinationSelect !== 'All') {
+        const destQuery = destinationSelect.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
+        const destName = tour.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
         const destMatch = 
-          tour.destination.toLowerCase() === destinationSelect.toLowerCase() ||
-          tour.destination.toLowerCase().includes(destinationSelect.toLowerCase());
+          destName === destQuery ||
+          destName.includes(destQuery) ||
+          destQuery.includes(destName);
         if (!destMatch) return false;
       }
 

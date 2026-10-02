@@ -68,6 +68,18 @@ VALUES
     '50 minutes from HRG Airport',
     'published',
     5
+),
+(
+    'a1000000-0000-0000-0000-000000000006',
+    'Sharm El-Sheikh',
+    'sharm-el-sheikh',
+    'Sinai marine jewel with Ras Mohammed drop-offs & White Island',
+    'The premier resort of the southern Sinai peninsula, famed for dramatic drop-off reef walls at Ras Mohammed National Park, the crystal waters of White Island, and the straits of Tiran.',
+    'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80',
+    ARRAY['https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80'],
+    '15 minutes from SSH Airport',
+    'published',
+    6
 )
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status;
 
@@ -185,6 +197,17 @@ VALUES
     'Dedicated long-range transport service.',
     TRUE,
     5
+),
+(
+    'p1000000-0000-0000-0000-000000000006',
+    'sharm-el-sheikh',
+    'Sharm El-Sheikh Hotels (All Zones)',
+    'Naama Bay, Nabq Bay, Sharks Bay, Hadaba, Ras Um Sid',
+    0.00,
+    0.00,
+    'Complimentary return transfer included from all Sharm El-Sheikh hotel lobbies.',
+    TRUE,
+    6
 )
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 

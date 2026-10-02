@@ -722,6 +722,73 @@ export const ALL_TOURS: Tour[] = [
     departureTime: '10:00 AM or 14:00 PM',
     difficulty: 'Easy',
     ratingBreakdown: { 5: 34, 4: 9, 3: 2, 2: 0, 1: 0 }
+  },
+  {
+    id: 'ras-mohammed-white-island-cruise',
+    slug: 'ras-mohammed-white-island-cruise',
+    title: 'Ras Mohammed National Park & White Island Luxury Yacht Cruise',
+    destination: 'Sharm El-Sheikh',
+    category: 'Boat Trips',
+    categories: ['Boat Trips', 'Snorkeling', 'Island Visits'],
+    tourType: 'Shared',
+    durationCategory: 'Full Day',
+    durationHours: 8,
+    durationLabel: 'Full Day (approx. 8 hours)',
+    priceEur: 45,
+    childPriceEur: 25,
+    privatePriceEur: 380,
+    rating: 4.9,
+    reviewCount: 168,
+    badge: 'Best in Sharm',
+    primaryImage: 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80',
+    galleryImages: [
+      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80'
+    ],
+    shortDescription: 'Cruise through the marine sanctuary of Ras Mohammed National Park, step onto the crystal sandbar of White Island, snorkel coral walls, and enjoy an onboard seafood buffet.',
+    fullDescription: 'Sail along the dramatic coastline of South Sinai into the protected marine sanctuary of Ras Mohammed National Park. Cruise to the famous White Island sandbar, explore vibrant coral reef walls, and enjoy a freshly prepared open seafood & grill buffet onboard.',
+    highlights: [
+      'Cruise to Ras Mohammed National Park, Egypt’s oldest protected marine reserve',
+      'Walk on the pristine shifting sands of White Island',
+      'Two guided reef drop-off snorkeling sessions at Shark & Yolanda Reefs',
+      'Freshly prepared onboard buffet with seafood, grilled chicken, and fresh salads',
+      'Complimentary hotel pickup and drop-off from any resort in Sharm El-Sheikh'
+    ],
+    itinerary: [
+      { time: '08:00', title: 'Hotel Pickup', description: 'Air-conditioned transfer from your Sharm resort to the marina.' },
+      { time: '09:00', title: 'Yacht Departure', description: 'Welcome briefing, safety orientation, and cruise out towards South Sinai.' },
+      { time: '10:30', title: 'First Snorkeling Session', description: 'Guided exploration along protected coral reef walls with clownfish and sea turtles.' },
+      { time: '12:00', title: 'White Island Sandbar Stop', description: 'Tender boat transfer to the turquoise shallows and sandbar of White Island.' },
+      { time: '13:30', title: 'Fresh Buffet Lunch Onboard', description: 'Generous open buffet featuring grilled fish, chicken, pastas, and oriental mezze.' },
+      { time: '14:45', title: 'Second Snorkeling Stop', description: 'Afternoon swim among sea fans and schooling anthias.' },
+      { time: '16:30', title: 'Return to Marina & Hotel Drop-off', description: 'Scenic sail back to Sharm El-Sheikh and transfer back to your lobby.' }
+    ],
+    included: [
+      'Hotel pickup and return across all Sharm El-Sheikh resorts',
+      'National park entry permit and marine clearance',
+      'Open buffet lunch (seafood, grilled meats, salads, pastas)',
+      'Unlimited tea, coffee, mineral water, and soft drinks throughout the day',
+      'Professional certified snorkeling guide and buoyancy aids'
+    ],
+    excluded: [
+      'Snorkeling gear rental (masks & fins available at marina for €5)',
+      'Professional underwater photo & video package'
+    ],
+    whatToBring: ['Swimwear', 'Beach towel', 'Passport or ID photocopy', 'Sunscreen (reef safe)', 'Sunglasses & hat'],
+    importantInformation: [
+      'Please bring a passport photocopy as required by Egyptian Coast Guard regulations.',
+      'White Island visibility is subject to daily tidal conditions and sea clearance.'
+    ],
+    languages: ['English', 'German', 'Russian', 'Italian'],
+    maxGuests: 30,
+    pickupAvailable: true,
+    pickupInfo: 'Complimentary lobby pickup from all hotels in Sharm El-Sheikh (Naama Bay, Nabq, Sharks Bay, Hadaba, Ras Um Sid).',
+    cancellationPolicy: 'Free cancellation up to 24 hours prior to departure with 100% refund.',
+    availableDays: ['Daily'],
+    departureTime: '08:00 AM',
+    difficulty: 'Easy',
+    ratingBreakdown: { 5: 142, 4: 21, 3: 5, 2: 0, 1: 0 }
   }
 ];
 
@@ -791,6 +858,17 @@ export const POPULAR_DESTINATIONS: Destination[] = [
     description: 'Egypt’s southern marine destination where wild spinner dolphins, sea turtles, and untouched reefs thrive.',
     highlights: ['Abu Dabbab turtle bay', 'Sataya dolphin reef', 'Samadai dolphin house'],
     distanceFromAirport: '10-45 mins from Marsa Alam Airport (RMF)',
+  },
+  {
+    id: 'dest-sharmelsheikh',
+    name: 'Sharm El-Sheikh',
+    slug: 'sharm-el-sheikh',
+    image: 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=800&q=80',
+    tagline: 'Sinai marine jewel with Ras Mohammed drop-offs & White Island',
+    tourCount: 12,
+    description: 'The premier resort of the southern Sinai peninsula, famed for dramatic drop-off reef walls at Ras Mohammed National Park, the crystal waters of White Island, and the straits of Tiran.',
+    highlights: ['Ras Mohammed National Park', 'White Island sandbar cruise', 'Straits of Tiran reefs', 'Naama Bay marina departures'],
+    distanceFromAirport: '15 mins from Sharm El-Sheikh Airport (SSH)',
   }
 ];
 

@@ -94,14 +94,19 @@ export const TourFilters: React.FC<TourFiltersProps> = ({
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const destinationsList = [
-    'Hurghada',
-    'El Gouna',
-    'Makadi Bay',
-    'Sahl Hasheesh',
-    'Safaga',
-    'Marsa Alam'
-  ];
+  const destinationsList = useMemo(() => {
+    const defaultList = [
+      'Hurghada',
+      'El Gouna',
+      'Makadi Bay',
+      'Sahl Hasheesh',
+      'Safaga',
+      'Marsa Alam',
+      'Sharm El-Sheikh',
+    ];
+    const fromTours = allTours.map((t) => t.destination).filter(Boolean);
+    return Array.from(new Set([...defaultList, ...fromTours]));
+  }, [allTours]);
 
   const activitiesList = [
     'Snorkeling',

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { FloatingAIChatbot } from './components/common/FloatingAIChatbot';
+import { FloatingWhatsAppButton } from './components/common/FloatingWhatsAppButton';
 import { WishlistDrawer } from './components/common/WishlistDrawer';
 import { CompareModal } from './components/common/CompareModal';
 import { CompareFloatingBar } from './components/common/CompareFloatingBar';
@@ -31,6 +32,7 @@ import { saveBookingDraft, loadBookingDraft } from './services/draftStorage';
 import { getPublishedTours, getTourBySlug } from './services/tourService';
 import { isSupabaseConfigured } from './services/supabaseClient';
 import { seoService } from './services/seoService';
+import { getPageSeo } from './services/seoConfig';
 import { sanitizeRedirectUrl } from './lib/security';
 import { TourDetailSkeleton } from './components/tours/TourDetailSkeleton';
 import { Compass } from 'lucide-react';
@@ -234,54 +236,34 @@ function MainApp() {
     });
   }, [tourDetailSlug, liveTours, isAdmin]);
 
-  // Synchronize document title, OpenGraph tags, and Schema.org for non-catalog pages
+  // Synchronize document title, OpenGraph tags, and Schema.org for all routes
   useEffect(() => {
     if (currentPath.startsWith('/admin')) {
       seoService.apply({
         title: 'Staff & Admin CMS | Red Sea Voyages',
         description: 'Administrative portal for tour management, booking verification, and fleet operations.',
       });
-    } else if (currentPath.startsWith('/booking/confirmation')) {
+      return;
+    }
+
+    if (currentPath.startsWith('/booking/confirmation')) {
       seoService.apply({
         title: confirmationReference
           ? `Booking Confirmed (${confirmationReference}) | Red Sea Excursions`
           : 'Booking Confirmation | Red Sea Excursions',
         description: 'Your Red Sea excursion booking voucher and confirmed hotel pickup transfer itinerary.',
+        canonicalUrl: typeof window !== 'undefined' ? `${window.location.origin}${currentPath}` : undefined,
       });
-    } else if (currentPath.startsWith('/booking')) {
-      seoService.apply({
-        title: 'Book Your Excursion | Red Sea Excursions',
-        description: 'Direct vessel reservation with free cancellation, hotel pickup, and pay on pickup options.',
-      });
-    } else if (currentPath.startsWith('/my-booking')) {
-      seoService.apply({
-        title: 'Find & Manage My Booking | Red Sea Excursions',
-        description: 'View your excursion booking details, print your official voucher, or request a free date change.',
-      });
-    } else if (currentPath === '/login') {
-      seoService.apply({
-        title: 'Sign In | Red Sea Excursions & Voyages',
-        description: 'Sign in to access your excursion bookings, voucher downloads, and saved journeys.',
-      });
-    } else if (currentPath === '/register') {
-      seoService.apply({
-        title: 'Create Account | Red Sea Excursions & Voyages',
-        description: 'Create a voyager account for 1-click booking, digital vouchers, and priority pier departure updates.',
-      });
-    } else if (currentPath === '/reset-password' || currentPath === '/forgot-password') {
-      seoService.apply({
-        title: 'Reset Password | Red Sea Excursions',
-        description: 'Recover or update your Red Sea Excursions account credentials.',
-      });
-    } else if (currentPath === '/account' || currentPath === '/profile') {
-      seoService.apply({
-        title: 'My Profile & Reservations | Red Sea Excursions',
-        description: 'Manage your contact details, active excursions, and voucher tickets.',
-      });
-    } else if (currentPath === '/') {
-      seoService.apply(seoService.generateDefaultSeo());
+      return;
     }
-  }, [currentPath, confirmationReference]);
+
+    // Apply centralized SEO metadata & rich Schema.org JSON-LD
+    const seoMetadata = getPageSeo(currentPath, {
+      tour: currentTourDetail,
+      tours: liveTours,
+    });
+    seoService.apply(seoMetadata);
+  }, [currentPath, confirmationReference, currentTourDetail, liveTours]);
 
   // Handlers from Homepage
   const handleHeroSearch = (filters: { destination: string; category: string; date: string; guests: number }) => {
@@ -831,6 +813,14 @@ function MainApp() {
           onViewTour={handleViewTour}
           onBookTour={handleStartBooking}
           currentPath={currentPath}
+        />
+      )}
+
+      {/* Floating 'Contact on WhatsApp' Button (appears for 10s only if on page > 15s) */}
+      {!isAdminRoute && (
+        <FloatingWhatsAppButton
+          currentPath={currentPath}
+          allTours={liveTours}
         />
       )}
 

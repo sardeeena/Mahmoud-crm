@@ -50,6 +50,14 @@ export const STANDARD_PICKUP_LOCATIONS: PickupLocation[] = [
     feeEurPerPerson: 10,
     note: '+€10 per person for regional pickup.',
   },
+  {
+    id: 'sharm-el-sheikh',
+    name: 'Sharm El-Sheikh Hotels',
+    area: 'Naama Bay, Nabq, Sharks Bay, Hadaba, Ras Um Sid',
+    feeEurPerPerson: 0,
+    note: 'Free lobby pickup from any hotel across Sharm El-Sheikh.',
+    isPopular: true,
+  },
 ];
 
 /**

@@ -163,6 +163,15 @@ export const Footer: React.FC<FooterProps> = ({
                   Safaga & Sharm El Naga
                 </button>
               </li>
+              <li>
+                <button 
+                  type="button" 
+                  onClick={() => onSelectDestination && onSelectDestination('Sharm El-Sheikh')}
+                  className="hover:text-white transition-colors"
+                >
+                  Sharm El-Sheikh & Ras Mohammed
+                </button>
+              </li>
             </ul>
           </div>
 
