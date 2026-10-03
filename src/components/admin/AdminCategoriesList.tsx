@@ -61,6 +61,7 @@ export const AdminCategoriesList: React.FC = () => {
         };
         setCategories([...categories, newC]);
       }
+      showToast('Category saved in local storage.', 'info');
       setSaving(false);
       setEditingCategory(null);
       return;
@@ -96,6 +97,7 @@ export const AdminCategoriesList: React.FC = () => {
       }
 
       await loadData();
+      showToast('Category saved successfully.', 'success');
       setEditingCategory(null);
     } catch (err: any) {
       setErrorMsg(formatSupabaseError(err));

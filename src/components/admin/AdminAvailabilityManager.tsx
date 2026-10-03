@@ -12,13 +12,15 @@ import {
   Ban,
   Check
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
 import { adminListTours } from '../../services/tourService';
 import { DbTour, DbTourAvailability } from '../../types/database';
+import { useToast } from '../../contexts/ToastContext';
 
 const LOCAL_AVAIL_KEY = 'rse_admin_availability_cache';
 
 export const AdminAvailabilityManager: React.FC = () => {
+  const { showToast } = useToast();
   const [tours, setTours] = useState<DbTour[]>([]);
   const [selectedTourId, setSelectedTourId] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -170,14 +172,18 @@ export const AdminAvailabilityManager: React.FC = () => {
       try {
         const { error } = await supabase
           .from('tour_availability')
-          .upsert(records, { onConflict: 'tour_id, date' });
+          .upsert(records, { onConflict: 'tour_id,date' });
 
         if (error) {
           throw error;
         }
+        showToast('Availability slots synchronized with Supabase database.', 'success');
       } catch (err: any) {
         console.warn('Failed to upsert tour availability in Supabase:', err);
+        showToast(formatSupabaseError(err), 'error');
       }
+    } else {
+      showToast('Availability slots saved in local storage cache.', 'info');
     }
 
     setSaving(false);

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-serif: "Playfair Display", Georgia, serif;
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
@@ -22,11 +24,106 @@
   color-scheme: light;
 }
 
+:root.dark, html.dark {
+  color-scheme: dark;
+}
+
 body {
   font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   background-color: #FAF8F5;
   color: #111A24;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html.dark body {
+  background-color: #0A1118;
+  color: #F1F5F9;
+}
+
+/* ==============================================================================
+   DARK THEME SYSTEM OVERRIDES (Optional Dark Theme for All Pages & Components)
+   ============================================================================== */
+html.dark .bg-\[\#FAF8F5\] {
+  background-color: #0A1118 !important;
+}
+
+html.dark .bg-white {
+  background-color: #132235;
+}
+
+html.dark .bg-stone-50 {
+  background-color: #0E1B2A;
+}
+
+html.dark .bg-stone-100 {
+  background-color: #16283D;
+}
+
+html.dark .bg-stone-200 {
+  background-color: #1F3854;
+}
+
+html.dark .text-\[\#111A24\] {
+  color: #F1F5F9 !important;
+}
+
+html.dark .text-\[\#16283D\] {
+  color: #E2E8F0 !important;
+}
+
+html.dark .text-stone-900 {
+  color: #F8FAFC !important;
+}
+
+html.dark .text-stone-800 {
+  color: #F1F5F9 !important;
+}
+
+html.dark .text-stone-700 {
+  color: #CBD5E1 !important;
+}
+
+html.dark .text-stone-600 {
+  color: #94A3B8 !important;
+}
+
+html.dark .border-\[\#E8E3DA\] {
+  border-color: #1F3854 !important;
+}
+
+html.dark .border-stone-200 {
+  border-color: #1F3854 !important;
+}
+
+html.dark .border-stone-300 {
+  border-color: #274768 !important;
+}
+
+html.dark .hover\:bg-stone-50:hover {
+  background-color: #1A2E44 !important;
+}
+
+html.dark .hover\:bg-stone-100:hover {
+  background-color: #1E344E !important;
+}
+
+html.dark .hover\:bg-stone-200:hover {
+  background-color: #274768 !important;
+}
+
+html.dark .hover\:bg-white:hover {
+  background-color: #1A2E44 !important;
+}
+
+html.dark .divide-stone-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1F3854 !important;
+}
+
+html.dark input, 
+html.dark select, 
+html.dark textarea {
+  color-scheme: dark;
 }
 
 .font-display {

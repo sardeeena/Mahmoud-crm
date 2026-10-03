@@ -38,6 +38,7 @@ import { TourDetailSkeleton } from './components/tours/TourDetailSkeleton';
 import { Compass } from 'lucide-react';
 
 // Providers
+import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -749,7 +750,7 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#111A24]">
+    <div className="min-h-screen flex flex-col bg-[#FAF8F5] dark:bg-[#0A1118] text-[#111A24] dark:text-[#F1F5F9] transition-colors duration-200">
       {/* Global Header */}
       <Header
         currentCurrency={currentCurrency}
@@ -868,16 +869,18 @@ function MainApp() {
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <ToastProvider>
-        <WishlistProvider>
-          <ComparisonProvider>
-            <AuthProvider>
-              <MainApp />
-            </AuthProvider>
-          </ComparisonProvider>
-        </WishlistProvider>
-      </ToastProvider>
-    </LanguageProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <ToastProvider>
+          <WishlistProvider>
+            <ComparisonProvider>
+              <AuthProvider>
+                <MainApp />
+              </AuthProvider>
+            </ComparisonProvider>
+          </WishlistProvider>
+        </ToastProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

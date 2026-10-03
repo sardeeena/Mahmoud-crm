@@ -12,17 +12,22 @@ import {
   MapPin,
   Eye,
   FileSpreadsheet,
-  AlertTriangle
+  AlertTriangle,
+  Download,
 } from 'lucide-react';
 import { bookingRepository } from '../../services/bookingRepository';
 import { Booking, BookingStatus } from '../../types/booking';
+import { useToast } from '../../contexts/ToastContext';
 
 export const AdminBookingsList: React.FC = () => {
+  const { showToast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState('Customer requested cancellation');
 
   const loadBookings = async () => {
     setLoading(true);
@@ -41,6 +46,14 @@ export const AdminBookingsList: React.FC = () => {
   }, []);
 
   const handleUpdateStatus = async (ref: string, newStatus: BookingStatus) => {
+    if (newStatus === 'cancelled') {
+      const b = bookings.find((item) => item.bookingReference === ref);
+      if (b) {
+        setBookingToCancel(b);
+        return;
+      }
+    }
+
     const existing = bookings.find((b) => b.bookingReference === ref);
     if (!existing) return;
 
@@ -61,10 +74,75 @@ export const AdminBookingsList: React.FC = () => {
     };
 
     await bookingRepository.updateBooking(updated);
+    showToast(`Booking ${ref} marked as ${newStatus.toUpperCase()}`, 'success');
     if (selectedBooking?.bookingReference === ref) {
       setSelectedBooking(updated);
     }
     await loadBookings();
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!bookingToCancel) return;
+    const ref = bookingToCancel.bookingReference;
+    await bookingRepository.cancelBooking(ref, cancelReason);
+    showToast(`Booking ${ref} cancelled.`, 'info');
+    if (selectedBooking?.bookingReference === ref) {
+      setSelectedBooking({
+        ...bookingToCancel,
+        status: 'cancelled',
+        cancellationReason: cancelReason,
+      });
+    }
+    setBookingToCancel(null);
+    await loadBookings();
+  };
+
+  const exportBookingsCSV = () => {
+    const headers = [
+      'Booking Reference',
+      'Tour Title',
+      'Date',
+      'Customer Name',
+      'Email',
+      'Phone',
+      'Country',
+      'Hotel',
+      'Adults',
+      'Children',
+      'Total EUR',
+      'Status',
+      'Payment Status',
+      'Created At',
+    ];
+
+    const rows = filtered.map((b) => [
+      `"${b.bookingReference}"`,
+      `"${b.tourTitle.replace(/"/g, '""')}"`,
+      `"${b.date}"`,
+      `"${b.customer.firstName} ${b.customer.lastName}"`,
+      `"${b.customer.email}"`,
+      `"${b.customer.countryCode} ${b.customer.phoneNumber}"`,
+      `"${b.customer.country}"`,
+      `"${b.pickup.hotelName || ''}"`,
+      b.guests.adults,
+      b.guests.children,
+      b.pricing.totalEur,
+      `"${b.status}"`,
+      `"${b.paymentStatus}"`,
+      `"${b.createdAt}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `redsea_bookings_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filtered.length} booking records to CSV.`, 'success');
   };
 
   const filtered = bookings.filter((b) => {
@@ -93,8 +171,19 @@ export const AdminBookingsList: React.FC = () => {
           </p>
         </div>
 
-        <div className="text-xs text-stone-400">
-          Total Bookings: <span className="text-white font-bold">{bookings.length}</span>
+        <div className="flex items-center space-x-3 text-xs text-stone-400">
+          <button
+            type="button"
+            onClick={exportBookingsCSV}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded font-medium border border-stone-700 transition-colors cursor-pointer"
+            title="Download reservations as CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-[#2dd4bf]" />
+            <span>Export CSV ({filtered.length})</span>
+          </button>
+          <span>
+            Total: <strong className="text-white font-bold">{bookings.length}</strong>
+          </span>
         </div>
       </div>
 
@@ -311,6 +400,46 @@ export const AdminBookingsList: React.FC = () => {
                 <p>{selectedBooking.customer.specialRequests}</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Confirmation Modal */}
+      {bookingToCancel && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Cancel Reservation</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to cancel booking <strong className="text-white font-mono">{bookingToCancel.bookingReference}</strong> for <strong className="text-white">{bookingToCancel.customer.firstName} {bookingToCancel.customer.lastName}</strong>?
+            </p>
+            <div>
+              <label className="text-stone-300 block mb-1 font-semibold">Cancellation Reason:</label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded text-white focus:outline-none focus:border-[#0A6C74]"
+              />
+            </div>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setBookingToCancel(null)}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Keep Booking
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancelBooking}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold cursor-pointer"
+              >
+                Confirm Cancellation
+              </button>
+            </div>
           </div>
         </div>
       )}

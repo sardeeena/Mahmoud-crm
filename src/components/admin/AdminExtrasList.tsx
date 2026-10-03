@@ -170,13 +170,22 @@ export const AdminExtrasList: React.FC = () => {
                 <td className="py-3 px-4 whitespace-nowrap text-stone-300 capitalize">
                   {extra.pricing_type.replace('_', ' ')}
                 </td>
-                <td className="py-3 px-4 text-right whitespace-nowrap">
+                <td className="py-3 px-4 text-right whitespace-nowrap space-x-1">
                   <button
                     type="button"
                     onClick={() => setEditingExtra(extra)}
-                    className="p-1.5 text-stone-400 hover:text-white"
+                    className="p-1.5 text-stone-400 hover:text-white transition-colors cursor-pointer"
+                    title="Edit extra"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtraToDelete(extra)}
+                    className="p-1.5 text-stone-400 hover:text-red-400 transition-colors cursor-pointer"
+                    title="Delete extra"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </td>
               </tr>
@@ -254,6 +263,39 @@ export const AdminExtrasList: React.FC = () => {
                 className="px-4 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded font-semibold disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Extra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Tour Extra Confirmation Modal */}
+      {extraToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center space-x-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">Delete Tour Extra</h3>
+            </div>
+            <p className="text-stone-300 leading-relaxed">
+              Are you sure you want to delete optional extra <strong className="text-white">"{extraToDelete.name}"</strong> (€{extraToDelete.price_eur})?
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-800">
+              <button
+                type="button"
+                onClick={() => setExtraToDelete(null)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteExtra}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
             </div>
           </div>

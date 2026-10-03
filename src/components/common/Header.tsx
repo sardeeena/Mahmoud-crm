@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   UserPlus,
   HelpCircle,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { CurrencyConfig } from '../../types';
 import { CURRENCY_CONFIGS } from '../../data/toursData';
@@ -25,6 +27,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useWishlist } from '../../contexts/WishlistContext';
 import { useComparison } from '../../contexts/ComparisonContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { LanguageCode } from '../../types/i18n';
 
 interface HeaderProps {
@@ -61,6 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelpInquiry,
 }) => {
   const { language, setLanguage, currentLanguageConfig, supportedLanguages, t } = useLanguage();
+  const { theme, toggleTheme, isDark } = useTheme();
   const { wishlistCount } = useWishlist();
   const { comparisonCount } = useComparison();
   const { user, isAdmin, signOut } = useAuth();
@@ -184,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header 
-      className={`sticky top-0 z-40 w-full bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E3DA] transition-all duration-300 ease-in-out transform ${
+      className={`sticky top-0 z-40 w-full bg-[#FAF8F5]/95 dark:bg-[#0A1118]/95 backdrop-blur-md border-b border-[#E8E3DA] dark:border-[#1F3854] transition-all duration-300 ease-in-out transform ${
         isHeaderVisible 
           ? 'translate-y-0 opacity-100 shadow-xs' 
           : '-translate-y-full opacity-0 pointer-events-none'
@@ -334,6 +338,30 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Theme Mode Toggle (Default: Light, Optional: Dark) */}
+            <div className="h-3 w-px bg-slate-700"></div>
+
+            <button
+              type="button"
+              id="theme-toggle-header-top"
+              onClick={toggleTheme}
+              className="flex items-center space-x-1.5 text-slate-200 hover:text-white py-0.5 px-2 rounded hover:bg-slate-800/80 transition-colors text-xs cursor-pointer"
+              title={isDark ? "Switch to Light Theme (Default)" : "Switch to Dark Theme"}
+              aria-label={isDark ? "Switch to Light Theme (Default)" : "Switch to Dark Theme"}
+            >
+              {isDark ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-300 transition-transform duration-300 hover:rotate-45" />
+                  <span className="text-[11px] font-medium hidden sm:inline">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-[#60C3CC] transition-transform duration-300 hover:-rotate-12" />
+                  <span className="text-[11px] font-medium hidden sm:inline">Dark</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -437,6 +465,24 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </motion.button>
           )}
+
+          {/* Theme Mode Toggle (Default: Light, Optional: Dark) */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.9 }}
+            type="button"
+            id="theme-toggle-main-nav"
+            onClick={toggleTheme}
+            className="p-2 text-stone-700 hover:text-[#0A6C74] bg-stone-100 hover:bg-stone-200/90 border border-stone-200 rounded-xl transition-all cursor-pointer"
+            title={isDark ? "Switch to Light Mode (Default)" : "Switch to Dark Mode"}
+            aria-label={isDark ? "Switch to Light Mode (Default)" : "Switch to Dark Mode"}
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-[#0A6C74]" />
+            )}
+          </motion.button>
 
           {/* Find My Booking */}
           <motion.button
@@ -762,6 +808,25 @@ export const Header: React.FC<HeaderProps> = ({
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Mobile Theme Selector (Default: Light, Optional: Dark) */}
+              <div className="p-3 bg-stone-100 rounded-lg border border-stone-200 flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-xs font-semibold text-stone-800">
+                  {isDark ? (
+                    <Moon className="w-4 h-4 text-[#60C3CC]" />
+                  ) : (
+                    <Sun className="w-4 h-4 text-amber-500" />
+                  )}
+                  <span>Theme: {isDark ? 'Dark Theme' : 'Light Theme (Default)'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-md bg-white text-stone-800 border border-stone-200 shadow-2xs hover:bg-stone-50 transition-colors"
+                >
+                  {isDark ? 'Switch to Light' : 'Switch to Dark'}
+                </button>
               </div>
 
               {/* Wishlist link in mobile */}

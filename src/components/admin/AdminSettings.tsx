@@ -9,7 +9,10 @@ import {
   RefreshCw,
   ExternalLink,
   Key,
-  Server
+  Server,
+  Activity,
+  ShieldAlert,
+  Info
 } from 'lucide-react';
 import {
   isSupabaseConfigured,
@@ -23,18 +26,106 @@ import completeSchemaSql from '../../../supabase/schema.sql?raw';
 import phase4Sql from '../../../supabase/migrations/20260922000000_phase4_schema.sql?raw';
 import fixAdminAuthSql from '../../../supabase/migrations/20260928000000_fix_admin_auth_rls.sql?raw';
 
+export interface TableHealthCheck {
+  table: string;
+  label: string;
+  category: string;
+  status: 'pending' | 'healthy' | 'missing' | 'restricted';
+  count?: number;
+  message?: string;
+}
+
+const CMS_TABLES_LIST: Omit<TableHealthCheck, 'status'>[] = [
+  { table: 'tours', label: 'Tours & Excursions', category: 'Catalog' },
+  { table: 'destinations', label: 'Destinations', category: 'Catalog' },
+  { table: 'categories', label: 'Activity Categories', category: 'Catalog' },
+  { table: 'pickup_locations', label: 'Hotel Transfer Zones', category: 'Logistics' },
+  { table: 'tour_extras', label: 'Optional Add-ons & Extras', category: 'Catalog' },
+  { table: 'bookings', label: 'Reservations & Bookings', category: 'Operations' },
+  { table: 'customers', label: 'Customer Directory', category: 'Operations' },
+  { table: 'inquiries', label: 'Traveler Inquiries', category: 'Support' },
+  { table: 'newsletter_subscriptions', label: 'Newsletter Subscribers', category: 'Marketing' },
+  { table: 'reviews', label: 'Guest Reviews & Ratings', category: 'Content' },
+  { table: 'tour_availability', label: 'Daily Tour Availability', category: 'Operations' },
+  { table: 'seo_metadata', label: 'SEO & Social Tags', category: 'Marketing' },
+  { table: 'profiles', label: 'User Roles & Admin Profiles', category: 'Security' },
+];
+
 export const AdminSettings: React.FC = () => {
   const currentConfig = getSupabaseConfig();
   const [supabaseUrl, setSupabaseUrl] = useState(currentConfig.url);
   const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isAuditingTables, setIsAuditingTables] = useState(false);
+  const [tablesHealth, setTablesHealth] = useState<TableHealthCheck[]>(
+    CMS_TABLES_LIST.map((t) => ({ ...t, status: 'pending' }))
+  );
   const [copiedMasterSql, setCopiedMasterSql] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
   const [copiedFixSql, setCopiedFixSql] = useState(false);
   const [showMasterSqlPreview, setShowMasterSqlPreview] = useState(false);
   const [showSqlPreview, setShowSqlPreview] = useState(false);
   const [showFixSqlPreview, setShowFixSqlPreview] = useState(false);
+
+  const handleAuditTables = async () => {
+    if (!isSupabaseConfigured()) {
+      setTestResult({
+        success: false,
+        message: 'Please provide valid Supabase credentials above to run database table audit.',
+      });
+      return;
+    }
+
+    setIsAuditingTables(true);
+    const updated: TableHealthCheck[] = [];
+
+    for (const item of CMS_TABLES_LIST) {
+      try {
+        const { count, error } = await supabase
+          .from(item.table)
+          .select('*', { count: 'exact', head: true });
+
+        if (error) {
+          if (isSchemaMissingError(error)) {
+            updated.push({
+              ...item,
+              status: 'missing',
+              message: 'Table not created in PostgreSQL schema yet',
+            });
+          } else if (error.code === '42501' || error.message.includes('permission denied')) {
+            updated.push({
+              ...item,
+              status: 'restricted',
+              message: 'RLS active (sign in as admin to read all)',
+            });
+          } else {
+            updated.push({
+              ...item,
+              status: 'missing',
+              message: error.message,
+            });
+          }
+        } else {
+          updated.push({
+            ...item,
+            status: 'healthy',
+            count: count ?? 0,
+            message: 'Connected & Verified',
+          });
+        }
+      } catch (err: any) {
+        updated.push({
+          ...item,
+          status: 'missing',
+          message: err?.message || 'Query failed',
+        });
+      }
+    }
+
+    setTablesHealth(updated);
+    setIsAuditingTables(false);
+  };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -207,6 +298,89 @@ export const AdminSettings: React.FC = () => {
               <div className="flex-1">{testResult.message}</div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Supabase PostgreSQL Tables Health Inspector */}
+      <div className="bg-stone-950 border border-stone-800 rounded-lg p-6 space-y-4 text-xs shadow-lg">
+        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-[#2dd4bf]">
+              <Activity className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Database Schema & Collections Health</h3>
+              <p className="text-[11px] text-stone-400">
+                Audit all 13 core CMS tables in Supabase PostgreSQL to verify table existence and live record counts.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAuditTables}
+            disabled={isAuditingTables}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded text-xs font-semibold shadow transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isAuditingTables ? 'animate-spin' : ''}`} />
+            <span>{isAuditingTables ? 'Auditing Tables...' : 'Run Database Table Audit'}</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {tablesHealth.map((item) => (
+            <div
+              key={item.table}
+              className={`p-3 rounded-lg border flex flex-col justify-between ${
+                item.status === 'healthy'
+                  ? 'bg-stone-900/60 border-emerald-900/60'
+                  : item.status === 'restricted'
+                  ? 'bg-stone-900/60 border-amber-900/60'
+                  : item.status === 'missing'
+                  ? 'bg-red-950/30 border-red-900/60'
+                  : 'bg-stone-900/40 border-stone-800'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-mono text-[11px] font-bold text-white">
+                  {item.table}
+                </span>
+                {item.status === 'healthy' && (
+                  <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>Verified</span>
+                  </span>
+                )}
+                {item.status === 'restricted' && (
+                  <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <ShieldCheck className="w-3 h-3 text-amber-400" />
+                    <span>RLS Protected</span>
+                  </span>
+                )}
+                {item.status === 'missing' && (
+                  <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/30">
+                    <AlertCircle className="w-3 h-3 text-red-400" />
+                    <span>Missing</span>
+                  </span>
+                )}
+                {item.status === 'pending' && (
+                  <span className="text-[10px] text-stone-500 font-medium">Ready</span>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] text-stone-300">{item.label}</p>
+                <div className="mt-1 flex items-center justify-between text-[10px] text-stone-500">
+                  <span>{item.category}</span>
+                  {item.count !== undefined && (
+                    <span className="font-semibold text-[#2dd4bf] font-mono">
+                      {item.count} records
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

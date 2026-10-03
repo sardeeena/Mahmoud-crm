@@ -18,6 +18,14 @@ import {
   Mail,
   MessageCircle,
   ExternalLink,
+  RefreshCw,
+  Layers,
+  MapPin,
+  Sparkles,
+  Star,
+  Image,
+  Car,
+  Settings,
 } from 'lucide-react';
 import { adminListTours } from '../../services/tourService';
 import { bookingRepository } from '../../services/bookingRepository';
@@ -45,6 +53,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [inquiries, setInquiries] = useState<DbInquiry[]>([]);
   const [customers, setCustomers] = useState<UnifiedCustomer[]>([]);
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const [toursData, bookingsData, inquiriesData, customersData, subscribersData] = await Promise.all([
+        adminListTours(),
+        bookingRepository.listBookings(),
+        listInquiries(),
+        listUnifiedCustomers(),
+        listNewsletterSubscribers(),
+      ]);
+      setTours(toursData);
+      setBookings(bookingsData);
+      setInquiries(inquiriesData);
+      setCustomers(customersData);
+      setSubscribers(subscribersData);
+    } catch (err) {
+      console.warn('Dashboard refresh warning:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -134,8 +165,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded text-xs font-semibold transition-colors cursor-pointer"
+            title="Refresh dashboard metrics"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#2dd4bf] ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+          <button
+            type="button"
             onClick={() => onNavigateTab('tour_new')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded text-xs font-semibold shadow transition-colors"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded text-xs font-semibold shadow transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add Tour</span>
@@ -276,6 +317,101 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="mt-1 text-[10px] text-stone-400">
             {tours.length} total experiences
           </div>
+        </div>
+      </div>
+
+      {/* Quick Launchpad: Categories & System Sections */}
+      <div className="bg-stone-950 border border-stone-800 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <Layers className="w-4 h-4 text-[#2dd4bf]" />
+            <h2 className="text-xs font-bold text-white uppercase tracking-wider">
+              Management Sections & Catalog Categories
+            </h2>
+          </div>
+          <span className="text-[11px] text-stone-400">Direct navigation shortcuts</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+          <button
+            type="button"
+            onClick={() => onNavigateTab('categories')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <Layers className="w-4 h-4 text-emerald-400 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Categories</span>
+            <span className="text-[9px] text-stone-500">Activities</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('destinations')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <MapPin className="w-4 h-4 text-sky-400 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Destinations</span>
+            <span className="text-[9px] text-stone-500">Resort zones</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('pickup')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <Car className="w-4 h-4 text-amber-400 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Pickup Zones</span>
+            <span className="text-[9px] text-stone-500">Transfers & fees</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('extras')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-pink-400 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Tour Extras</span>
+            <span className="text-[9px] text-stone-500">Add-ons & VIP</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('availability')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <CalendarCheck className="w-4 h-4 text-teal-400 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Availability</span>
+            <span className="text-[9px] text-stone-500">Daily quotas</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('reviews')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <Star className="w-4 h-4 text-amber-300 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Reviews</span>
+            <span className="text-[9px] text-stone-500">Guest ratings</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('media')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <Image className="w-4 h-4 text-indigo-400 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Media</span>
+            <span className="text-[9px] text-stone-500">Cloud Storage</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('settings')}
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-stone-900 hover:bg-stone-850 border border-stone-800 hover:border-[#0A6C74] text-stone-300 hover:text-white transition-all text-center group cursor-pointer"
+          >
+            <Settings className="w-4 h-4 text-stone-400 mb-1.5 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-semibold">Settings</span>
+            <span className="text-[9px] text-stone-500">PostgreSQL</span>
+          </button>
         </div>
       </div>
 

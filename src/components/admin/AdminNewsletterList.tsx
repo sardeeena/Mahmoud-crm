@@ -14,7 +14,9 @@ import {
   Users,
   Plus,
   X,
-  AlertTriangle
+  AlertTriangle,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react';
 import {
   listNewsletterSubscribers,
@@ -24,9 +26,11 @@ import {
   NewsletterSubscriber,
 } from '../../services/newsletterService';
 import { useToast } from '../../contexts/ToastContext';
+import { NewsletterAnalyticsDashboard } from './NewsletterAnalyticsDashboard';
 
 export const AdminNewsletterList: React.FC = () => {
   const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<'analytics' | 'subscribers'>('analytics');
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,8 +204,44 @@ export const AdminNewsletterList: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* View Switcher: Analytics vs Directory */}
+      <div className="flex items-center space-x-2 border-b border-stone-800 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab('analytics')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'analytics'
+              ? 'bg-[#0A6C74] text-white shadow'
+              : 'bg-stone-900 text-stone-400 hover:text-white border border-stone-800'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4 text-[#2dd4bf]" />
+          <span>Analytics & CTR Trends</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('subscribers')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'subscribers'
+              ? 'bg-[#0A6C74] text-white shadow'
+              : 'bg-stone-900 text-stone-400 hover:text-white border border-stone-800'
+          }`}
+        >
+          <Users className="w-4 h-4 text-sky-400" />
+          <span>Subscriber Directory</span>
+          <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-stone-850 text-stone-300 font-mono text-[10px]">
+            {subscribers.length}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === 'analytics' ? (
+        <NewsletterAnalyticsDashboard subscribers={subscribers} />
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-stone-950 border border-stone-800 p-4 rounded-xl">
           <span className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
             Total In Database
@@ -354,6 +394,8 @@ export const AdminNewsletterList: React.FC = () => {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Manual Add Subscriber Modal */}
       {isAddModalOpen && (

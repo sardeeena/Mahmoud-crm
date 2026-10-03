@@ -13,8 +13,6 @@ import {
   Sun,
   Anchor,
   Sparkles,
-  ChevronLeft,
-  ChevronRight,
   Flame
 } from 'lucide-react';
 import { SearchModule } from './SearchModule';
@@ -144,6 +142,20 @@ export const Hero: React.FC<HeroProps> = ({ onSearch, resultCount }) => {
     setCurrentSlideIndex((prev) => (prev + 1) % CINEMATIC_SLIDES.length);
   };
 
+  // Keyboard navigation keeps carousel functionality smooth and accessible
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft') {
+        handlePrevSlide();
+      } else if (e.key === 'ArrowRight') {
+        handleNextSlide();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <section 
       className="relative w-full bg-[#0E1B2A] text-white overflow-hidden"
@@ -225,45 +237,6 @@ export const Hero: React.FC<HeroProps> = ({ onSearch, resultCount }) => {
                 </span>
               </motion.div>
             </AnimatePresence>
-          </div>
-
-          {/* Quick Carousel Controls & Category Dots */}
-          <div className="hidden md:flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={handlePrevSlide}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/10 backdrop-blur-md transition-all cursor-pointer"
-              aria-label="Previous tour theme"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* Tour Type Indicators */}
-            <div className="flex items-center space-x-1.5 px-2 py-1 rounded-full bg-black/30 border border-white/10 backdrop-blur-md">
-              {CINEMATIC_SLIDES.map((s, idx) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setCurrentSlideIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                    idx === currentSlideIndex 
-                      ? 'w-6 bg-gradient-to-r from-[#60C3CC] to-[#A3E8ED]' 
-                      : 'w-1.5 bg-white/40 hover:bg-white/70'
-                  }`}
-                  aria-label={`Switch to ${s.category}`}
-                  title={s.category}
-                />
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleNextSlide}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/10 backdrop-blur-md transition-all cursor-pointer"
-              aria-label="Next tour theme"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
 

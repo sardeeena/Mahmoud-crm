@@ -63,6 +63,7 @@ export const AdminDestinationsList: React.FC = () => {
         };
         setDestinations([...destinations, newD]);
       }
+      showToast('Destination saved in local storage.', 'info');
       setSaving(false);
       setEditingDest(null);
       return;
@@ -105,6 +106,7 @@ export const AdminDestinationsList: React.FC = () => {
       }
 
       await loadData();
+      showToast('Destination saved successfully.', 'success');
       setEditingDest(null);
     } catch (err: any) {
       setErrorMsg(formatSupabaseError(err));

@@ -934,6 +934,30 @@ async function syncTourRelations(tourId: string, payload: AdminTourPayload): Pro
     }
   }
 
+  // Pickup Locations
+  if (payload.pickupLocationIds !== undefined) {
+    await supabase.from('tour_pickup_locations').delete().eq('tour_id', tourId);
+    if (payload.pickupLocationIds.length > 0) {
+      const links = payload.pickupLocationIds.map((locId) => ({
+        tour_id: tourId,
+        pickup_location_id: locId,
+      }));
+      await supabase.from('tour_pickup_locations').insert(links);
+    }
+  }
+
+  // Tour Assigned Extras
+  if (payload.extraIds !== undefined) {
+    await supabase.from('tour_assigned_extras').delete().eq('tour_id', tourId);
+    if (payload.extraIds.length > 0) {
+      const links = payload.extraIds.map((extId) => ({
+        tour_id: tourId,
+        extra_id: extId,
+      }));
+      await supabase.from('tour_assigned_extras').insert(links);
+    }
+  }
+
   // SEO Metadata
   if (payload.seo !== undefined) {
     await supabase.from('seo_metadata').upsert({

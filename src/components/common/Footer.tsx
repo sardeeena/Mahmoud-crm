@@ -9,9 +9,12 @@ import {
   MessageCircle,
   CreditCard,
   CheckCircle2,
-  HelpCircle
+  HelpCircle,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { NewsletterSubscribe } from './NewsletterSubscribe';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface FooterProps {
   onSelectDestination?: (dest: string) => void;
@@ -34,6 +37,8 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenAdmin,
   onOpenHelpInquiry,
 }) => {
+  const { toggleTheme, isDark } = useTheme();
+
   return (
     <footer className="bg-[#0E1B2A] text-slate-400 text-xs border-t border-slate-800">
       
@@ -332,8 +337,29 @@ export const Footer: React.FC<FooterProps> = ({
 
         {/* Payment Methods & Bottom Bar */}
         <div className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-          <div>
-            © {new Date().getFullYear()} Red Sea Excursions & Maritime Services S.A.E. All rights reserved.
+          <div className="flex items-center space-x-3">
+            <span>© {new Date().getFullYear()} Red Sea Excursions & Maritime Services S.A.E.</span>
+            <span className="text-slate-700">|</span>
+            {/* Footer Theme Toggle */}
+            <button
+              type="button"
+              id="theme-toggle-footer-btn"
+              onClick={toggleTheme}
+              className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer text-[10px]"
+              title={isDark ? "Switch to Light Theme (Default)" : "Switch to Dark Theme"}
+            >
+              {isDark ? (
+                <>
+                  <Sun className="w-3 h-3 text-amber-300" />
+                  <span>Theme: Dark (Switch to Light)</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3 h-3 text-[#60C3CC]" />
+                  <span>Theme: Light (Switch to Dark)</span>
+                </>
+              )}
+            </button>
           </div>
 
           <div className="flex items-center space-x-3 text-slate-400 text-[11px]">

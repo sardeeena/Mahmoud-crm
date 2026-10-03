@@ -6,7 +6,6 @@ import {
   Send, 
   Sparkles, 
   RotateCcw, 
-  ArrowRight, 
   Star, 
   Clock, 
   MapPin, 
@@ -44,7 +43,6 @@ export const FloatingAIChatbot: React.FC<FloatingAIChatbotProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showTeaser, setShowTeaser] = useState(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -74,14 +72,6 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
     }
   }, [isOpen]);
 
-  // Show subtle teaser after 4.5s on first view
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowTeaser(true);
-    }, 4500);
-    return () => clearTimeout(timer);
-  }, []);
-
   const handleSendMessage = async (customPrompt?: string) => {
     const promptToSend = (customPrompt || input).trim();
     if (!promptToSend || isLoading) return;
@@ -96,7 +86,6 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
-    setShowTeaser(false);
 
     try {
       const history = messages
@@ -147,50 +136,6 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
 
   return (
     <div className={`fixed left-4 sm:left-6 ${bottomPositionClass} z-40 select-none print:hidden`}>
-      
-      {/* Floating Teaser Greeting Bubble */}
-      <AnimatePresence>
-        {showTeaser && !isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute bottom-16 left-0 w-72 bg-[#0E1B2A] text-white p-3.5 rounded-2xl shadow-2xl border border-[#0A6C74]/50 pointer-events-auto"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-full bg-[#0A6C74] flex items-center justify-center text-white text-[11px] font-bold">
-                  ⚓
-                </div>
-                <span className="font-semibold text-xs text-[#60C3CC]">Captain Farouk (AI)</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTeaser(false)}
-                className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">
-              Need help deciding which boat trip or desert safari fits your schedule? Ask me!
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(true);
-                setShowTeaser(false);
-              }}
-              className="mt-2.5 w-full py-1.5 px-3 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1 transition-colors cursor-pointer shadow-xs"
-            >
-              <span>Chat with AI Concierge</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Floating Trigger Button */}
       <motion.button
         whileHover={{ scale: 1.05 }}
@@ -199,7 +144,6 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
         id="floating-ai-chatbot-btn"
         onClick={() => {
           setIsOpen(!isOpen);
-          setShowTeaser(false);
         }}
         aria-expanded={isOpen}
         aria-label="Open AI Concierge Chatbot"
