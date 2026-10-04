@@ -139,7 +139,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({
         {/* User Profile Card */}
         <div className="bg-white border border-[#E8E3DA] rounded-xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-5 text-center sm:text-left">
-            <div className="w-20 h-20 rounded-full bg-[#0E1B2A] text-white flex items-center justify-center text-2xl font-bold border-2 border-[#0A6C74] shadow-sm overflow-hidden">
+            <div className="w-20 h-20 rounded-full bg-[#0A6C74] text-white flex items-center justify-center text-2xl font-bold border-2 border-[#0A6C74] shadow-sm overflow-hidden">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
               ) : (
@@ -187,9 +187,9 @@ export const AccountPage: React.FC<AccountPageProps> = ({
               <button
                 type="button"
                 onClick={() => onNavigate('admin')}
-                className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs rounded-lg transition-colors shadow-2xs flex items-center space-x-1.5 cursor-pointer"
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-amber-300 font-semibold text-xs rounded-lg border border-stone-200 dark:border-stone-700 transition-colors shadow-2xs flex items-center space-x-1.5 cursor-pointer"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <ShieldCheck className="w-3.5 h-3.5 text-[#0A6C74] dark:text-amber-400" />
                 <span>Admin CMS</span>
               </button>
             )}

@@ -534,3 +534,59 @@ export interface TourWithRelations extends DbTour {
   extras?: DbTourExtra[];
   seo?: DbSeoMetadata | null;
 }
+
+// ------------------------------------------------------------------------------
+// Audit Logs & Security Records
+// ------------------------------------------------------------------------------
+export interface DbDetailedAuditLog {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  user_role: UserRole | null;
+  action: 'insert' | 'update' | 'delete' | 'login' | 'logout' | 'cancel_booking' | 'confirm_booking' | 'refund';
+  entity_type: 'booking' | 'tour' | 'destination' | 'customer' | 'inquiry' | 'profile' | 'settings';
+  entity_id: string | null;
+  old_values: Record<string, any> | null;
+  new_values: Record<string, any> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export interface DbInquiryRecord {
+  id: string;
+  ticket_number: string;
+  customer_name: string;
+  email: string;
+  phone: string | null;
+  whatsapp_number: string | null;
+  country: string | null;
+  tour_id: string | null;
+  tour_slug: string | null;
+  tour_title: string | null;
+  preferred_date: string | null;
+  number_of_guests: number | null;
+  inquiry_type: 'custom_tour' | 'private_yacht' | 'group_booking' | 'general_question' | 'support';
+  message: string;
+  status: 'new' | 'in_progress' | 'responded' | 'converted' | 'archived';
+  admin_notes: string | null;
+  assigned_to_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PermissionAction =
+  | 'tours:read'
+  | 'tours:create'
+  | 'tours:edit'
+  | 'tours:delete'
+  | 'bookings:read'
+  | 'bookings:create'
+  | 'bookings:edit'
+  | 'bookings:cancel'
+  | 'customers:read'
+  | 'customers:export'
+  | 'inquiries:manage'
+  | 'analytics:view'
+  | 'settings:manage';
+

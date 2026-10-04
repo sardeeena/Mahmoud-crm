@@ -171,7 +171,7 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({
               <button
                 type="button"
                 onClick={onNavigateAdmin}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 bg-stone-900 hover:bg-black text-amber-300 text-xs font-semibold rounded-lg shadow-sm transition-all"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-black dark:text-amber-300 text-xs font-semibold rounded-lg border border-stone-200 dark:border-stone-700 shadow-sm transition-all"
               >
                 <span>CMS Admin Portal</span>
                 <ExternalLink className="w-3.5 h-3.5 ml-1.5" />

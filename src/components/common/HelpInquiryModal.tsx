@@ -103,22 +103,22 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-lg bg-stone-900 border border-stone-700 rounded-xl shadow-2xl overflow-hidden text-stone-100 max-h-[90vh] flex flex-col"
+        className="relative w-full max-w-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-2xl overflow-hidden text-stone-900 dark:text-stone-100 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-stone-950 border-b border-stone-800 flex items-center justify-between">
+        <div className="px-6 py-4 bg-stone-50 dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#0A6C74]/20 border border-[#0A6C74] flex items-center justify-center text-[#2dd4bf]">
+            <div className="w-8 h-8 rounded-full bg-[#0A6C74]/15 dark:bg-[#0A6C74]/20 border border-[#0A6C74] flex items-center justify-center text-[#0A6C74] dark:text-[#2dd4bf]">
               <HelpCircle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-wide">
+              <h3 className="text-base font-bold text-stone-900 dark:text-white tracking-wide">
                 Require Help & Concierge Support
               </h3>
-              <p className="text-xs text-stone-400">
+              <p className="text-xs text-stone-500 dark:text-stone-400">
                 Direct pier desk assistance & custom excursion arrangements
               </p>
             </div>
@@ -126,7 +126,7 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-stone-400 hover:text-white rounded-lg hover:bg-stone-800 transition-colors"
+            className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white rounded-lg hover:bg-stone-200/60 dark:hover:bg-stone-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,24 +136,24 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
         <div className="p-6 overflow-y-auto">
           {submitted ? (
             <div className="text-center py-6 space-y-4">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/15 dark:bg-emerald-500/20 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-lg font-bold text-white">Help Request Transmitted</h4>
-                <p className="text-xs text-stone-300 max-w-sm mx-auto">
-                  Thank you, <strong className="text-white">{name}</strong>. Your inquiry has been sent to our Hurghada Marina dispatch desk and recorded in our live system.
+                <h4 className="text-lg font-bold text-stone-900 dark:text-white">Help Request Transmitted</h4>
+                <p className="text-xs text-stone-600 dark:text-stone-300 max-w-sm mx-auto">
+                  Thank you, <strong className="text-stone-900 dark:text-white">{name}</strong>. Your inquiry has been sent to our Hurghada Marina dispatch desk and recorded in our live system.
                 </p>
               </div>
 
-              <div className="bg-stone-950/70 border border-stone-800 rounded-lg p-3 text-xs text-stone-400 text-left space-y-1">
+              <div className="bg-stone-50 dark:bg-stone-950/70 border border-stone-200 dark:border-stone-800 rounded-lg p-3 text-xs text-stone-600 dark:text-stone-400 text-left space-y-1">
                 <p className="flex justify-between">
                   <span>Target Response:</span>
-                  <span className="text-emerald-400 font-semibold">Under 15 minutes</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Under 15 minutes</span>
                 </p>
                 <p className="flex justify-between">
                   <span>Confirmation Sent To:</span>
-                  <span className="text-stone-200 font-mono">{email}</span>
+                  <span className="text-stone-800 dark:text-stone-200 font-mono">{email}</span>
                 </p>
               </div>
 
@@ -172,7 +172,7 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="flex-1 px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-medium transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
                 >
                   Close Window
                 </button>
@@ -181,8 +181,8 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {errorMsg && (
-                <div className="p-3 bg-red-950/80 border border-red-800 text-red-200 text-xs rounded-lg flex items-start space-x-2">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="p-3 bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-200 text-xs rounded-lg flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                   <span>{errorMsg}</span>
                 </div>
               )}
@@ -190,36 +190,36 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Full Name */}
                 <div>
-                  <label className="block text-xs font-medium text-stone-300 mb-1">
-                    Your Full Name <span className="text-red-400">*</span>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Your Full Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <User className="w-4 h-4 text-stone-500 absolute left-3 top-2.5" />
+                    <User className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                     <input
                       type="text"
                       required
                       placeholder="e.g. Markus Weber"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
+                      className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
                     />
                   </div>
                 </div>
 
                 {/* Email Address */}
                 <div>
-                  <label className="block text-xs font-medium text-stone-300 mb-1">
-                    Email Address <span className="text-red-400">*</span>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Email Address <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-2.5" />
+                    <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                     <input
                       type="email"
                       required
                       placeholder="e.g. markus@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
+                      className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
                     />
                   </div>
                 </div>
@@ -228,28 +228,28 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
               {/* Phone / WhatsApp */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-stone-300 mb-1">
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
                     Phone / WhatsApp Number
                   </label>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-stone-500 absolute left-3 top-2.5" />
+                    <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                     <input
                       type="tel"
                       placeholder="e.g. +49 170 1234567"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
+                      className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
                     />
                   </div>
                 </div>
 
                 {/* Excursion Reference (Optional) */}
                 <div>
-                  <label className="block text-xs font-medium text-stone-300 mb-1">
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
                     Related Excursion
                   </label>
                   <div className="relative">
-                    <Compass className="w-4 h-4 text-stone-500 absolute left-3 top-2.5" />
+                    <Compass className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                     <select
                       value={tourId}
                       onChange={(e) => {
@@ -259,7 +259,7 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
                           setSubject(`Inquiry regarding: ${match.title}`);
                         }
                       }}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#0A6C74]"
+                      className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg pl-9 pr-3 py-2 text-xs text-stone-900 dark:text-white focus:outline-none focus:border-[#0A6C74]"
                     >
                       <option value="">General inquiry (no tour selected)</option>
                       {tours.map((t) => (
@@ -274,7 +274,7 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
 
               {/* Subject */}
               <div>
-                <label className="block text-xs font-medium text-stone-300 mb-1">
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
                   Inquiry Topic / Subject
                 </label>
                 <input
@@ -282,14 +282,14 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
                   placeholder="e.g. Custom private yacht charter, dietary assistance, pickup verification"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
+                  className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg px-3 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-[#0A6C74]"
                 />
               </div>
 
               {/* Message */}
               <div>
-                <label className="block text-xs font-medium text-stone-300 mb-1">
-                  How can our team help you? <span className="text-red-400">*</span>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  How can our team help you? <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
@@ -297,26 +297,26 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
                   placeholder="Please specify hotel name, dates, group size, special requirements, or any questions..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full bg-stone-950 border border-stone-700 rounded-lg p-3 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#0A6C74] resize-none"
+                  className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg p-3 text-xs text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-[#0A6C74] resize-none"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-between border-t border-stone-800">
-                <span className="text-[11px] text-stone-400">
+              <div className="pt-2 flex items-center justify-between border-t border-stone-200 dark:border-stone-800">
+                <span className="text-[11px] text-stone-500 dark:text-stone-400">
                   Data securely saved to database & dispatched to marina desk.
                 </span>
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs font-medium transition-colors"
+                    className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-lg text-xs font-medium transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex items-center space-x-1.5 px-4 py-2 bg-[#0A6C74] hover:bg-[#08545a] text-white rounded-lg text-xs font-semibold shadow-md transition-colors disabled:opacity-50"
+                    className="flex items-center space-x-1.5 px-4 py-2 bg-[#0A6C74] hover:bg-[#08545a] text-white rounded-lg text-xs font-semibold shadow-md transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     <Send className={`w-3.5 h-3.5 ${loading ? 'animate-pulse' : ''}`} />
                     <span>{loading ? 'Transmitting...' : 'Send Help Request'}</span>

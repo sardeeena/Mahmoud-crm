@@ -250,7 +250,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 dark:bg-stone-950/70 backdrop-blur-sm overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -259,7 +259,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-8"
       >
         {/* Top Header Banner */}
-        <div className="bg-gradient-to-r from-[#0E1B2A] via-[#16283D] to-[#0A6C74] p-6 text-white relative">
+        <div className="bg-gradient-to-r from-[#0A6C74] via-[#0E8A94] to-[#14A7B4] dark:from-[#0E1B2A] dark:via-[#16283D] dark:to-[#0A6C74] p-6 text-white relative">
           <button
             type="button"
             onClick={onClose}

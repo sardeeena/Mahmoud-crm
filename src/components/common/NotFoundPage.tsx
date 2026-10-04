@@ -80,7 +80,7 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({
         <button
           type="button"
           onClick={onNavigateHome}
-          className="px-5 py-2.5 bg-[#0E1B2A] hover:bg-[#16283D] text-white text-xs sm:text-sm font-semibold rounded-full flex items-center space-x-2 transition-colors"
+          className="px-5 py-2.5 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-full flex items-center space-x-2 transition-colors cursor-pointer"
         >
           <Home className="w-4 h-4" />
           <span>Return Home</span>

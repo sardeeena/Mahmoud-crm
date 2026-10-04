@@ -89,10 +89,10 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
   };
 
   return (
-    <div className={`relative overflow-hidden bg-gradient-to-br from-[#122236] to-[#0A1726] border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-xl ${className}`}>
+    <div className={`relative overflow-hidden bg-gradient-to-br from-[#E2F1F3] via-[#EFF8F8] to-[#FAF8F5] dark:from-[#122236] dark:to-[#0A1726] border border-[#BDE0E2] dark:border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-md dark:shadow-xl transition-colors duration-300 ${className}`}>
       {/* Decorative ambient background accents */}
-      <div className="absolute top-0 right-0 w-72 h-72 bg-[#0A6C74]/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-10 -left-10 w-60 h-60 bg-[#60C3CC]/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-72 h-72 bg-[#60C3CC]/20 dark:bg-[#0A6C74]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-10 -left-10 w-60 h-60 bg-[#0A6C74]/10 dark:bg-[#60C3CC]/10 rounded-full blur-2xl pointer-events-none" />
 
       <div className="relative z-10">
         {!successData ? (
@@ -100,31 +100,31 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
             
             {/* Left Column: Heading & Value Proposition */}
             <div className="lg:col-span-7 space-y-3">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#0A6C74]/25 border border-[#0A6C74]/40 text-[#60C3CC] text-[11px] font-semibold tracking-wide uppercase">
-                <Sparkles className="w-3.5 h-3.5 text-[#60C3CC]" />
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#0A6C74]/10 dark:bg-[#0A6C74]/25 border border-[#0A6C74]/25 dark:border-[#0A6C74]/40 text-[#0A6C74] dark:text-[#60C3CC] text-[11px] font-semibold tracking-wide uppercase">
+                <Sparkles className="w-3.5 h-3.5 text-[#0A6C74] dark:text-[#60C3CC]" />
                 <span>Exclusive Member Perks</span>
               </div>
 
-              <h2 className="font-display text-xl sm:text-2xl font-bold text-white tracking-tight">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-stone-900 dark:text-white tracking-tight">
                 Get 15% Off Your Next Red Sea Excursion
               </h2>
 
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
+              <p className="text-xs sm:text-sm text-stone-600 dark:text-slate-300 leading-relaxed max-w-xl">
                 Subscribe to our newsletter for seasonal reef water clarity forecasts, wild dolphin pod sightings, and subscriber-only promotional vouchers.
               </p>
 
               {/* Bullet perks */}
-              <div className="flex flex-wrap gap-y-1.5 gap-x-4 pt-1 text-xs text-slate-300">
+              <div className="flex flex-wrap gap-y-1.5 gap-x-4 pt-1 text-xs text-stone-700 dark:text-slate-300">
                 <div className="flex items-center space-x-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>Instant 15% promo code</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>Seasonal reef condition alerts</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>Early bird boat charter access</span>
                 </div>
               </div>
@@ -138,7 +138,7 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
                     Email address
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <Mail className="w-4 h-4 text-stone-400 dark:text-slate-400 absolute left-3.5 top-3.5" />
                     <input
                       id="newsletter-email"
                       type="email"
@@ -149,13 +149,13 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
                         if (errorMsg) setErrorMsg(null);
                       }}
                       placeholder="Enter your email address..."
-                      className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-slate-900/90 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A6C74] focus:border-[#0A6C74] transition-all shadow-inner"
+                      className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-white dark:bg-slate-900/90 border border-stone-300 dark:border-slate-700 text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A6C74] focus:border-[#0A6C74] transition-all shadow-inner"
                     />
                   </div>
                 </div>
 
                 {errorMsg && (
-                  <div className="flex items-start space-x-1.5 text-red-400 text-xs py-1">
+                  <div className="flex items-start space-x-1.5 text-red-500 dark:text-red-400 text-xs py-1">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <span>{errorMsg}</span>
                   </div>
@@ -179,12 +179,12 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
                   )}
                 </button>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-0.5">
+                <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-slate-400 px-1 pt-0.5">
                   <span className="flex items-center space-x-1">
-                    <ShieldCheck className="w-3 h-3 text-slate-500" />
+                    <ShieldCheck className="w-3 h-3 text-stone-400 dark:text-slate-500" />
                     <span>Strictly zero spam. Unsubscribe anytime.</span>
                   </span>
-                  <span className="text-slate-500">Synced to Supabase</span>
+                  <span className="text-stone-400 dark:text-slate-500">Synced to Supabase</span>
                 </div>
               </form>
             </div>
@@ -192,30 +192,30 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
           </div>
         ) : (
           /* Success Card View with Voucher Code */
-          <div className="bg-slate-900/80 border border-emerald-500/40 rounded-xl p-5 sm:p-6 text-center space-y-4 max-w-2xl mx-auto animate-fade-in">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
-              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+          <div className="bg-white dark:bg-slate-900/80 border border-emerald-500/40 rounded-xl p-5 sm:p-6 text-center space-y-4 max-w-2xl mx-auto shadow-md dark:shadow-none animate-fade-in">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="font-display text-lg sm:text-xl font-bold text-white">
+              <h3 className="font-display text-lg sm:text-xl font-bold text-stone-900 dark:text-white">
                 {successData.alreadySubscribed ? 'Welcome Back!' : "You're On The VIP List!"}
               </h3>
-              <p className="text-xs text-slate-300 max-w-md mx-auto">
+              <p className="text-xs text-stone-600 dark:text-slate-300 max-w-md mx-auto">
                 {successData.message}
               </p>
             </div>
 
             {/* Voucher Box */}
-            <div className="bg-[#16283D] border border-[#0A6C74]/50 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 max-w-md mx-auto">
+            <div className="bg-stone-50 dark:bg-[#16283D] border border-[#0A6C74]/40 dark:border-[#0A6C74]/50 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 max-w-md mx-auto">
               <div className="text-left">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">
+                <span className="text-[10px] text-stone-500 dark:text-slate-400 uppercase tracking-wider block font-semibold">
                   Promotional Promo Voucher
                 </span>
-                <span className="font-mono text-base font-bold text-[#60C3CC] tracking-wider">
+                <span className="font-mono text-base font-bold text-[#0A6C74] dark:text-[#60C3CC] tracking-wider">
                   {successData.discountCode}
                 </span>
-                <span className="text-[10px] text-emerald-400 block">
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-medium">
                   15% off any excursion at checkout
                 </span>
               </div>

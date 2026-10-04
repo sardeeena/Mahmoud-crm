@@ -188,14 +188,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header 
-      className={`sticky top-0 z-40 w-full bg-[#FAF8F5]/95 dark:bg-[#0A1118]/95 backdrop-blur-md border-b border-[#E8E3DA] dark:border-[#1F3854] transition-all duration-300 ease-in-out transform ${
+      className={`sticky top-0 z-40 w-full transition-all duration-300 ease-in-out transform ${
         isHeaderVisible 
-          ? 'translate-y-0 opacity-100 shadow-xs' 
+          ? 'translate-y-0 opacity-100' 
           : '-translate-y-full opacity-0 pointer-events-none'
       }`}
     >
       {/* Top Utility Bar */}
-      <div className={`bg-[#0E1B2A] text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-slate-800 transition-all duration-300 ease-in-out ${
+      <div className={`bg-[#F4F1EA] text-stone-600 dark:bg-[#0E1B2A] dark:text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-[#E8E3DA] dark:border-slate-800 transition-all duration-300 ease-in-out ${
         isHeaderVisible ? 'opacity-100' : 'opacity-0'
       }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-end gap-3">
@@ -205,13 +205,13 @@ export const Header: React.FC<HeaderProps> = ({
               href="https://wa.me/201023456789" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center text-emerald-400 hover:text-emerald-300 transition-colors text-xs"
+              className="flex items-center text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors text-xs font-medium"
             >
               <MessageCircle className="w-3.5 h-3.5 mr-1" />
               <span className="hidden sm:inline">{t('top.pierDesk')}: </span>+20 102 345 6789
             </a>
 
-            <div className="h-3 w-px bg-slate-700"></div>
+            <div className="h-3 w-px bg-stone-300 dark:bg-slate-700"></div>
 
             {/* Language Selector Dropdown */}
             <div className="relative" ref={languageRef}>
@@ -222,14 +222,14 @@ export const Header: React.FC<HeaderProps> = ({
                   setLanguageDropdownOpen(!languageDropdownOpen);
                   setCurrencyDropdownOpen(false);
                 }}
-                className="flex items-center space-x-1.5 text-slate-200 hover:text-white py-0.5 px-2 rounded hover:bg-slate-800/80 transition-colors"
+                className="flex items-center space-x-1.5 text-stone-700 hover:text-stone-900 dark:text-slate-200 dark:hover:text-white py-0.5 px-2 rounded hover:bg-stone-200/60 dark:hover:bg-slate-800/80 transition-colors"
                 aria-expanded={languageDropdownOpen}
                 aria-haspopup="listbox"
                 aria-label={`Current language: ${currentLanguageConfig.name}. Click to change language.`}
               >
                 <span className="text-sm leading-none" aria-hidden="true">{currentLanguageConfig.flag}</span>
                 <span className="font-semibold text-xs tracking-wider">{currentLanguageConfig.code.toUpperCase()}</span>
-                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${languageDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 text-stone-400 dark:text-slate-400 transition-transform duration-200 ${languageDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -241,9 +241,9 @@ export const Header: React.FC<HeaderProps> = ({
                     transition={{ duration: 0.15 }}
                     role="listbox"
                     aria-label="Select website language"
-                    className="absolute right-0 mt-1.5 w-44 bg-[#16283D] border border-slate-700 rounded-lg shadow-2xl py-1 z-50 text-xs overflow-hidden"
+                    className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#16283D] border border-stone-200 dark:border-slate-700 rounded-lg shadow-2xl py-1 z-50 text-xs overflow-hidden"
                   >
-                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700/60 tracking-wider">
+                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-stone-500 dark:text-slate-400 border-b border-stone-200/80 dark:border-slate-700/60 tracking-wider">
                       {t('top.language')}
                     </div>
                     {supportedLanguages.map((langItem) => {
@@ -258,17 +258,17 @@ export const Header: React.FC<HeaderProps> = ({
                             setLanguage(langItem.code as LanguageCode);
                             setLanguageDropdownOpen(false);
                           }}
-                          className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors ${
+                          className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors cursor-pointer ${
                             isSelected
                               ? 'bg-[#0A6C74] text-white font-medium'
-                              : 'text-slate-200 hover:bg-slate-700/60'
+                              : 'text-stone-700 hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-700/60'
                           }`}
                         >
                           <div className="flex items-center space-x-2">
                             <span className="text-base leading-none" aria-hidden="true">{langItem.flag}</span>
                             <div className="flex flex-col">
-                              <span className="text-xs font-medium text-white">{langItem.localName}</span>
-                              <span className="text-[10px] text-slate-400">{langItem.name}</span>
+                              <span className="text-xs font-medium text-stone-900 dark:text-white">{langItem.localName}</span>
+                              <span className="text-[10px] text-stone-500 dark:text-slate-400">{langItem.name}</span>
                             </div>
                           </div>
                           {isSelected && (
@@ -282,7 +282,7 @@ export const Header: React.FC<HeaderProps> = ({
               </AnimatePresence>
             </div>
 
-            <div className="h-3 w-px bg-slate-700"></div>
+            <div className="h-3 w-px bg-stone-300 dark:bg-slate-700"></div>
 
             {/* Currency Selector */}
             <div className="relative" ref={currencyRef}>
@@ -293,11 +293,11 @@ export const Header: React.FC<HeaderProps> = ({
                   setCurrencyDropdownOpen(!currencyDropdownOpen);
                   setLanguageDropdownOpen(false);
                 }}
-                className="flex items-center space-x-1 text-slate-200 hover:text-white py-0.5 px-1.5 rounded hover:bg-slate-800/80 transition-colors text-xs"
+                className="flex items-center space-x-1 text-stone-700 hover:text-stone-900 dark:text-slate-200 dark:hover:text-white py-0.5 px-1.5 rounded hover:bg-stone-200/60 dark:hover:bg-slate-800/80 transition-colors text-xs font-medium cursor-pointer"
                 aria-expanded={currencyDropdownOpen}
               >
                 <span>{currentCurrency.code} ({currentCurrency.symbol})</span>
-                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${currencyDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 text-stone-400 dark:text-slate-400 transition-transform duration-200 ${currencyDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -307,9 +307,9 @@ export const Header: React.FC<HeaderProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-1.5 w-32 bg-[#16283D] border border-slate-700 rounded-lg shadow-2xl py-1 z-50 text-xs overflow-hidden"
+                    className="absolute right-0 mt-1.5 w-32 bg-white dark:bg-[#16283D] border border-stone-200 dark:border-slate-700 rounded-lg shadow-2xl py-1 z-50 text-xs overflow-hidden"
                   >
-                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700/60 tracking-wider">
+                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-stone-500 dark:text-slate-400 border-b border-stone-200/80 dark:border-slate-700/60 tracking-wider">
                       {t('top.currency')}
                     </div>
                     {Object.keys(CURRENCY_CONFIGS).map((codeKey) => {
@@ -323,14 +323,14 @@ export const Header: React.FC<HeaderProps> = ({
                             onCurrencyChange(curr);
                             setCurrencyDropdownOpen(false);
                           }}
-                          className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors ${
+                          className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors cursor-pointer ${
                             isSelected
                               ? 'bg-[#0A6C74] text-white font-medium'
-                              : 'text-slate-200 hover:bg-slate-700/60'
+                              : 'text-stone-700 hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-700/60'
                           }`}
                         >
-                          <span>{curr.code}</span>
-                          <span className="text-slate-400">{curr.symbol}</span>
+                          <span className="font-medium text-stone-900 dark:text-white">{curr.code}</span>
+                          <span className="text-stone-400 dark:text-slate-400">{curr.symbol}</span>
                         </button>
                       );
                     })}
@@ -340,13 +340,13 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Theme Mode Toggle (Default: Light, Optional: Dark) */}
-            <div className="h-3 w-px bg-slate-700"></div>
+            <div className="h-3 w-px bg-stone-300 dark:bg-slate-700"></div>
 
             <button
               type="button"
               id="theme-toggle-header-top"
               onClick={toggleTheme}
-              className="flex items-center space-x-1.5 text-slate-200 hover:text-white py-0.5 px-2 rounded hover:bg-slate-800/80 transition-colors text-xs cursor-pointer"
+              className="flex items-center space-x-1.5 text-stone-700 hover:text-stone-900 dark:text-slate-200 dark:hover:text-white py-0.5 px-2 rounded hover:bg-stone-200/60 dark:hover:bg-slate-800/80 transition-colors text-xs cursor-pointer font-medium"
               title={isDark ? "Switch to Light Theme (Default)" : "Switch to Dark Theme"}
               aria-label={isDark ? "Switch to Light Theme (Default)" : "Switch to Dark Theme"}
             >
@@ -357,7 +357,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               ) : (
                 <>
-                  <Moon className="w-3.5 h-3.5 text-[#60C3CC] transition-transform duration-300 hover:-rotate-12" />
+                  <Moon className="w-3.5 h-3.5 text-[#0A6C74] transition-transform duration-300 hover:-rotate-12" />
                   <span className="text-[11px] font-medium hidden sm:inline">Dark</span>
                 </>
               )}
@@ -366,67 +366,68 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Main Navigation */}
+      {/* Main Navigation (Selected Element: header > div:nth-of-type(2)) */}
       <div 
-        className={`max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all duration-300 ease-in-out ${
+        className={`w-full bg-[#0E1B2A] text-white border-b border-[#1F3854] shadow-md transition-all duration-300 ease-in-out ${
           isHeaderVisible
             ? 'opacity-100 translate-y-0'
             : 'opacity-0 -translate-y-2 pointer-events-none'
         }`}
       >
-        {/* Brand Logo */}
-        <a 
-          href="/" 
-          onClick={handleLogoClick}
-          className="flex items-center group focus:outline-hidden"
-          id="brand-logo-link"
-          aria-label="Red Sea Excursions Home"
-        >
-          <img 
-            src="/logo.png" 
-            alt="Red Sea Excursions" 
-            className="h-14 sm:h-16 md:h-20 w-auto object-contain drop-shadow-xs group-hover:scale-105 transition-transform duration-300"
-          />
-        </a>
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+          {/* Brand Logo */}
+          <a 
+            href="/" 
+            onClick={handleLogoClick}
+            className="flex items-center group focus:outline-hidden"
+            id="brand-logo-link"
+            aria-label="Red Sea Excursions Home"
+          >
+            <img 
+              src="/logo.png" 
+              alt="Red Sea Excursions" 
+              className="h-14 sm:h-16 md:h-20 w-auto object-contain drop-shadow-xs group-hover:scale-105 transition-transform duration-300"
+            />
+          </a>
 
-        {/* Desktop Nav Links */}
-        <nav className="hidden lg:flex items-center space-x-7 text-sm font-medium text-[#16283D]" aria-label="Main Navigation">
-          <button 
-            type="button"
-            onClick={handleExcursionsClick} 
-            className="hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
-          >
-            {t('nav.allExcursions')}
-          </button>
-          <button 
-            type="button"
-            onClick={() => handleNavClick('destinations-section')} 
-            className="hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
-          >
-            {t('nav.destinations')}
-          </button>
-          <button 
-            type="button"
-            onClick={() => handleNavClick('categories-section')} 
-            className="hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
-          >
-            {t('nav.experiences')}
-          </button>
-          <button 
-            type="button"
-            onClick={() => handleNavClick('why-us-section')} 
-            className="hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
-          >
-            {t('nav.whyChooseUs')}
-          </button>
-          <button 
-            type="button"
-            onClick={() => handleNavClick('reviews-section')} 
-            className="hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
-          >
-            {t('nav.guestReviews')}
-          </button>
-        </nav>
+          {/* Desktop Nav Links */}
+          <nav className="hidden lg:flex items-center space-x-7 text-sm font-medium text-slate-200" aria-label="Main Navigation">
+            <button 
+              type="button"
+              onClick={handleExcursionsClick} 
+              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+            >
+              {t('nav.allExcursions')}
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleNavClick('destinations-section')} 
+              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+            >
+              {t('nav.destinations')}
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleNavClick('categories-section')} 
+              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+            >
+              {t('nav.experiences')}
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleNavClick('why-us-section')} 
+              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+            >
+              {t('nav.whyChooseUs')}
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleNavClick('reviews-section')} 
+              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+            >
+              {t('nav.guestReviews')}
+            </button>
+          </nav>
 
         {/* Action Controls */}
         <div className="hidden sm:flex items-center space-x-2">
@@ -436,7 +437,7 @@ export const Header: React.FC<HeaderProps> = ({
             whileTap={{ scale: 0.9 }}
             type="button"
             onClick={onOpenWishlist}
-            className="relative p-2 text-stone-700 hover:text-rose-600 bg-stone-100 hover:bg-rose-50 border border-stone-200 rounded-xl transition-all cursor-pointer"
+            className="relative p-2 text-slate-200 hover:text-rose-400 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
             title="Saved Excursions"
             aria-label={`View ${wishlistCount} saved excursions`}
           >
@@ -455,11 +456,11 @@ export const Header: React.FC<HeaderProps> = ({
               whileTap={{ scale: 0.9 }}
               type="button"
               onClick={onOpenCompare}
-              className="relative p-2 text-stone-700 hover:text-[#0A6C74] bg-stone-100 hover:bg-[#E8F3F4] border border-stone-200 rounded-xl transition-all cursor-pointer"
+              className="relative p-2 text-slate-200 hover:text-[#60C3CC] bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
               title="Compare Excursions"
               aria-label={`Compare ${comparisonCount} excursions`}
             >
-              <Scale className="w-4 h-4 text-[#0A6C74]" />
+              <Scale className="w-4 h-4 text-[#60C3CC]" />
               <span className="absolute -top-1 -right-1 bg-[#0A6C74] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                 {comparisonCount}
               </span>
@@ -473,14 +474,14 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="theme-toggle-main-nav"
             onClick={toggleTheme}
-            className="p-2 text-stone-700 hover:text-[#0A6C74] bg-stone-100 hover:bg-stone-200/90 border border-stone-200 rounded-xl transition-all cursor-pointer"
+            className="p-2 text-slate-200 hover:text-[#60C3CC] bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
             title={isDark ? "Switch to Light Mode (Default)" : "Switch to Dark Mode"}
             aria-label={isDark ? "Switch to Light Mode (Default)" : "Switch to Dark Mode"}
           >
             {isDark ? (
-              <Sun className="w-4 h-4 text-amber-400" />
+              <Sun className="w-4 h-4 text-amber-300" />
             ) : (
-              <Moon className="w-4 h-4 text-[#0A6C74]" />
+              <Moon className="w-4 h-4 text-cyan-300" />
             )}
           </motion.button>
 
@@ -491,9 +492,9 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="my-booking-header-btn"
             onClick={onOpenMyBooking}
-            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#16283D] bg-stone-100 hover:bg-stone-200/90 border border-[#E8E3DA] rounded-xl transition-all cursor-pointer"
+            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
           >
-            <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-[#0A6C74]" />
+            <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-[#60C3CC]" />
             {t('nav.findMyBooking')}
           </motion.button>
 
@@ -504,18 +505,18 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="user-menu-button"
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-sm border border-stone-300 bg-white hover:bg-stone-50 text-xs font-semibold text-stone-800 transition-colors cursor-pointer"
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-sm border border-white/20 bg-white/10 hover:bg-white/15 text-xs font-semibold text-white transition-colors cursor-pointer"
                 aria-expanded={userDropdownOpen}
               >
-                <div className="w-5 h-5 rounded-full bg-[#0E1B2A] text-white flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                <div className="w-5 h-5 rounded-full bg-[#0A6C74] text-white flex items-center justify-center text-[10px] font-bold overflow-hidden">
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span>{user.fullName.charAt(0).toUpperCase()}</span>
                   )}
                 </div>
-                <span className="max-w-[100px] truncate">{user.fullName.split(' ')[0]}</span>
-                <ChevronDown className={`w-3 h-3 text-stone-400 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                <span className="max-w-[100px] truncate text-white">{user.fullName.split(' ')[0]}</span>
+                <ChevronDown className={`w-3 h-3 text-slate-300 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -602,9 +603,9 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => {
                   if (onNavigateLogin) onNavigateLogin();
                 }}
-                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-stone-700 hover:text-[#0A6C74] hover:bg-stone-100 rounded-xl transition-all cursor-pointer"
+                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer"
               >
-                <LogIn className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+                <LogIn className="w-3.5 h-3.5 mr-1 text-[#60C3CC]" />
                 <span>Sign In</span>
               </button>
 
@@ -614,7 +615,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => {
                   if (onNavigateRegister) onNavigateRegister();
                 }}
-                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#0A6C74] hover:text-[#08565C] hover:bg-[#E8F3F4] rounded-xl transition-all cursor-pointer font-medium"
+                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#60C3CC] hover:text-white hover:bg-white/10 border border-[#60C3CC]/30 rounded-xl transition-all cursor-pointer font-medium"
               >
                 <UserPlus className="w-3.5 h-3.5 mr-1" />
                 <span>Register</span>
@@ -627,10 +628,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenHelpInquiry}
-              className="hidden md:inline-flex items-center px-3 py-2 text-xs font-semibold text-stone-700 hover:text-[#0A6C74] hover:bg-stone-100 rounded-xl transition-all cursor-pointer border border-stone-200/80 bg-white"
+              className="hidden md:inline-flex items-center px-3 py-2 text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer border border-white/15 bg-white/5"
               title="Require Help, Concierge & Custom Tours"
             >
-              <HelpCircle className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+              <HelpCircle className="w-3.5 h-3.5 mr-1 text-[#60C3CC]" />
               <span>Require Help</span>
             </button>
           )}
@@ -653,7 +654,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenWishlist}
-            className="relative p-2 text-stone-700 hover:text-rose-600 rounded-sm border border-stone-200"
+            className="relative p-2 text-slate-200 hover:text-rose-400 rounded-sm border border-white/20 bg-white/10"
             title="Saved Excursions"
           >
             <Heart className={`w-4 h-4 ${wishlistCount > 0 ? 'fill-rose-500 text-rose-500' : ''}`} />
@@ -667,7 +668,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenMyBooking}
-            className="p-2 text-stone-700 hover:text-[#0A6C74] rounded-sm border border-stone-200"
+            className="p-2 text-slate-200 hover:text-[#60C3CC] rounded-sm border border-white/20 bg-white/10"
             title={t('nav.findMyBooking')}
           >
             <CalendarCheck className="w-4 h-4" />
@@ -677,13 +678,14 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="mobile-menu-toggle-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-[#0E1B2A] hover:bg-stone-100 rounded-sm border border-stone-200"
+            className="p-2 text-white hover:bg-white/10 rounded-sm border border-white/20 bg-white/10"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
+    </div>
 
       {/* Mobile Drawer Menu */}
       <AnimatePresence>
@@ -700,7 +702,7 @@ export const Header: React.FC<HeaderProps> = ({
               {user ? (
                 <div className="p-3 bg-stone-100 rounded-lg border border-stone-200 space-y-2.5">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-[#0E1B2A] text-white flex items-center justify-center font-bold text-sm overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-[#0A6C74] text-white flex items-center justify-center font-bold text-sm overflow-hidden">
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -935,7 +937,7 @@ export const Header: React.FC<HeaderProps> = ({
                       setMobileMenuOpen(false);
                       onOpenHelpInquiry();
                     }}
-                    className="w-full py-2.5 px-4 text-center font-semibold text-sm bg-stone-850 bg-[#0A6C74]/10 hover:bg-[#0A6C74]/20 text-[#0A6C74] rounded border border-[#0A6C74]/30 flex items-center justify-center space-x-2"
+                    className="w-full py-2.5 px-4 text-center font-semibold text-sm bg-[#0A6C74]/10 hover:bg-[#0A6C74]/20 text-[#0A6C74] rounded border border-[#0A6C74]/30 flex items-center justify-center space-x-2"
                   >
                     <HelpCircle className="w-4 h-4 text-[#0A6C74]" />
                     <span>Require Help & Support</span>

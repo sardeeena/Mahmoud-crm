@@ -103,7 +103,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 bg-[#0E1B2A] hover:bg-[#16283D] text-white rounded text-xs font-semibold transition-colors"
+            className="w-full py-2.5 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded text-xs font-semibold transition-colors cursor-pointer"
           >
             Return to Homepage
           </button>

@@ -426,7 +426,7 @@ function MainApp() {
     // If auth is resolving or active database query to 'profiles' table is running:
     if (authLoading || adminCheckStatus === 'checking' || adminCheckStatus === 'idle') {
       return (
-        <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4 text-stone-300">
+        <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center p-4 text-stone-700 dark:text-stone-300">
           <div className="text-center space-y-3">
             <div className="w-8 h-8 border-2 border-[#0A6C74] border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs">Verifying administrator permissions with database...</p>
@@ -438,7 +438,7 @@ function MainApp() {
     // If role check failed, properly redirect to login page (the useEffect triggers navigate)
     if (adminCheckStatus === 'unauthorized' || !isAdmin) {
       return (
-        <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4 text-stone-300">
+        <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center p-4 text-stone-700 dark:text-stone-300">
           <div className="text-center space-y-3">
             <div className="w-8 h-8 border-2 border-[#0A6C74] border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs">Unauthorized: Redirecting to administrator login...</p>

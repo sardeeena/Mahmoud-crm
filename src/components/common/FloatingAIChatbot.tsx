@@ -149,8 +149,8 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
         aria-label="Open AI Concierge Chatbot"
         className={`group relative flex items-center shadow-xl transition-all duration-300 cursor-pointer ${
           isOpen
-            ? 'p-3.5 rounded-full bg-stone-800 text-white'
-            : 'px-3.5 sm:px-4 py-3 sm:py-3.5 rounded-full bg-gradient-to-r from-[#0E1B2A] to-[#16283D] text-white border border-[#0A6C74]/50 hover:border-[#60C3CC]'
+            ? 'p-3.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-white border border-stone-300 dark:border-stone-700'
+            : 'px-3.5 sm:px-4 py-3 sm:py-3.5 rounded-full bg-[#0A6C74] hover:bg-[#08565C] dark:bg-gradient-to-r dark:from-[#0E1B2A] dark:to-[#16283D] text-white border border-[#0A6C74]/50 hover:border-[#60C3CC]'
         }`}
       >
         {/* Pulsing Aura Effect when closed */}
@@ -159,23 +159,23 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
         )}
 
         {isOpen ? (
-          <X className="w-6 h-6 text-white" />
+          <X className="w-6 h-6 text-stone-800 dark:text-white" />
         ) : (
           <div className="flex items-center space-x-2">
             <div className="relative">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0A6C74] to-[#60C3CC] flex items-center justify-center text-white shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-gradient-to-tr dark:from-[#0A6C74] dark:to-[#60C3CC] flex items-center justify-center text-white shadow-xs">
                 <Compass className="w-4 h-4 text-white group-hover:rotate-45 transition-transform duration-300" />
               </div>
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#0E1B2A] rounded-full animate-ping" />
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#0E1B2A] rounded-full" />
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#0A6C74] dark:border-[#0E1B2A] rounded-full animate-ping" />
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#0A6C74] dark:border-[#0E1B2A] rounded-full" />
             </div>
 
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold tracking-wide flex items-center gap-1">
+              <span className="text-xs font-bold tracking-wide flex items-center gap-1 text-white">
                 Ask Captain Farouk
-                <Sparkles className="w-3 h-3 text-[#60C3CC]" />
+                <Sparkles className="w-3 h-3 text-amber-300 dark:text-[#60C3CC]" />
               </span>
-              <span className="text-[10px] text-slate-300">AI Tour Concierge</span>
+              <span className="text-[10px] text-teal-100 dark:text-slate-300">AI Tour Concierge</span>
             </div>
           </div>
         )}
@@ -192,23 +192,23 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
             className="absolute bottom-16 sm:bottom-18 left-0 w-[calc(100vw-2rem)] sm:w-[410px] h-[560px] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-stone-200/90 flex flex-col overflow-hidden z-50 origin-bottom-left"
           >
             {/* Header */}
-            <div className="bg-[#0E1B2A] text-white p-4 relative border-b border-slate-800">
+            <div className="bg-[#0A6C74] text-white p-4 relative border-b border-[#08565C]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-[#16283D] flex items-center justify-center text-white border border-[#0A6C74]">
-                      <Compass className="w-5 h-5 text-[#60C3CC]" />
+                    <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-white border border-white/20">
+                      <Compass className="w-5 h-5 text-white" />
                     </div>
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#0E1B2A] rounded-full" />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#0A6C74] rounded-full" />
                   </div>
                   <div>
                     <h3 className="font-display font-semibold text-sm text-white flex items-center space-x-1.5">
                       <span>Captain Farouk</span>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-[#0A6C74]/50 text-[#60C3CC] border border-[#0A6C74]/60">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-white/20 text-white border border-white/30">
                         AI Guide
                       </span>
                     </h3>
-                    <p className="text-[11px] text-slate-300">
+                    <p className="text-[11px] text-white/85">
                       Red Sea Tour Concierge · Hurghada Marina
                     </p>
                   </div>
@@ -367,7 +367,7 @@ Tell me who you're traveling with, your resort area (Hurghada, El Gouna, Makadi 
               {/* Typing indicator */}
               {isLoading && (
                 <div className="flex items-center space-x-2 text-stone-500 p-2">
-                  <div className="w-6 h-6 rounded-full bg-[#16283D] text-[#60C3CC] flex items-center justify-center text-[10px]">
+                  <div className="w-6 h-6 rounded-full bg-[#E8F3F4] text-[#0A6C74] flex items-center justify-center text-[10px]">
                     ⚓
                   </div>
                   <div className="flex items-center space-x-1 bg-white px-3 py-2 rounded-2xl border border-stone-200">

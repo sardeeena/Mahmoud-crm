@@ -50,8 +50,8 @@ export const TourCard: React.FC<TourCardProps> = ({
 
         {/* Badge */}
         {tour.badge && (
-          <div className="absolute top-3 left-3 bg-[#0E1B2A]/90 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider uppercase border border-white/10 shadow-sm flex items-center space-x-1">
-            <Sparkles className="w-3 h-3 text-[#60C3CC]" />
+          <div className="absolute top-3 left-3 bg-white/95 dark:bg-[#0E1B2A]/90 backdrop-blur-md text-stone-900 dark:text-white text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider uppercase border border-stone-200/60 dark:border-white/10 shadow-sm flex items-center space-x-1">
+            <Sparkles className="w-3 h-3 text-[#0A6C74] dark:text-[#60C3CC]" />
             <span>{tour.badge}</span>
           </div>
         )}

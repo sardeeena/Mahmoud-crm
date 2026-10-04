@@ -150,7 +150,7 @@ export const TourSearch: React.FC<TourSearchProps> = ({
               onClick={() => onSelectCategoryTab(tab)}
               className={`px-3.5 py-1.5 rounded-sm whitespace-nowrap transition-all border ${
                 isActive
-                  ? 'bg-[#0E1B2A] text-white border-[#0E1B2A] font-semibold shadow-xs'
+                  ? 'bg-[#0A6C74] text-white border-[#0A6C74] font-semibold shadow-xs'
                   : 'bg-white text-stone-700 border-stone-200 hover:border-stone-400 hover:bg-stone-50'
               }`}
             >

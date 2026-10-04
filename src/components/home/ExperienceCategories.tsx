@@ -30,19 +30,19 @@ export const ExperienceCategories: React.FC<ExperienceCategoriesProps> = ({ onSe
   };
 
   return (
-    <section id="categories-section" className="py-16 sm:py-24 bg-white border-b border-[#E8E3DA]">
+    <section id="categories-section" className="py-16 sm:py-24 bg-white dark:bg-[#0A1118] border-b border-[#E8E3DA] dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
         
         {/* Section Header */}
         <div className="max-w-2xl mb-12">
-          <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] mb-2">
-            <span className="w-5 h-0.5 bg-[#0A6C74] rounded-full"></span>
+          <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] dark:text-[#60C3CC] mb-2">
+            <span className="w-5 h-0.5 bg-[#0A6C74] dark:bg-[#60C3CC] rounded-full"></span>
             <span>Curated Marine & Desert Adventures</span>
           </div>
-          <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] tracking-tight">
+          <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] dark:text-white tracking-tight">
             Explore by Experience
           </h2>
-          <p className="text-stone-600 text-sm sm:text-base mt-2 leading-relaxed">
+          <p className="text-stone-600 dark:text-slate-300 text-sm sm:text-base mt-2 leading-relaxed">
             Whether you seek calm shallow turquoise lagoons, offshore dolphin reef encounters, or sunset quad biking across desert mountain canyons.
           </p>
         </div>
@@ -58,7 +58,7 @@ export const ExperienceCategories: React.FC<ExperienceCategoriesProps> = ({ onSe
               transition={{ duration: 0.45, delay: index * 0.07 }}
               whileHover={{ y: -6 }}
               onClick={() => onSelectCategory(cat.name)}
-              className="group relative rounded-2xl overflow-hidden border border-[#E8E3DA] bg-stone-900 cursor-pointer h-80 flex flex-col justify-end p-6 hover:border-[#0A6C74]/70 hover:shadow-2xl transition-all duration-300"
+              className="group relative rounded-2xl overflow-hidden border border-[#E8E3DA] dark:border-slate-700/80 bg-stone-100 dark:bg-stone-900 cursor-pointer h-80 flex flex-col justify-end p-6 hover:border-[#0A6C74]/70 hover:shadow-2xl transition-all duration-300"
             >
               {/* Background Photography with smooth slow zoom */}
               <div 
@@ -67,7 +67,7 @@ export const ExperienceCategories: React.FC<ExperienceCategoriesProps> = ({ onSe
               />
               
               {/* Refined gradient overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0E1B2A] via-[#0E1B2A]/65 to-black/20 group-hover:via-[#0E1B2A]/50 transition-colors" />
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/60 to-black/20 group-hover:via-stone-900/40 transition-colors" />
 
               {/* Category Card Details */}
               <div className="relative z-10 space-y-2">

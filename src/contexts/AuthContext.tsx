@@ -7,6 +7,9 @@ import {
   confirmUserEmail,
   resetPasswordRequest,
   updateUserPassword,
+  updateUserProfile,
+  getUserPermissions,
+  validatePasswordStrength,
   signOutAdmin,
   getCurrentAdminUser,
   isUserAdmin,
@@ -24,6 +27,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isStaff: boolean;
   isCustomer: boolean;
+  permissions: string[];
+  hasPermission: (action: string) => boolean;
   authModalView: AuthModalView | null;
   openAuthModal: (view?: AuthModalView) => void;
   closeAuthModal: () => void;
@@ -57,6 +62,7 @@ interface AuthContextType {
   sendPasswordReset: (email: string) => Promise<{ success: boolean; error?: string; message?: string; resetCode?: string }>;
   updatePassword: (newPassword: string, email?: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: Partial<AppUser>) => Promise<{ success: boolean; error?: string }>;
+  validatePassword: (password: string) => { isValid: boolean; score: number; feedback: string[] };
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   verifyAdmin: () => Promise<boolean>;
@@ -75,6 +81,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authModalView, setAuthModalView] = useState<AuthModalView | null>(null);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const permissions = getUserPermissions(user?.role);
+  const hasPermission = useCallback((action: string): boolean => {
+    return permissions.includes(action) || (user?.role === 'admin');
+  }, [permissions, user?.role]);
+
   const openAuthModal = useCallback((view: AuthModalView = 'login') => {
     setAuthModalView(view);
   }, []);
@@ -84,20 +95,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const updateProfile = async (data: Partial<AppUser>) => {
-    if (user) {
-      const updated = { ...user, ...data };
-      if (data.phone && !data.phoneNumber) {
-        updated.phoneNumber = data.phone;
-      }
-      setUser(updated);
-      try {
-        localStorage.setItem('redsea_auth_user', JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
+    if (!user) {
+      return { success: false, error: 'No active user session' };
     }
-    return { success: true };
+    const result = await updateUserProfile(user.id, data);
+    if (result.success && result.user) {
+      setUser(result.user);
+    } else if (result.success) {
+      setUser((prev) => (prev ? { ...prev, ...data } : null));
+    }
+    return result;
   };
+
+  const validatePassword = useCallback((password: string) => {
+    return validatePasswordStrength(password);
+  }, []);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -334,6 +346,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         isStaff,
         isCustomer,
+        permissions,
+        hasPermission,
         authModalView,
         openAuthModal,
         closeAuthModal,
@@ -346,6 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendPasswordReset: handleResetPassword,
         updatePassword: handleUpdatePassword,
         updateProfile,
+        validatePassword,
         signOut: () => handleSignOut(false),
         refreshUser,
         verifyAdmin: verifyAdminAccess,

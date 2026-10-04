@@ -55,33 +55,33 @@ export const PopularTours: React.FC<PopularToursProps> = ({
     : tours.filter((t) => t.category === selectedCategoryTab);
 
   return (
-    <section id="tours-section" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E3DA]">
+    <section id="tours-section" className="py-16 sm:py-24 bg-[#FAF8F5] dark:bg-[#0A1118] border-b border-[#E8E3DA] dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
         
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div>
-            <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] mb-2">
-              <span className="w-5 h-0.5 bg-[#0A6C74] rounded-full"></span>
+            <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] dark:text-[#60C3CC] mb-2">
+              <span className="w-5 h-0.5 bg-[#0A6C74] dark:bg-[#60C3CC] rounded-full"></span>
               <span>Handpicked Red Sea Excursions</span>
             </div>
-            <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] tracking-tight">
+            <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] dark:text-white tracking-tight">
               {t('popular.title')}
             </h2>
-            <p className="text-stone-600 text-sm sm:text-base mt-2 max-w-xl">
+            <p className="text-stone-600 dark:text-slate-300 text-sm sm:text-base mt-2 max-w-xl">
               {t('popular.subtitle')}
             </p>
           </div>
 
           {activeFilterSummary && (
-            <div className="flex items-center bg-stone-100 border border-stone-300 rounded-xl px-3.5 py-1.5 text-xs text-stone-700 self-start md:self-auto shadow-2xs">
-              <Filter className="w-3.5 h-3.5 mr-1.5 text-[#0A6C74]" />
+            <div className="flex items-center bg-stone-100 dark:bg-[#132235] border border-stone-300 dark:border-slate-700 rounded-xl px-3.5 py-1.5 text-xs text-stone-700 dark:text-slate-200 self-start md:self-auto shadow-2xs">
+              <Filter className="w-3.5 h-3.5 mr-1.5 text-[#0A6C74] dark:text-[#60C3CC]" />
               <span className="font-medium mr-2">{activeFilterSummary}</span>
               {onClearFilters && (
                 <button
                   type="button"
                   onClick={onClearFilters}
-                  className="text-[#0A6C74] font-semibold hover:underline cursor-pointer"
+                  className="text-[#0A6C74] dark:text-[#60C3CC] font-semibold hover:underline cursor-pointer"
                 >
                   Clear
                 </button>
@@ -101,8 +101,8 @@ export const PopularTours: React.FC<PopularToursProps> = ({
                 onClick={() => setSelectedCategoryTab(cat)}
                 className={`relative px-4 py-2 rounded-xl whitespace-nowrap transition-all border cursor-pointer ${
                   isSelected
-                    ? 'bg-[#0E1B2A] text-white border-[#0E1B2A] shadow-md font-semibold'
-                    : 'bg-white text-stone-700 border-stone-200 hover:border-stone-400 hover:bg-stone-50'
+                    ? 'bg-[#0A6C74] text-white border-[#0A6C74] shadow-md font-semibold'
+                    : 'bg-white dark:bg-[#132235] text-stone-700 dark:text-slate-200 border-stone-200 dark:border-slate-700 hover:border-stone-400 hover:bg-stone-50 dark:hover:bg-[#182C44]'
                 }`}
               >
                 {cat === 'All' ? 'All Experiences' : cat}
@@ -170,10 +170,10 @@ export const PopularTours: React.FC<PopularToursProps> = ({
               whileTap={{ scale: 0.97 }}
               type="button"
               onClick={onViewAllExcursions}
-              className="inline-flex items-center px-7 py-3.5 bg-[#0E1B2A] hover:bg-[#16283D] text-white text-xs sm:text-sm font-semibold rounded-xl transition-all shadow-md space-x-2.5 cursor-pointer group"
+              className="inline-flex items-center px-7 py-3.5 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs sm:text-sm font-semibold rounded-xl transition-all shadow-md space-x-2.5 cursor-pointer group"
             >
               <span>{t('popular.viewAll')}</span>
-              <ArrowRight className="w-4 h-4 text-[#60C3CC] group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform" />
             </motion.button>
           </div>
         )}

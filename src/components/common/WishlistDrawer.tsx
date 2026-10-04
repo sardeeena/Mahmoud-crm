@@ -49,16 +49,16 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
             className="absolute inset-y-0 right-0 max-w-md w-full bg-[#FAF8F5] shadow-2xl border-l border-[#E8E3DA] flex flex-col z-10"
           >
             {/* Header */}
-            <div className="p-5 bg-[#0E1B2A] text-white flex items-center justify-between border-b border-slate-800">
+            <div className="p-5 bg-white dark:bg-[#0E1B2A] text-stone-900 dark:text-white flex items-center justify-between border-b border-stone-200 dark:border-slate-800 transition-colors">
               <div className="flex items-center space-x-2.5">
-                <div className="p-1.5 rounded bg-rose-500/20 text-rose-400">
+                <div className="p-1.5 rounded bg-rose-500/15 text-rose-500">
                   <Heart className="w-5 h-5 fill-current" />
                 </div>
                 <div>
                   <h2 className="font-display font-bold text-base sm:text-lg">
                     Saved Excursions
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-stone-500 dark:text-slate-400">
                     {savedTours.length} {savedTours.length === 1 ? 'tour' : 'tours'} saved for your holiday
                   </p>
                 </div>
@@ -67,7 +67,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded text-stone-400 hover:text-stone-700 dark:text-slate-400 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 aria-label="Close saved tours"
               >
                 <X className="w-5 h-5" />
@@ -209,7 +209,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 bg-[#0E1B2A] hover:bg-[#16283D] text-white text-xs font-semibold rounded transition-colors"
+                  className="px-4 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-semibold rounded transition-colors cursor-pointer"
                 >
                   Continue Browsing
                 </button>

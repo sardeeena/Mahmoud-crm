@@ -56,22 +56,22 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 transition={{ duration: 0.2 }}
                 className={`pointer-events-auto flex items-center justify-between p-3.5 rounded-lg shadow-xl border text-xs sm:text-sm font-medium ${
                   isSuccess
-                    ? 'bg-[#0E1B2A] text-white border-[#0A6C74]/50 shadow-teal-950/20'
+                    ? 'bg-white dark:bg-[#0E1B2A] text-stone-900 dark:text-white border-emerald-500/40 shadow-lg'
                     : isError
-                    ? 'bg-rose-900 text-white border-rose-700 shadow-rose-950/20'
-                    : 'bg-[#16283D] text-white border-slate-700'
+                    ? 'bg-white dark:bg-rose-900 text-rose-900 dark:text-white border-rose-300 dark:border-rose-700 shadow-lg'
+                    : 'bg-white dark:bg-[#16283D] text-stone-900 dark:text-white border-stone-200 dark:border-slate-700 shadow-lg'
                 }`}
               >
                 <div className="flex items-center space-x-2.5 mr-2">
-                  {isSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                  {isError && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
-                  {!isSuccess && !isError && <Info className="w-4 h-4 text-[#60C3CC] shrink-0" />}
+                  {isSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                  {isError && <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />}
+                  {!isSuccess && !isError && <Info className="w-4 h-4 text-[#0A6C74] dark:text-[#60C3CC] shrink-0" />}
                   <span className="leading-snug">{toast.message}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => removeToast(toast.id)}
-                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                  className="p-1 rounded text-stone-400 hover:text-stone-700 dark:text-slate-400 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

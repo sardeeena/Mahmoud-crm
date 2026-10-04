@@ -122,18 +122,18 @@ export const TourPreviewModal: React.FC<TourPreviewModalProps> = ({
               </div>
 
               {/* Price card & Book CTA */}
-              <div className="p-4 bg-[#0E1B2A] text-white rounded-sm border border-slate-800 mt-2">
+              <div className="p-4 bg-[#E8F3F4] dark:bg-[#0E1B2A] text-stone-900 dark:text-white rounded-xl border border-[#BDE0E2] dark:border-slate-800 mt-2 transition-colors">
                 <div className="flex items-baseline justify-between mb-3">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Starting From</span>
-                    <span className="text-2xl font-bold text-white">
+                    <span className="text-[10px] uppercase font-bold text-stone-600 dark:text-slate-400 block">Starting From</span>
+                    <span className="text-2xl font-bold text-stone-900 dark:text-white">
                       {formatPrice(tour.priceEur, currency)}
                     </span>
-                    <span className="text-xs text-slate-300 ml-1">/ person</span>
+                    <span className="text-xs text-stone-600 dark:text-slate-300 ml-1">/ person</span>
                   </div>
                   {tour.childPriceEur && (
-                    <div className="text-right text-[11px] text-slate-400">
-                      Child (2-11): <span className="text-white font-semibold">{formatPrice(tour.childPriceEur, currency)}</span>
+                    <div className="text-right text-[11px] text-stone-600 dark:text-slate-400">
+                      Child (2-11): <span className="text-stone-900 dark:text-white font-semibold">{formatPrice(tour.childPriceEur, currency)}</span>
                     </div>
                   )}
                 </div>

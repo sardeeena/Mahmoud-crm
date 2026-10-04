@@ -780,3 +780,181 @@ export async function verifyAdminAccess(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Updates user profile attributes in both Supabase Auth & public.profiles table
+ */
+export async function updateUserProfile(
+  userId: string,
+  updates: Partial<AppUser>
+): Promise<{ success: boolean; error?: string; user?: AppUser }> {
+  const cleanPhone = updates.phoneNumber || updates.phone || null;
+  const cleanCountry = updates.country || null;
+  const cleanFullName = updates.fullName || null;
+  const cleanAvatar = updates.avatarUrl || null;
+
+  if (isSupabaseConfigured()) {
+    try {
+      // 1. Update Supabase public.profiles table
+      const profileUpdates: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (cleanFullName !== null) profileUpdates.full_name = cleanFullName;
+      if (cleanPhone !== null) profileUpdates.phone = cleanPhone;
+      if (cleanCountry !== null) profileUpdates.country = cleanCountry;
+      if (cleanAvatar !== null) profileUpdates.avatar_url = cleanAvatar;
+
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', userId);
+
+      if (dbError) {
+        console.warn('Could not update profiles table, attempting auth metadata update:', dbError);
+      }
+
+      // 2. Update Supabase Auth user metadata
+      const { data: authData, error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: cleanFullName || undefined,
+          phone: cleanPhone || undefined,
+          country: cleanCountry || undefined,
+          avatar_url: cleanAvatar || undefined,
+        },
+      });
+
+      if (authError) {
+        return { success: false, error: formatSupabaseError(authError) };
+      }
+
+      // 3. Retrieve refreshed user record
+      const refreshedUser = await getCurrentAdminUser();
+      return { success: true, user: refreshedUser || undefined };
+    } catch (err) {
+      return { success: false, error: formatSupabaseError(err) };
+    }
+  }
+
+  // Fallback for sandbox / local state
+  const activeUserRaw = localStorage.getItem(LOCAL_ACTIVE_USER_KEY);
+  if (activeUserRaw) {
+    try {
+      const current = JSON.parse(activeUserRaw) as AppUser;
+      const updated: AppUser = {
+        ...current,
+        ...updates,
+        phoneNumber: cleanPhone || current.phoneNumber,
+        country: cleanCountry || current.country,
+        fullName: cleanFullName || current.fullName,
+        avatarUrl: cleanAvatar || current.avatarUrl,
+      };
+      localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(updated));
+
+      // Also update in registered users cache
+      const localUsers = getStoredLocalUsers();
+      const idx = localUsers.findIndex((u) => u.user.id === current.id || u.user.email === current.email);
+      if (idx !== -1) {
+        localUsers[idx].user = updated;
+        saveStoredLocalUsers(localUsers);
+      }
+
+      return { success: true, user: updated };
+    } catch {
+      // ignore
+    }
+  }
+
+  return { success: true };
+}
+
+/**
+ * Validates password strength according to security standards
+ */
+export function validatePasswordStrength(password: string): {
+  isValid: boolean;
+  score: number; // 0 to 4
+  feedback: string[];
+} {
+  const feedback: string[] = [];
+  let score = 0;
+
+  if (!password || password.length < 8) {
+    feedback.push('Password must be at least 8 characters long');
+  } else {
+    score += 1;
+  }
+
+  if (/[A-Z]/.test(password)) {
+    score += 1;
+  } else {
+    feedback.push('Add at least one uppercase letter (A-Z)');
+  }
+
+  if (/[0-9]/.test(password)) {
+    score += 1;
+  } else {
+    feedback.push('Add at least one number (0-9)');
+  }
+
+  if (/[^A-Za-z0-9]/.test(password)) {
+    score += 1;
+  } else {
+    feedback.push('Add at least one special character (!@#$%^&*)');
+  }
+
+  return {
+    isValid: password.length >= 8 && score >= 2,
+    score,
+    feedback,
+  };
+}
+
+/**
+ * Returns granular permissions according to UserRole
+ */
+export function getUserPermissions(role?: UserRole): string[] {
+  switch (role) {
+    case 'admin':
+      return [
+        'tours:read',
+        'tours:create',
+        'tours:edit',
+        'tours:delete',
+        'bookings:read',
+        'bookings:create',
+        'bookings:edit',
+        'bookings:cancel',
+        'customers:read',
+        'customers:export',
+        'inquiries:manage',
+        'analytics:view',
+        'settings:manage',
+        'users:manage',
+      ];
+    case 'manager':
+      return [
+        'tours:read',
+        'tours:create',
+        'tours:edit',
+        'bookings:read',
+        'bookings:create',
+        'bookings:edit',
+        'bookings:cancel',
+        'customers:read',
+        'inquiries:manage',
+        'analytics:view',
+      ];
+    case 'staff':
+      return [
+        'tours:read',
+        'bookings:read',
+        'bookings:create',
+        'customers:read',
+        'inquiries:manage',
+      ];
+    case 'customer':
+    default:
+      return ['bookings:read_own', 'bookings:create_own', 'profile:manage'];
+  }
+}
+

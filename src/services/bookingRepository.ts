@@ -29,6 +29,25 @@ export function generateBookingReference(): string {
   return `RST-${currentYear}-${char1}${char2}${digits}`;
 }
 
+export function validateBookingPayload(booking: Booking): { isValid: boolean; error?: string } {
+  if (!booking.bookingReference || !booking.bookingReference.startsWith('RST-')) {
+    return { isValid: false, error: 'Invalid booking reference format. Must start with RST-' };
+  }
+  if (!booking.customer || !booking.customer.email || !booking.customer.email.includes('@')) {
+    return { isValid: false, error: 'A valid customer email address is required.' };
+  }
+  if (!booking.customer.firstName || booking.customer.firstName.trim().length === 0) {
+    return { isValid: false, error: 'Customer first name is required.' };
+  }
+  if (!booking.guests || booking.guests.adults < 1) {
+    return { isValid: false, error: 'At least one adult passenger is required.' };
+  }
+  if (!booking.date || isNaN(new Date(booking.date).getTime())) {
+    return { isValid: false, error: 'A valid excursion departure date is required.' };
+  }
+  return { isValid: true };
+}
+
 const SEED_BOOKINGS: Booking[] = [];
 
 class SupabaseBookingRepository implements IBookingRepository {
@@ -55,6 +74,11 @@ class SupabaseBookingRepository implements IBookingRepository {
   }
 
   async createBooking(booking: Booking): Promise<Booking> {
+    const validation = validateBookingPayload(booking);
+    if (!validation.isValid) {
+      throw new Error(validation.error || 'Invalid booking details provided.');
+    }
+
     const limit = bookingRateLimiter.check();
     if (limit.isLocked) {
       throw new Error(`Too many reservation requests submitted. Please wait ${limit.remainingSeconds} seconds before trying again.`);

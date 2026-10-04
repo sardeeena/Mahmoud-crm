@@ -125,18 +125,18 @@ export const PWAInstallFloatingBanner: React.FC = () => {
   return (
     <>
       <div className="fixed bottom-4 inset-x-3 z-40 sm:max-w-md sm:left-4 sm:right-auto animate-fade-in-up">
-        <div className="bg-[#0E1B2A]/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border border-stone-700/60 flex items-center justify-between gap-3">
+        <div className="bg-white/95 dark:bg-[#0E1B2A]/95 backdrop-blur-md text-stone-900 dark:text-white p-3.5 rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-700/60 flex items-center justify-between gap-3 transition-colors">
           <div className="flex items-center space-x-3 min-w-0">
             <img
               src="/pwa-192x192.png"
               alt="Red Sea Tours Icon"
-              className="w-11 h-11 rounded-xl shadow-md border border-white/20 shrink-0 object-cover"
+              className="w-11 h-11 rounded-xl shadow-md border border-stone-200 dark:border-white/20 shrink-0 object-cover"
             />
             <div className="min-w-0">
-              <p className="font-bold text-xs text-white truncate">
+              <p className="font-bold text-xs text-stone-900 dark:text-white truncate">
                 Red Sea Excursions
               </p>
-              <p className="text-[11px] text-stone-300 leading-tight line-clamp-1">
+              <p className="text-[11px] text-stone-500 dark:text-stone-300 leading-tight line-clamp-1">
                 {t('pwa.bannerSub', 'Save as an app on your phone for quick offline access')}
               </p>
             </div>
@@ -146,7 +146,7 @@ export const PWAInstallFloatingBanner: React.FC = () => {
             <button
               type="button"
               onClick={handleTriggerInstall}
-              className="px-3 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-bold rounded-lg shadow-sm transition-transform active:scale-95 flex items-center space-x-1"
+              className="px-3 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-bold rounded-lg shadow-sm transition-transform active:scale-95 flex items-center space-x-1 cursor-pointer"
             >
               <Download className="w-3 h-3" />
               <span>{t('pwa.btnInstall', 'Install')}</span>
@@ -155,7 +155,7 @@ export const PWAInstallFloatingBanner: React.FC = () => {
               type="button"
               onClick={handleDismiss}
               aria-label="Dismiss install banner"
-              className="p-1 text-stone-400 hover:text-white rounded-md transition-colors"
+              className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white rounded-md transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

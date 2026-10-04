@@ -25,19 +25,19 @@ export const WhyChooseUs: React.FC = () => {
   };
 
   return (
-    <section id="why-us-section" className="py-16 sm:py-24 bg-white border-b border-[#E8E3DA]">
+    <section id="why-us-section" className="py-16 sm:py-24 bg-white dark:bg-[#0A1118] border-b border-[#E8E3DA] dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
         
         {/* Header */}
         <div className="max-w-3xl mb-12">
-          <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] mb-2">
-            <span className="w-5 h-0.5 bg-[#0A6C74] rounded-full"></span>
+          <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-[#0A6C74] dark:text-[#60C3CC] mb-2">
+            <span className="w-5 h-0.5 bg-[#0A6C74] dark:bg-[#60C3CC] rounded-full"></span>
             <span>Direct Licensed Fleet Operator</span>
           </div>
-          <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] tracking-tight">
+          <h2 className="font-display text-2xl sm:text-4xl text-[#0E1B2A] dark:text-white tracking-tight">
             Why Book Directly With Us
           </h2>
-          <p className="text-stone-600 text-sm sm:text-base mt-2 leading-relaxed">
+          <p className="text-stone-600 dark:text-slate-300 text-sm sm:text-base mt-2 leading-relaxed">
             We operate our own passenger yachts, speedboat charters, and hotel transfer fleet in Hurghada and El Gouna. You enjoy direct local captain support, transparent pricing, and zero middleman markups.
           </p>
         </div>
@@ -52,21 +52,21 @@ export const WhyChooseUs: React.FC = () => {
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.45, delay: idx * 0.07 }}
               whileHover={{ y: -5 }}
-              className="p-6 rounded-2xl border border-[#E8E3DA] bg-[#FAF8F5] flex flex-col justify-between hover:border-[#0A6C74]/50 hover:bg-white hover:shadow-xl transition-all duration-300 group"
+              className="p-6 rounded-2xl border border-[#E8E3DA] dark:border-slate-800 bg-[#FAF8F5] dark:bg-[#132235] flex flex-col justify-between hover:border-[#0A6C74]/50 hover:bg-white dark:hover:bg-[#182C44] hover:shadow-xl transition-all duration-300 group"
             >
               <div>
-                <div className="w-12 h-12 rounded-xl bg-white border border-[#E8E3DA] flex items-center justify-center mb-4 shadow-2xs group-hover:scale-110 group-hover:border-[#0A6C74]/40 transition-all">
+                <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#16283D] border border-[#E8E3DA] dark:border-slate-700 flex items-center justify-center mb-4 shadow-2xs group-hover:scale-110 group-hover:border-[#0A6C74]/40 transition-all">
                   {getIcon(pillar.iconName)}
                 </div>
-                <h3 className="font-display text-base font-bold text-[#0E1B2A] mb-2 group-hover:text-[#0A6C74] transition-colors">
+                <h3 className="font-display text-base font-bold text-[#0E1B2A] dark:text-white mb-2 group-hover:text-[#0A6C74] dark:group-hover:text-[#60C3CC] transition-colors">
                   {pillar.title}
                 </h3>
-                <p className="text-xs text-stone-600 leading-relaxed">
+                <p className="text-xs text-stone-600 dark:text-slate-300 leading-relaxed">
                   {pillar.description}
                 </p>
               </div>
 
-              <div className="mt-5 pt-3.5 border-t border-stone-200/60 flex items-center text-[11px] text-[#0A6C74] font-semibold">
+              <div className="mt-5 pt-3.5 border-t border-stone-200/60 dark:border-slate-700/60 flex items-center text-[11px] text-[#0A6C74] dark:text-[#60C3CC] font-semibold">
                 <FileCheck2 className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                 <span>Verified Direct Fleet Standard</span>
               </div>
