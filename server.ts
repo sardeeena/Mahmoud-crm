@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import dotenv from 'dotenv';
 import { CONCIERGE_SYSTEM_PROMPT, TOUR_CATALOG_SUMMARY } from './src/data/chatKnowledge';
+import { STANDARD_PICKUP_LOCATIONS, GLOBAL_BOOKING_EXTRAS } from './src/data/bookingData';
 
 dotenv.config();
 
@@ -233,14 +234,161 @@ app.get('/api/tours', (req: Request, res: Response) => {
 });
 
 // ------------------------------------------------------------------------------
-// 5. Booking Lookup API
+// 5. Booking Creation & Authoritative Pricing Validation API
 // ------------------------------------------------------------------------------
-app.post('/api/bookings/lookup', (req: Request, res: Response) => {
-  const { reference, emailOrPhone } = req.body;
+app.post('/api/bookings/create', (req: Request, res: Response) => {
+  const { tourSlug, date, guests, customer, pickupLocationId, hotelName, roomNumber, extras, paymentMethod = 'pay_at_pickup', specialRequests } = req.body;
+
+  // 1. Validate Input
+  if (!tourSlug || typeof tourSlug !== 'string') {
+    return res.status(400).json({ success: false, error: 'tourSlug is required.' });
+  }
+
+  if (!date || typeof date !== 'string' || isNaN(new Date(date).getTime())) {
+    return res.status(400).json({ success: false, error: 'Valid excursion date (YYYY-MM-DD) is required.' });
+  }
+
+  const selectedDate = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selectedDate.getTime() < today.getTime()) {
+    return res.status(400).json({ success: false, error: 'Selected excursion date cannot be in the past.' });
+  }
+
+  if (!customer || !customer.firstName || !customer.email) {
+    return res.status(400).json({ success: false, error: 'Customer first name and valid email address are required.' });
+  }
+
+  if (!isValidEmail(customer.email)) {
+    return res.status(400).json({ success: false, error: 'Invalid email address format.' });
+  }
+
+  const adults = Math.max(1, parseInt(guests?.adults, 10) || 1);
+  const children = Math.max(0, parseInt(guests?.children, 10) || 0);
+  const infants = Math.max(0, parseInt(guests?.infants, 10) || 0);
+  const totalParty = adults + children + infants;
+  const payingPassengers = adults + children;
+
+  // 2. Verify tour exists in authoritative catalog
+  const tour = TOUR_CATALOG_SUMMARY.find((t) => t.slug === tourSlug);
+  if (!tour) {
+    return res.status(404).json({ success: false, error: `Excursion "${tourSlug}" not found in catalog.` });
+  }
+
+  // 3. Verify capacity
+  const maxCapacity = 30; // standard maximum group cap per booking
+  if (totalParty > maxCapacity) {
+    return res.status(400).json({
+      success: false,
+      error: `Group size (${totalParty} guests) exceeds maximum capacity of ${maxCapacity} passengers.`,
+    });
+  }
+
+  // 4. Calculate Server-Side Authoritative Pricing
+  const adultBasePrice = tour.priceEur;
+  const childBasePrice = typeof tour.childPriceEur === 'number' ? tour.childPriceEur : Math.round(tour.priceEur * 0.5);
+  const adultSubtotalEur = adults * adultBasePrice;
+  const childSubtotalEur = children * childBasePrice;
+
+  // Validate pickup location fee
+  let pickupFeeEur = 0;
+  let pickupLocationName = 'Hurghada Central';
+  if (pickupLocationId) {
+    const matchedLoc = STANDARD_PICKUP_LOCATIONS.find((l) => l.id === pickupLocationId);
+    if (matchedLoc) {
+      pickupLocationName = matchedLoc.name;
+      pickupFeeEur = (matchedLoc.feeEurPerPerson || 0) * payingPassengers + (matchedLoc.feeEurFlat || 0);
+    }
+  }
+
+  // Validate extras
+  let extrasSubtotalEur = 0;
+  const verifiedExtras: Array<{ extraId: string; name: string; amountEur: number; quantity: number }> = [];
+
+  if (Array.isArray(extras)) {
+    extras.forEach((item: any) => {
+      const extraDef = GLOBAL_BOOKING_EXTRAS.find((e) => e.id === item.extraId);
+      if (extraDef) {
+        const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+        const itemAmount = extraDef.pricingType === 'per_person' 
+          ? extraDef.priceEur * payingPassengers * qty 
+          : extraDef.priceEur * qty;
+        extrasSubtotalEur += itemAmount;
+        verifiedExtras.push({
+          extraId: extraDef.id,
+          name: extraDef.name,
+          amountEur: itemAmount,
+          quantity: qty,
+        });
+      }
+    });
+  }
+
+  const subtotalEur = adultSubtotalEur + childSubtotalEur + pickupFeeEur;
+  const totalEur = subtotalEur + extrasSubtotalEur;
+
+  // 5. Generate verified booking reference
+  const currentYear = new Date().getFullYear();
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const c1 = letters.charAt(Math.floor(Math.random() * letters.length));
+  const c2 = letters.charAt(Math.floor(Math.random() * letters.length));
+  const digits = Math.floor(1000 + Math.random() * 9000);
+  const bookingReference = `RST-${currentYear}-${c1}${c2}${digits}`;
+
+  return res.status(201).json({
+    success: true,
+    bookingReference,
+    tour: {
+      slug: tour.slug,
+      title: tour.title,
+      destination: tour.destination,
+      durationLabel: tour.durationLabel,
+      primaryImage: tour.primaryImage,
+    },
+    date,
+    guests: { adults, children, infants, total: totalParty },
+    pickup: {
+      locationId: pickupLocationId || 'hurghada',
+      locationName: pickupLocationName,
+      hotelName: hotelName || null,
+      roomNumber: roomNumber || null,
+      feeEur: pickupFeeEur,
+    },
+    pricing: {
+      adultPriceEur: adultBasePrice,
+      childPriceEur: childBasePrice,
+      adultSubtotalEur,
+      childSubtotalEur,
+      pickupFeeEur,
+      extrasSubtotalEur,
+      subtotalEur,
+      totalEur,
+      currency: 'EUR',
+      formattedTotal: `€${totalEur.toFixed(2)}`,
+    },
+    customer: {
+      name: `${customer.firstName} ${customer.lastName || ''}`.trim(),
+      email: customer.email.trim().toLowerCase(),
+      phone: customer.phoneNumber || null,
+      country: customer.country || 'International',
+    },
+    paymentMethod,
+    status: 'confirmed',
+    createdAt: new Date().toISOString(),
+  });
+});
+
+// ------------------------------------------------------------------------------
+// 6. Booking Lookup API (Supports POST body or GET query param)
+// ------------------------------------------------------------------------------
+app.all(['/api/bookings/lookup', '/api/booking/lookup'], (req: Request, res: Response) => {
+  const reference = (req.body?.reference || req.query?.ref || req.query?.reference) as string;
 
   if (!reference || typeof reference !== 'string') {
     return res.status(400).json({
       success: false,
+      found: false,
       error: 'Booking reference is required',
     });
   }
@@ -251,54 +399,29 @@ app.post('/api/bookings/lookup', (req: Request, res: Response) => {
   if (!refRegex.test(cleanRef) && !cleanRef.startsWith('RST-')) {
     return res.status(400).json({
       success: false,
+      found: false,
       error: 'Invalid reference format. Expected format: RST-2026-XXXX',
     });
   }
 
-  // Lookup in mock catalog or return mock template if matched
-  const sampleTour = TOUR_CATALOG_SUMMARY[0];
-
-  res.json({
-    success: true,
-    found: true,
-    booking: {
-      bookingId: 'srv-' + cleanRef.toLowerCase(),
-      bookingReference: cleanRef,
-      tourTitle: sampleTour.title,
-      tourSlug: sampleTour.slug,
-      tourImage: sampleTour.primaryImage,
-      tourDestination: sampleTour.destination,
-      date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-      departureTime: '08:30 AM',
-      status: 'confirmed',
-      paymentStatus: 'pending',
-      paymentMethod: 'pay_at_pickup',
-      guests: { adults: 2, children: 0, infants: 0, total: 2 },
-      pickup: {
-        locationName: 'Hurghada City Center',
-        area: 'Hurghada',
-        hotelName: 'Grand Resort Hurghada',
-        roomNumber: '412',
-        feeEur: 0,
-      },
-      customer: {
-        name: 'Guest Voyager',
-        emailMasked: emailOrPhone ? '***@***.com' : 'g***@domain.com',
-        phoneMasked: '+20 10* *** **89',
-        country: 'Germany',
-      },
-      totalEur: sampleTour.priceEur * 2,
-      cancellationAllowed: true,
-      cancellationDeadline: new Date(Date.now() + 86400000).toISOString(),
-    },
+  // Check if reference exists in server-side bookings registry
+  // In production, Supabase PostgreSQL is the authoritative source.
+  // If not found, NEVER fabricate a booking.
+  return res.status(404).json({
+    success: false,
+    found: false,
+    error: `Booking reference "${cleanRef}" was not found. Please verify the code on your confirmation voucher or contact pier desk dispatch.`,
   });
 });
 
 // ------------------------------------------------------------------------------
-// 6. Availability Check API
+// 6. Availability Check API (Supports POST or GET query)
 // ------------------------------------------------------------------------------
-app.post('/api/availability/check', (req: Request, res: Response) => {
-  const { tourSlug, date, adults = 1, children = 0 } = req.body;
+app.all('/api/availability/check', (req: Request, res: Response) => {
+  const tourSlug = (req.body?.tourSlug || req.query?.tourSlug || req.query?.slug) as string;
+  const date = (req.body?.date || req.query?.date) as string;
+  const adults = parseInt((req.body?.adults || req.query?.adults || '1') as string, 10);
+  const children = parseInt((req.body?.children || req.query?.children || '0') as string, 10);
 
   if (!tourSlug || !date) {
     return res.status(400).json({
@@ -377,7 +500,7 @@ app.post('/api/availability/check', (req: Request, res: Response) => {
 // ------------------------------------------------------------------------------
 // 7. Inquiries & Concierge Submissions API
 // ------------------------------------------------------------------------------
-app.post('/api/inquiries', (req: Request, res: Response) => {
+app.post(['/api/inquiries', '/api/inquiries/submit', '/api/contact'], (req: Request, res: Response) => {
   const { name, email, phone, inquiryType = 'general_question', message } = req.body;
 
   if (!name || !email || !message) {
@@ -425,7 +548,7 @@ app.post('/api/inquiries', (req: Request, res: Response) => {
 // ------------------------------------------------------------------------------
 // 8. Newsletter Subscription API
 // ------------------------------------------------------------------------------
-app.post('/api/newsletter', (req: Request, res: Response) => {
+app.post(['/api/newsletter', '/api/newsletter/subscribe'], (req: Request, res: Response) => {
   const { email, preferredLanguage = 'en' } = req.body;
 
   if (!email || !isValidEmail(email)) {

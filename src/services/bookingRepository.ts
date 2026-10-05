@@ -95,20 +95,60 @@ class SupabaseBookingRepository implements IBookingRepository {
     }
 
     try {
+      // 1. Verify tour exists in database and retrieve authoritative pricing & capacity
+      let realTourId = booking.tourId;
+      let dbTourRecord: any = null;
+
+      if (realTourId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const { data: t } = await supabase.from('tours').select('*').eq('id', realTourId).maybeSingle();
+        dbTourRecord = t;
+      }
+
+      if (!dbTourRecord && booking.tourSlug) {
+        const { data: t } = await supabase.from('tours').select('*').eq('slug', booking.tourSlug).maybeSingle();
+        if (t) {
+          dbTourRecord = t;
+          realTourId = t.id;
+        }
+      }
+
+      // 2. Validate availability and capacity against database tour limits
+      const totalPartySize = (booking.guests.adults || 1) + (booking.guests.children || 0) + (booking.guests.infants || 0);
+      if (dbTourRecord) {
+        if (dbTourRecord.max_guests && totalPartySize > dbTourRecord.max_guests) {
+          throw new Error(`Group size of ${totalPartySize} exceeds maximum tour capacity of ${dbTourRecord.max_guests} guests.`);
+        }
+      }
+
+      // 3. Authoritative Pricing Calculation Server-Side
+      const adultBasePrice = dbTourRecord ? Number(dbTourRecord.price) : booking.pricing.basePricePerAdultEur;
+      const childBasePrice = dbTourRecord 
+        ? (dbTourRecord.child_price !== null && dbTourRecord.child_price !== undefined ? Number(dbTourRecord.child_price) : Math.round(adultBasePrice * 0.5))
+        : booking.pricing.basePricePerChildEur;
+
+      const adults = Math.max(1, booking.guests.adults);
+      const children = Math.max(0, booking.guests.children);
+      const adultSubtotal = adults * adultBasePrice;
+      const childSubtotal = children * childBasePrice;
+      const pickupSubtotal = booking.pricing.pickupSubtotalEur || 0;
+      const extrasSubtotal = booking.pricing.extrasSubtotalEur || 0;
+      const discount = booking.pricing.discountEur || 0;
+      const authoritativeTotal = Math.max(0, adultSubtotal + childSubtotal + pickupSubtotal + extrasSubtotal - discount);
+
       // Check if an authenticated user session exists to associate user_id
       const { data: authData } = await supabase.auth.getUser();
       const currentUserId = authData?.user?.id || null;
 
-      // Insert customer record first
+      // 4. Insert or associate customer record
       const { data: customerRecord, error: custError } = await supabase
         .from('customers')
         .insert({
           user_id: currentUserId,
-          first_name: booking.customer.firstName,
-          last_name: booking.customer.lastName,
-          email: booking.customer.email.toLowerCase(),
-          phone: `${booking.customer.countryCode} ${booking.customer.phoneNumber}`,
-          whatsapp: booking.customer.whatsappNumber || null,
+          first_name: booking.customer.firstName.trim(),
+          last_name: booking.customer.lastName.trim(),
+          email: booking.customer.email.toLowerCase().trim(),
+          phone: `${booking.customer.countryCode} ${booking.customer.phoneNumber}`.trim(),
+          whatsapp: booking.customer.whatsappNumber ? booking.customer.whatsappNumber.trim() : null,
           country: booking.customer.country,
           hotel: booking.customer.hotelName || booking.pickup.hotelName || null,
         })
@@ -116,26 +156,12 @@ class SupabaseBookingRepository implements IBookingRepository {
         .single();
 
       if (custError) {
-        console.warn('Customer insert notice:', custError);
+        console.warn('Customer record notice:', custError);
       }
 
       const customerId = customerRecord?.id || null;
 
-      // Find real tour id if booking passed slug
-      let realTourId = booking.tourId;
-      if (!realTourId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-        const { data: matchedTour } = await supabase
-          .from('tours')
-          .select('id')
-          .eq('slug', booking.tourSlug)
-          .maybeSingle();
-
-        if (matchedTour) {
-          realTourId = matchedTour.id;
-        }
-      }
-
-      // Insert main booking record with user_id
+      // 5. Insert main booking record with authoritative total
       const { data: dbBooking, error: bookError } = await supabase
         .from('bookings')
         .insert({
@@ -144,33 +170,82 @@ class SupabaseBookingRepository implements IBookingRepository {
           tour_id: realTourId,
           customer_id: customerId,
           booking_date: booking.date,
-          status: booking.status,
-          payment_status: booking.paymentStatus,
-          payment_method: booking.paymentMethod,
-          adult_count: booking.guests.adults,
-          child_count: booking.guests.children,
-          infant_count: booking.guests.infants,
+          status: booking.status || 'confirmed',
+          payment_status: booking.paymentStatus || 'pending',
+          payment_method: booking.paymentMethod || 'pay_at_pickup',
+          adult_count: adults,
+          child_count: children,
+          infant_count: booking.guests.infants || 0,
           pickup_hotel_name: booking.pickup.hotelName || null,
           pickup_room_number: booking.pickup.roomNumber || null,
-          subtotal: booking.pricing.subtotalEur,
-          extras_total: booking.pricing.extrasSubtotalEur,
-          discount: booking.pricing.discountEur,
-          total: booking.pricing.totalEur,
+          subtotal: adultSubtotal + childSubtotal + pickupSubtotal,
+          extras_total: extrasSubtotal,
+          discount,
+          total: authoritativeTotal,
           currency: 'EUR',
           special_requests: booking.customer.specialRequests || null,
         })
-        .select('id')
+        .select('id, booking_reference')
         .single();
 
       if (bookError) {
-        console.warn('Booking insertion to Supabase encountered issue:', bookError);
-        return booking;
+        throw new Error(formatSupabaseError(bookError));
       }
 
-      // Insert extras breakdown if any
-      if (dbBooking && booking.extras.length > 0) {
+      const createdBookingId = dbBooking.id;
+
+      // 6. Insert passenger manifest records into booking_passengers table
+      const passengerRows: any[] = [];
+      // Lead passenger
+      passengerRows.push({
+        booking_id: createdBookingId,
+        full_name: `${booking.customer.firstName} ${booking.customer.lastName}`.trim(),
+        nationality: booking.customer.country || 'International',
+        passenger_type: 'adult',
+        is_lead_passenger: true,
+      });
+
+      // Additional adult passengers
+      for (let i = 2; i <= adults; i++) {
+        passengerRows.push({
+          booking_id: createdBookingId,
+          full_name: `Adult Guest ${i} (${booking.customer.lastName})`,
+          nationality: booking.customer.country || 'International',
+          passenger_type: 'adult',
+          is_lead_passenger: false,
+        });
+      }
+
+      // Child passengers
+      for (let i = 1; i <= children; i++) {
+        passengerRows.push({
+          booking_id: createdBookingId,
+          full_name: `Child Guest ${i} (${booking.customer.lastName})`,
+          nationality: booking.customer.country || 'International',
+          passenger_type: 'child',
+          is_lead_passenger: false,
+        });
+      }
+
+      // Infant passengers
+      for (let i = 1; i <= (booking.guests.infants || 0); i++) {
+        passengerRows.push({
+          booking_id: createdBookingId,
+          full_name: `Infant Guest ${i} (${booking.customer.lastName})`,
+          nationality: booking.customer.country || 'International',
+          passenger_type: 'infant',
+          is_lead_passenger: false,
+        });
+      }
+
+      if (passengerRows.length > 0) {
+        await supabase.from('booking_passengers').insert(passengerRows);
+      }
+
+      // 7. Insert extras breakdown if any
+      if (booking.extras && booking.extras.length > 0) {
         const extrasRows = booking.extras.map((ex) => ({
-          booking_id: dbBooking.id,
+          booking_id: createdBookingId,
           name: ex.name,
           quantity: ex.quantity || 1,
           unit_price: ex.priceEur,
@@ -180,48 +255,59 @@ class SupabaseBookingRepository implements IBookingRepository {
         await supabase.from('booking_extras').insert(extrasRows);
       }
 
+      // Update booking object with database verified values
+      booking.bookingId = createdBookingId;
+      booking.pricing.totalEur = authoritativeTotal;
+      booking.pricing.formattedTotal = `€${authoritativeTotal.toFixed(2)}`;
+
       return booking;
-    } catch (err) {
-      console.error('Failed to create booking in Supabase, using local copy:', err);
-      return booking;
+    } catch (err: any) {
+      console.error('Failed to create booking in Supabase:', err);
+      throw new Error(err.message || 'Unable to register excursion booking in database. Please verify your details.');
     }
   }
 
   async getBooking(bookingReference: string): Promise<Booking | null> {
     const cleanRef = bookingReference.trim().toUpperCase();
 
-    if (!isSupabaseConfigured()) {
-      const found = this.getLocalBookings().find((b) => b.bookingReference.toUpperCase() === cleanRef);
-      return found || null;
-    }
+    // When Supabase is configured, Supabase is the sole authoritative source of truth.
+    // Never fall back to mock data if a reference does not exist in the database.
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            tours (*),
+            customers (*),
+            booking_extras (*)
+          `)
+          .eq('booking_reference', cleanRef)
+          .maybeSingle();
 
-    try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          tours (*),
-          customers (*),
-          booking_extras (*)
-        `)
-        .eq('booking_reference', cleanRef)
-        .maybeSingle();
+        if (error || !data) {
+          return null;
+        }
 
-      if (error || !data) {
-        const local = this.getLocalBookings().find((b) => b.bookingReference.toUpperCase() === cleanRef);
-        return local || null;
+        return this.mapDbToBooking(data);
+      } catch (err) {
+        console.error('Supabase getBooking error:', err);
+        return null;
       }
-
-      return this.mapDbToBooking(data);
-    } catch {
-      const local = this.getLocalBookings().find((b) => b.bookingReference.toUpperCase() === cleanRef);
-      return local || null;
     }
+
+    // Isolated fallback ONLY when Supabase credentials are completely unconfigured (dev sandbox)
+    const found = this.getLocalBookings().find((b) => b.bookingReference.toUpperCase() === cleanRef);
+    return found || null;
   }
 
   async findBooking(bookingReference: string, emailOrPhone: string): Promise<Booking | null> {
     const b = await this.getBooking(bookingReference);
     if (!b) return null;
+
+    if (!emailOrPhone.trim()) {
+      return b;
+    }
 
     const query = emailOrPhone.trim().toLowerCase();
     const emailMatch = b.customer.email.toLowerCase() === query;
@@ -238,37 +324,36 @@ class SupabaseBookingRepository implements IBookingRepository {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return [];
 
-    if (!isSupabaseConfigured() || isSchemaMissing()) {
-      return this.getLocalBookings().filter((b) => b.customer.email.toLowerCase() === cleanEmail);
-    }
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            tours (*),
+            customers (*),
+            booking_extras (*)
+          `)
+          .order('created_at', { ascending: false });
 
-    try {
-      // Query bookings directly filtering by customer email or user_id
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          tours (*),
-          customers!inner (*),
-          booking_extras (*)
-        `)
-        .ilike('customers.email', cleanEmail)
-        .order('created_at', { ascending: false });
+        if (error || !data) {
+          return [];
+        }
 
-      if (!error && data && data.length > 0) {
-        return data.map((d: any) => this.mapDbToBooking(d));
+        const filtered = data.filter((d: any) => {
+          const custEmail = (d.customers?.email || '').toLowerCase();
+          return custEmail === cleanEmail;
+        });
+
+        return filtered.map((d: any) => this.mapDbToBooking(d));
+      } catch (err) {
+        console.error('Supabase getBookingsByEmail error:', err);
+        return [];
       }
-
-      // Fallback to checking local storage
-      const local = this.getLocalBookings().filter((b) => b.customer.email.toLowerCase() === cleanEmail);
-      if (local.length > 0) return local;
-
-      // If inner join returned empty, try regular listBookings
-      const all = await this.listBookings();
-      return all.filter((b) => b.customer.email.toLowerCase() === cleanEmail);
-    } catch {
-      return this.getLocalBookings().filter((b) => b.customer.email.toLowerCase() === cleanEmail);
     }
+
+    // Dev sandbox fallback only
+    return this.getLocalBookings().filter((b) => b.customer.email.toLowerCase() === cleanEmail);
   }
 
   async updateBooking(booking: Booking): Promise<Booking> {
@@ -368,7 +453,7 @@ class SupabaseBookingRepository implements IBookingRepository {
         if (error && isSchemaMissingError(error)) {
           setSchemaMissing(true);
         }
-        return this.getLocalBookings();
+        return [];
       }
 
       return data.map((d: any) => this.mapDbToBooking(d));
@@ -376,7 +461,7 @@ class SupabaseBookingRepository implements IBookingRepository {
       if (isSchemaMissingError(err)) {
         setSchemaMissing(true);
       }
-      return this.getLocalBookings();
+      return [];
     }
   }
 

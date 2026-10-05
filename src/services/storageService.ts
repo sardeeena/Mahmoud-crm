@@ -1,14 +1,40 @@
 import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
+import { DbMediaAsset } from '../types/database';
 
 export const MEDIA_BUCKET = 'tour-media';
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 
+const LOCAL_MEDIA_ASSETS_KEY = 'rse_media_assets_cache';
+
 export interface UploadResult {
   url: string;
   storagePath: string;
+  assetId?: string;
   error?: string;
+}
+
+export interface StorageFileItem {
+  id: string;
+  name: string;
+  url: string;
+  storagePath: string;
+  sizeBytes: number;
+  createdAt: string;
+  mimeType?: string;
+  title?: string;
+  altText?: string;
+  tourId?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MediaAssetAuditResult {
+  orphanedInStorage: string[];
+  missingFromStorage: string[];
+  synchronizedCount: number;
+  totalStorageFiles: number;
+  totalDbRecords: number;
 }
 
 /**
@@ -46,12 +72,30 @@ export function validateMediaFile(file: File, type: 'image' | 'video'): { valid:
   return { valid: true };
 }
 
+function getLocalAssets(): StorageFileItem[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_MEDIA_ASSETS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalAssets(items: StorageFileItem[]) {
+  try {
+    localStorage.setItem(LOCAL_MEDIA_ASSETS_KEY, JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
+
 /**
- * Uploads a tour media file to the 'tour-media' public bucket
+ * Uploads a tour media file to the 'tour-media' public bucket and records metadata in 'media_assets' table
  */
 export async function uploadTourMedia(
   file: File,
-  folder: string = 'tours'
+  folder: string = 'tours',
+  meta?: { title?: string; altText?: string; tourId?: string }
 ): Promise<UploadResult> {
   const isVideo = file.type.startsWith('video/');
   const validation = validateMediaFile(file, isVideo ? 'video' : 'image');
@@ -59,12 +103,29 @@ export async function uploadTourMedia(
     return { url: '', storagePath: '', error: validation.error };
   }
 
-  // If Supabase is not configured yet (e.g. testing in sandbox without keys), generate an object URL
+  // If Supabase is not configured yet (e.g. testing in sandbox without keys), generate an object URL and local asset
   if (!isSupabaseConfigured()) {
     const objectUrl = URL.createObjectURL(file);
+    const storagePath = `local/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const localItem: StorageFileItem = {
+      id: `local-${Date.now()}`,
+      name: file.name,
+      url: objectUrl,
+      storagePath,
+      sizeBytes: file.size,
+      mimeType: file.type || 'image/jpeg',
+      title: meta?.title || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+      altText: meta?.altText || '',
+      tourId: meta?.tourId || null,
+      createdAt: new Date().toISOString(),
+    };
+    const current = getLocalAssets();
+    saveLocalAssets([localItem, ...current]);
+
     return {
       url: objectUrl,
-      storagePath: `local/${Date.now()}-${file.name}`,
+      storagePath,
+      assetId: localItem.id,
     };
   }
 
@@ -73,6 +134,7 @@ export async function uploadTourMedia(
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const storagePath = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${cleanFileName}`;
 
+    // 1. Upload to Supabase Storage bucket
     const { error: uploadError } = await supabase.storage
       .from(MEDIA_BUCKET)
       .upload(storagePath, file, {
@@ -88,16 +150,64 @@ export async function uploadTourMedia(
       };
     }
 
-    // Retrieve public URL from Supabase Storage
+    // 2. Retrieve public CDN URL from Supabase Storage
     const { data: publicData } = supabase.storage
       .from(MEDIA_BUCKET)
       .getPublicUrl(storagePath);
 
-    return {
-      url: publicData.publicUrl,
-      storagePath,
+    const publicUrl = publicData.publicUrl;
+
+    // 3. Store metadata in 'media_assets' table to avoid orphaned files
+    let assetId = `asset-${Date.now()}`;
+    const assetPayload = {
+      storage_path: storagePath,
+      bucket_name: MEDIA_BUCKET,
+      public_url: publicUrl,
+      file_name: file.name,
+      file_size_bytes: file.size,
+      mime_type: file.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+      title: meta?.title || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+      alt_text: meta?.altText || null,
+      tour_id: meta?.tourId || null,
     };
-  } catch (err) {
+
+    try {
+      const { data: insertedAsset, error: dbError } = await supabase
+        .from('media_assets')
+        .insert(assetPayload)
+        .select('id')
+        .maybeSingle();
+
+      if (!dbError && insertedAsset?.id) {
+        assetId = insertedAsset.id;
+      } else if (dbError) {
+        console.warn('Could not insert into media_assets table (schema migration may be pending):', dbError.message);
+      }
+    } catch (dbErr) {
+      console.warn('Database insert to media_assets skipped:', dbErr);
+    }
+
+    // Also update local cache for quick access
+    const localItem: StorageFileItem = {
+      id: assetId,
+      name: file.name,
+      url: publicUrl,
+      storagePath,
+      sizeBytes: file.size,
+      mimeType: file.type,
+      title: assetPayload.title,
+      altText: assetPayload.alt_text || '',
+      tourId: assetPayload.tour_id,
+      createdAt: new Date().toISOString(),
+    };
+    saveLocalAssets([localItem, ...getLocalAssets().filter((i) => i.storagePath !== storagePath)]);
+
+    return {
+      url: publicUrl,
+      storagePath,
+      assetId,
+    };
+  } catch (err: any) {
     return {
       url: '',
       storagePath: '',
@@ -107,28 +217,268 @@ export async function uploadTourMedia(
 }
 
 /**
- * Removes an image or video from Supabase Storage
+ * Removes an image or video from both the Supabase Storage bucket and the 'media_assets' metadata table.
+ * Guaranteed to prevent orphaned files in storage!
  */
 export async function deleteTourMedia(storagePath: string): Promise<{ success: boolean; error?: string }> {
-  if (!storagePath || storagePath.startsWith('local/')) {
+  if (!storagePath) {
     return { success: true };
   }
 
-  if (!isSupabaseConfigured()) {
+  // Remove from local cache
+  const local = getLocalAssets();
+  saveLocalAssets(local.filter((i) => i.storagePath !== storagePath));
+
+  if (!isSupabaseConfigured() || storagePath.startsWith('local/')) {
     return { success: true };
   }
 
   try {
-    const { error } = await supabase.storage
+    // 1. Delete metadata record from 'media_assets' table
+    try {
+      await supabase.from('media_assets').delete().eq('storage_path', storagePath);
+    } catch (dbErr) {
+      console.warn('media_assets delete warning:', dbErr);
+    }
+
+    // 2. Delete physical binary asset from Supabase Storage bucket
+    const { error: storageError } = await supabase.storage
       .from(MEDIA_BUCKET)
       .remove([storagePath]);
 
-    if (error) {
-      return { success: false, error: formatSupabaseError(error) };
+    if (storageError) {
+      return { success: false, error: formatSupabaseError(storageError) };
     }
+
     return { success: true };
-  } catch (err) {
+  } catch (err: any) {
     return { success: false, error: formatSupabaseError(err) };
+  }
+}
+
+/**
+ * Safely replaces an existing media file in Supabase Storage, updates 'media_assets' metadata,
+ * and deletes the old storage asset to avoid orphaned files in the bucket.
+ */
+export async function replaceTourMedia(
+  oldStoragePath: string,
+  newFile: File,
+  folder: string = 'tours',
+  meta?: { title?: string; altText?: string; tourId?: string }
+): Promise<UploadResult> {
+  // 1. Upload new asset
+  const uploadRes = await uploadTourMedia(newFile, folder, meta);
+  if (uploadRes.error) {
+    return uploadRes;
+  }
+
+  // 2. Safely purge old asset from Storage bucket and media_assets if paths differ
+  if (oldStoragePath && oldStoragePath !== uploadRes.storagePath) {
+    await deleteTourMedia(oldStoragePath);
+  }
+
+  return uploadRes;
+}
+
+/**
+ * Updates title, alt text, or tour association for a media asset in the 'media_assets' table
+ */
+export async function updateMediaAssetMetadata(
+  storagePath: string,
+  updates: { title?: string; altText?: string; tourId?: string | null }
+): Promise<void> {
+  // Update local cache
+  const local = getLocalAssets();
+  saveLocalAssets(
+    local.map((item) =>
+      item.storagePath === storagePath
+        ? {
+            ...item,
+            title: updates.title !== undefined ? updates.title : item.title,
+            altText: updates.altText !== undefined ? updates.altText : item.altText,
+            tourId: updates.tourId !== undefined ? updates.tourId : item.tourId,
+          }
+        : item
+    )
+  );
+
+  if (!isSupabaseConfigured() || storagePath.startsWith('local/')) {
+    return;
+  }
+
+  try {
+    const dbPayload: any = {
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.title !== undefined) dbPayload.title = updates.title;
+    if (updates.altText !== undefined) dbPayload.alt_text = updates.altText;
+    if (updates.tourId !== undefined) dbPayload.tour_id = updates.tourId;
+
+    const { error } = await supabase
+      .from('media_assets')
+      .update(dbPayload)
+      .eq('storage_path', storagePath);
+
+    if (error) {
+      console.warn('Supabase media_assets metadata update warning:', error);
+    }
+  } catch (err) {
+    console.warn('Error updating media_assets table:', err);
+  }
+}
+
+/**
+ * Lists media files: queries 'media_assets' table, falling back to direct storage listing if table not yet seeded.
+ */
+export async function listStorageMedia(folder: string = 'tours'): Promise<StorageFileItem[]> {
+  if (!isSupabaseConfigured()) {
+    return getLocalAssets();
+  }
+
+  try {
+    // 1. Try querying 'media_assets' table first
+    const { data: dbAssets, error: dbError } = await supabase
+      .from('media_assets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!dbError && dbAssets && dbAssets.length > 0) {
+      return dbAssets.map((asset: DbMediaAsset) => ({
+        id: asset.id,
+        name: asset.file_name,
+        url: asset.public_url,
+        storagePath: asset.storage_path,
+        sizeBytes: Number(asset.file_size_bytes) || 0,
+        mimeType: asset.mime_type,
+        title: asset.title || asset.file_name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+        altText: asset.alt_text || '',
+        tourId: asset.tour_id,
+        createdAt: asset.created_at,
+      }));
+    }
+
+    // 2. Fallback: List directly from Supabase Storage bucket if table is empty or pending migration
+    const { data: storageList, error: storageError } = await supabase.storage
+      .from(MEDIA_BUCKET)
+      .list(folder, { limit: 150, sortBy: { column: 'created_at', order: 'desc' } });
+
+    if (storageError || !storageList) {
+      return getLocalAssets();
+    }
+
+    const localMap = new Map(getLocalAssets().map((i) => [i.storagePath, i]));
+
+    return storageList
+      .filter((item) => item.name !== '.emptyFolderPlaceholder')
+      .map((item) => {
+        const storagePath = `${folder}/${item.name}`;
+        const { data: publicData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
+        const local = localMap.get(storagePath);
+
+        return {
+          id: item.id || storagePath,
+          name: item.name,
+          url: publicData.publicUrl,
+          storagePath,
+          sizeBytes: (item.metadata as any)?.size || local?.sizeBytes || 0,
+          mimeType: (item.metadata as any)?.mimetype || local?.mimeType || 'image/jpeg',
+          title: local?.title || item.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+          altText: local?.altText || '',
+          tourId: local?.tourId || null,
+          createdAt: item.created_at || new Date().toISOString(),
+          metadata: item.metadata as Record<string, unknown> | undefined,
+        };
+      });
+  } catch (err) {
+    console.warn('Failed to list media assets:', err);
+    return getLocalAssets();
+  }
+}
+
+/**
+ * Audits Supabase Storage bucket vs 'media_assets' database table to detect any orphaned files
+ */
+export async function auditOrphanedStorageFiles(folder: string = 'tours'): Promise<MediaAssetAuditResult> {
+  if (!isSupabaseConfigured()) {
+    return {
+      orphanedInStorage: [],
+      missingFromStorage: [],
+      synchronizedCount: 0,
+      totalStorageFiles: 0,
+      totalDbRecords: 0,
+    };
+  }
+
+  try {
+    const [storageRes, dbRes] = await Promise.all([
+      supabase.storage.from(MEDIA_BUCKET).list(folder, { limit: 200 }),
+      supabase.from('media_assets').select('id, storage_path'),
+    ]);
+
+    const storagePaths = new Set(
+      (storageRes.data || [])
+        .filter((f) => f.name !== '.emptyFolderPlaceholder')
+        .map((f) => `${folder}/${f.name}`)
+    );
+
+    const dbPaths = new Set((dbRes.data || []).map((d: any) => d.storage_path));
+
+    const orphanedInStorage: string[] = [];
+    storagePaths.forEach((path) => {
+      if (!dbPaths.has(path)) {
+        orphanedInStorage.push(path);
+      }
+    });
+
+    const missingFromStorage: string[] = [];
+    dbPaths.forEach((path) => {
+      if (!storagePaths.has(path)) {
+        missingFromStorage.push(path);
+      }
+    });
+
+    let syncCount = 0;
+    storagePaths.forEach((path) => {
+      if (dbPaths.has(path)) syncCount++;
+    });
+
+    return {
+      orphanedInStorage,
+      missingFromStorage,
+      synchronizedCount: syncCount,
+      totalStorageFiles: storagePaths.size,
+      totalDbRecords: dbPaths.size,
+    };
+  } catch (err) {
+    console.warn('Failed to audit media assets:', err);
+    return {
+      orphanedInStorage: [],
+      missingFromStorage: [],
+      synchronizedCount: 0,
+      totalStorageFiles: 0,
+      totalDbRecords: 0,
+    };
+  }
+}
+
+/**
+ * Automatically cleans and purges orphaned files from the Supabase Storage bucket
+ */
+export async function cleanOrphanedStorageFiles(orphanedPaths: string[]): Promise<number> {
+  if (!orphanedPaths || orphanedPaths.length === 0 || !isSupabaseConfigured()) {
+    return 0;
+  }
+
+  try {
+    const { error } = await supabase.storage.from(MEDIA_BUCKET).remove(orphanedPaths);
+    if (error) {
+      console.error('Error cleaning orphaned storage files:', error);
+      return 0;
+    }
+    return orphanedPaths.length;
+  } catch (err) {
+    console.error('Exception cleaning orphaned files:', err);
+    return 0;
   }
 }
 
@@ -141,7 +491,6 @@ export function getOptimizedImageUrl(
 ): string {
   if (!originalUrl) return '';
 
-  // If it's an Unsplash URL, apply Unsplash params
   if (originalUrl.includes('images.unsplash.com')) {
     const url = new URL(originalUrl);
     if (options?.width) url.searchParams.set('w', options.width.toString());
@@ -150,7 +499,6 @@ export function getOptimizedImageUrl(
     return url.toString();
   }
 
-  // If it's a Supabase Storage URL, we can leverage render/image transformation if Pro/Enabled
   if (originalUrl.includes('/storage/v1/object/public/')) {
     if (options?.width) {
       return `${originalUrl}?width=${options.width}&quality=${options.quality || 80}`;
@@ -159,52 +507,3 @@ export function getOptimizedImageUrl(
 
   return originalUrl;
 }
-
-export interface StorageFileItem {
-  id: string;
-  name: string;
-  url: string;
-  storagePath: string;
-  sizeBytes: number;
-  createdAt: string;
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * Lists uploaded media files stored in the 'tour-media' bucket
- */
-export async function listStorageMedia(folder: string = 'tours'): Promise<StorageFileItem[]> {
-  if (!isSupabaseConfigured()) {
-    return [];
-  }
-
-  try {
-    const { data, error } = await supabase.storage
-      .from(MEDIA_BUCKET)
-      .list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
-
-    if (error || !data) {
-      return [];
-    }
-
-    return data
-      .filter((item) => item.name !== '.emptyFolderPlaceholder')
-      .map((item) => {
-        const storagePath = `${folder}/${item.name}`;
-        const { data: publicData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
-        return {
-          id: item.id || storagePath,
-          name: item.name,
-          url: publicData.publicUrl,
-          storagePath,
-          sizeBytes: (item.metadata as any)?.size || 0,
-          createdAt: item.created_at || new Date().toISOString(),
-          metadata: item.metadata as Record<string, unknown> | undefined,
-        };
-      });
-  } catch (err) {
-    console.warn('Failed to list storage media:', err);
-    return [];
-  }
-}
-

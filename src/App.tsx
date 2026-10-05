@@ -62,9 +62,13 @@ import { AdminReviewsList } from './components/admin/AdminReviewsList';
 import { AdminAvailabilityManager } from './components/admin/AdminAvailabilityManager';
 import { AdminMediaLibrary } from './components/admin/AdminMediaLibrary';
 import { AdminSeoManager } from './components/admin/AdminSeoManager';
+import { AdminCouponsList } from './components/admin/AdminCouponsList';
+import { AdminFaqsManager } from './components/admin/AdminFaqsManager';
+import { AdminPagesManager } from './components/admin/AdminPagesManager';
 import { AdminSettings } from './components/admin/AdminSettings';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { HelpInquiryModal } from './components/common/HelpInquiryModal';
+import { CrmHub, CrmSubTab } from './components/admin/crm/CrmHub';
 
 function MainApp() {
   const { user, isAdmin, loading: authLoading, refreshUser, checkAdminAccess } = useAuth();
@@ -366,6 +370,10 @@ function MainApp() {
       navigate('/admin/tours/new');
     } else if (tab === 'tour_edit' && param) {
       navigate(`/admin/tours/${param}/edit`);
+    } else if (tab === 'crm') {
+      navigate('/admin/crm');
+    } else if (tab.startsWith('crm_')) {
+      navigate(`/admin/crm/${tab.replace('crm_', '')}`);
     } else {
       navigate(`/admin/${tab}`);
     }
@@ -459,9 +467,18 @@ function MainApp() {
       } else {
         activeAdminTab = 'tours';
       }
+    } else if (adminSubRoute?.main === 'crm') {
+      const sub = adminSubRoute.sub;
+      if (sub && ['leads', 'customers', 'inquiries', 'tasks', 'followups', 'conversations', 'segments', 'timeline', 'dashboard'].includes(sub)) {
+        activeAdminTab = `crm_${sub}` as AdminTab;
+      } else {
+        activeAdminTab = 'crm_dashboard';
+      }
+    } else if (adminSubRoute?.main && ['leads', 'tasks', 'followups', 'conversations', 'segments', 'timeline'].includes(adminSubRoute.main)) {
+      activeAdminTab = `crm_${adminSubRoute.main}` as AdminTab;
     } else if (
       adminSubRoute?.main &&
-      ['bookings', 'inquiries', 'customers', 'newsletter', 'destinations', 'categories', 'availability', 'extras', 'pickup', 'reviews', 'media', 'seo', 'settings'].includes(
+      ['bookings', 'inquiries', 'customers', 'newsletter', 'destinations', 'categories', 'availability', 'extras', 'pickup', 'coupons', 'faqs', 'reviews', 'media', 'seo', 'pages', 'settings'].includes(
         adminSubRoute.main
       )
     ) {
@@ -505,9 +522,26 @@ function MainApp() {
 
         {activeAdminTab === 'bookings' && <AdminBookingsList />}
 
-        {activeAdminTab === 'inquiries' && <AdminInquiriesList />}
-
-        {activeAdminTab === 'customers' && <AdminCustomersList />}
+        {(activeAdminTab.startsWith('crm') || activeAdminTab === 'customers' || activeAdminTab === 'inquiries') && (
+          <CrmHub
+            currentSubTab={
+              activeAdminTab === 'customers'
+                ? 'customers'
+                : activeAdminTab === 'inquiries'
+                ? 'inquiries'
+                : activeAdminTab === 'crm'
+                ? ((adminSubRoute?.sub as any) || 'dashboard')
+                : ((activeAdminTab.replace('crm_', '') as any) || 'dashboard')
+            }
+            onSelectSubTab={(subTab) => {
+              navigate(`/admin/crm/${subTab}`);
+            }}
+            onViewBookingDetails={(ref) => {
+              navigate(`/my-booking/${ref}`);
+            }}
+            onNavigateTab={handleAdminSelectTab}
+          />
+        )}
 
         {activeAdminTab === 'newsletter' && <AdminNewsletterList />}
 
@@ -519,6 +553,10 @@ function MainApp() {
 
         {activeAdminTab === 'extras' && <AdminExtrasList />}
 
+        {activeAdminTab === 'coupons' && <AdminCouponsList />}
+
+        {activeAdminTab === 'faqs' && <AdminFaqsManager />}
+
         {activeAdminTab === 'reviews' && <AdminReviewsList />}
 
         {activeAdminTab === 'availability' && <AdminAvailabilityManager />}
@@ -526,6 +564,8 @@ function MainApp() {
         {activeAdminTab === 'media' && <AdminMediaLibrary />}
 
         {activeAdminTab === 'seo' && <AdminSeoManager />}
+
+        {activeAdminTab === 'pages' && <AdminPagesManager />}
 
         {activeAdminTab === 'settings' && <AdminSettings />}
       </AdminLayout>

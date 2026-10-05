@@ -11,6 +11,10 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { CurrencyConfig } from '../../types';
+import { Booking } from '../../types/booking';
+import { bookingRepository } from '../../services/bookingRepository';
+import { formatCurrencyAmount } from '../../services/pricingService';
+import { sanitizeString } from '../../lib/security';
 
 interface MyBookingModalProps {
   isOpen: boolean;
@@ -19,20 +23,61 @@ interface MyBookingModalProps {
 }
 
 export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose, currency }) => {
-  const [bookingRef, setBookingRef] = useState('RSE-88214');
-  const [emailOrPhone, setEmailOrPhone] = useState('markus.weber@outlook.de');
-  const [retrieved, setRetrieved] = useState(false);
+  const [bookingRef, setBookingRef] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleLookup = (e: React.FormEvent) => {
+  const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
+    setErrorMessage(null);
+    setBooking(null);
+
+    const cleanRef = sanitizeString(bookingRef).toUpperCase();
+    const cleanContact = sanitizeString(emailOrPhone);
+
+    if (!cleanRef) {
+      setErrorMessage('Please enter your booking reference code (e.g. RST-2026-AB4821).');
       setIsLoading(false);
-      setRetrieved(true);
-    }, 400);
+      return;
+    }
+
+    try {
+      let result: Booking | null = null;
+      if (cleanContact) {
+        result = await bookingRepository.findBooking(cleanRef, cleanContact);
+      }
+      if (!result) {
+        result = await bookingRepository.getBooking(cleanRef);
+      }
+
+      if (result) {
+        setBooking(result);
+      } else {
+        setErrorMessage(
+          `Booking reference "${cleanRef}" was not found. Please verify the code on your confirmation voucher or contact our pier coordinator on WhatsApp.`
+        );
+      }
+    } catch {
+      setErrorMessage('Could not retrieve booking details. Please verify your reference and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
+  };
+
+  const resetLookup = () => {
+    setBooking(null);
+    setErrorMessage(null);
   };
 
   return (
@@ -52,7 +97,8 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-500 hover:text-stone-900 rounded-sm hover:bg-stone-200 transition-colors"
+            className="p-1.5 text-stone-500 hover:text-stone-900 rounded-sm hover:bg-stone-200 transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -60,36 +106,42 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
 
         {/* Content */}
         <div className="p-6">
-          {!retrieved ? (
+          {!booking ? (
             <form onSubmit={handleLookup} className="space-y-4">
               <p className="text-xs text-stone-600">
-                Enter your booking confirmation reference number and the email or phone used during reservation to view your excursion voucher, pickup time, and status.
+                Enter your booking confirmation reference number and optional email or WhatsApp phone to inspect your excursion voucher, pickup time, and reservation status.
               </p>
+
+              {errorMessage && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs text-rose-800 flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Booking Reference Number
+                  Booking Reference Number *
                 </label>
                 <input
                   type="text"
                   required
                   value={bookingRef}
                   onChange={(e) => setBookingRef(e.target.value.toUpperCase())}
-                  placeholder="e.g. RSE-88214"
+                  placeholder="e.g. RST-2026-AB4821"
                   className="w-full px-3 py-2 border border-stone-300 rounded text-sm uppercase font-mono tracking-wider focus:outline-none focus:ring-1 focus:ring-[#0A6C74]"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Email Address or WhatsApp Phone
+                  Email Address or WhatsApp Phone (Optional)
                 </label>
                 <input
                   type="text"
-                  required
                   value={emailOrPhone}
                   onChange={(e) => setEmailOrPhone(e.target.value)}
-                  placeholder="name@domain.com or +49 170 1234567"
+                  placeholder="name@domain.com or +20 102 345 6789"
                   className="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0A6C74]"
                 />
               </div>
@@ -97,15 +149,15 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full py-2.5 bg-[#0A6C74] hover:bg-[#08565C] text-white text-xs font-semibold rounded transition-colors flex items-center justify-center space-x-2"
+                  disabled={isLoading || !bookingRef.trim()}
+                  className="w-full py-2.5 bg-[#0A6C74] hover:bg-[#08565C] disabled:bg-stone-300 text-white text-xs font-semibold rounded transition-colors flex items-center justify-center space-x-2 cursor-pointer"
                 >
-                  {isLoading ? <span>Retrieving from Dispatch Database...</span> : <span>Find My Excursion</span>}
+                  {isLoading ? <span>Verifying Reservation with Database...</span> : <span>Find My Excursion</span>}
                 </button>
               </div>
 
               <p className="text-[11px] text-stone-600 text-center">
-                Need immediate help? Message our Hurghada pier coordinator directly on WhatsApp: +20 102 345 6789.
+                Need immediate assistance? Contact our Hurghada marina dispatch desk on WhatsApp: +20 102 345 6789.
               </p>
             </form>
           ) : (
@@ -116,42 +168,55 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                   <div>
                     <span className="text-xs font-bold text-emerald-950 block">Booking Confirmed & Dispatched</span>
-                    <span className="text-[11px] text-emerald-700 font-mono">Ref: {bookingRef}</span>
+                    <span className="text-[11px] text-emerald-700 font-mono">Ref: {booking.bookingReference}</span>
                   </div>
                 </div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-600 text-white">
-                  Active Voucher
+                <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-600 text-white capitalize">
+                  {booking.status}
                 </span>
               </div>
 
               {/* Excursion Summary */}
               <div className="border border-stone-200 rounded p-4 space-y-3 bg-[#FAF8F5]">
                 <h3 className="font-display font-bold text-sm text-[#0E1B2A]">
-                  Orange Bay Island & Coral Reef Snorkeling Cruise with Lunch
+                  {booking.tourTitle}
                 </h3>
                 
                 <div className="grid grid-cols-2 gap-3 text-xs text-stone-600">
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-stone-400">Date</span>
-                    <span className="font-semibold text-stone-800">Tomorrow, 08:30 AM</span>
+                    <span className="font-semibold text-stone-800">{booking.date}</span>
                   </div>
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-stone-400">Guests</span>
-                    <span className="font-semibold text-stone-800">2 Adults</span>
+                    <span className="font-semibold text-stone-800">
+                      {booking.guests.adults} Adults
+                      {booking.guests.children > 0 && `, ${booking.guests.children} Children`}
+                      {booking.guests.infants > 0 && `, ${booking.guests.infants} Infants`}
+                    </span>
                   </div>
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-stone-400">Hotel Pickup</span>
-                    <span className="font-semibold text-stone-800">08:15 AM (Steigenberger ALDAU Lobby)</span>
+                    <span className="font-semibold text-stone-800">
+                      {booking.pickup.hotelName || booking.pickup.locationName || 'Resort Lobby'}
+                      {booking.pickup.roomNumber && ` (Room ${booking.pickup.roomNumber})`}
+                    </span>
                   </div>
                   <div>
-                    <span className="block text-[10px] uppercase font-bold text-stone-400">Departure Pier</span>
-                    <span className="font-semibold text-stone-800">Hurghada Marina Berth B-14</span>
+                    <span className="block text-[10px] uppercase font-bold text-stone-400">Lead Passenger</span>
+                    <span className="font-semibold text-stone-800">
+                      {booking.customer.firstName} {booking.customer.lastName}
+                    </span>
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-stone-200 flex items-center justify-between text-xs">
-                  <span className="font-medium text-stone-500">Payment Status:</span>
-                  <span className="font-bold text-emerald-700">Paid in Full (€64.00)</span>
+                  <span className="font-medium text-stone-500">
+                    Payment Method: <span className="capitalize">{booking.paymentMethod.replace(/_/g, ' ')}</span>
+                  </span>
+                  <span className="font-bold text-emerald-700">
+                    {formatCurrencyAmount(booking.pricing.totalEur, currency)}
+                  </span>
                 </div>
               </div>
 
@@ -159,14 +224,14 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={() => alert(`Downloading confirmation voucher for ${bookingRef}...`)}
-                  className="py-2 px-3 border border-stone-300 rounded text-xs font-semibold text-stone-800 hover:bg-stone-50 flex items-center justify-center space-x-1.5"
+                  onClick={handlePrint}
+                  className="py-2 px-3 border border-stone-300 rounded text-xs font-semibold text-stone-800 hover:bg-stone-50 flex items-center justify-center space-x-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-stone-500" />
-                  <span>Download Voucher (PDF)</span>
+                  <span>Print Voucher</span>
                 </button>
                 <a
-                  href="https://wa.me/201023456789"
+                  href={`https://wa.me/201023456789?text=${encodeURIComponent(`Hello, I have an inquiry about my reservation reference ${booking.bookingReference}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center justify-center space-x-1.5"
@@ -179,17 +244,17 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
               <div className="pt-3 border-t border-stone-200 flex items-center justify-between text-xs">
                 <button
                   type="button"
-                  onClick={() => setRetrieved(false)}
-                  className="text-stone-500 hover:text-stone-800 text-[11px] underline"
+                  onClick={resetLookup}
+                  className="text-[#0A6C74] hover:underline text-[11px] font-medium cursor-pointer"
                 >
                   Look up another booking
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded font-medium text-xs"
+                  className="px-4 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded font-medium text-xs cursor-pointer"
                 >
-                  Done
+                  Close
                 </button>
               </div>
             </div>

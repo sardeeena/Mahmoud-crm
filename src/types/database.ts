@@ -314,8 +314,10 @@ export interface DbCoupon {
   max_discount: number | null;
   valid_from: string;
   valid_until: string | null;
-  max_redemptions: number | null;
-  times_redeemed: number;
+  max_redemptions?: number | null;
+  usage_limit?: number | null;
+  times_redeemed?: number;
+  times_used?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -325,12 +327,12 @@ export interface DbBookingPassenger {
   id: string;
   booking_id: string;
   full_name: string;
-  nationality: string;
+  nationality: string | null;
   passport_or_id_number: string | null;
-  date_of_birth: string | null;
+  date_of_birth?: string | null;
   passenger_type: 'adult' | 'child' | 'infant';
   is_lead_passenger: boolean;
-  special_dietary_needs: string | null;
+  special_dietary_needs?: string | null;
   created_at: string;
 }
 
@@ -589,4 +591,23 @@ export type PermissionAction =
   | 'inquiries:manage'
   | 'analytics:view'
   | 'settings:manage';
+
+// ------------------------------------------------------------------------------
+// Media Assets Management (Supabase Storage Metadata)
+// ------------------------------------------------------------------------------
+export interface DbMediaAsset {
+  id: string;
+  storage_path: string;
+  bucket_name: string;
+  public_url: string;
+  file_name: string;
+  file_size_bytes: number;
+  mime_type: string;
+  title: string | null;
+  alt_text: string | null;
+  tour_id: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
 

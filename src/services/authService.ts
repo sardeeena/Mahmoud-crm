@@ -294,11 +294,7 @@ export async function signUpUser(data: {
   // Check if email already registered locally
   const localUsers = getStoredLocalUsers();
   const existingUser = localUsers.find((u) => u.user.email.toLowerCase() === cleanEmail);
-  if (
-    (existingUser && existingUser.isConfirmed !== false) ||
-    cleanEmail === 'customer@redseavoyages.com' ||
-    cleanEmail === 'admin@redseavoyages.com'
-  ) {
+  if (existingUser && existingUser.isConfirmed !== false) {
     return {
       user: null,
       error: 'An account with this email address already exists. Please sign in instead.',

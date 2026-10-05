@@ -22,6 +22,12 @@ import {
   AlertTriangle,
   HelpCircle,
   Mail,
+  Tag,
+  FileText,
+  Target,
+  CheckSquare,
+  Clock,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
@@ -40,10 +46,23 @@ export type AdminTab =
   | 'availability'
   | 'extras'
   | 'pickup'
+  | 'coupons'
+  | 'faqs'
   | 'reviews'
   | 'media'
   | 'seo'
-  | 'settings';
+  | 'pages'
+  | 'settings'
+  | 'crm'
+  | 'crm_dashboard'
+  | 'crm_leads'
+  | 'crm_customers'
+  | 'crm_inquiries'
+  | 'crm_tasks'
+  | 'crm_followups'
+  | 'crm_conversations'
+  | 'crm_segments'
+  | 'crm_timeline';
 
 interface AdminLayoutProps {
   activeTab: AdminTab;
@@ -79,19 +98,37 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         { id: 'tour_new', label: 'Add New Tour' },
       ],
     },
-    { id: 'bookings', label: 'Bookings', icon: CalendarCheck },
-    { id: 'inquiries', label: 'Help Requests', icon: HelpCircle },
-    { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'newsletter', label: 'Newsletter', icon: Mail },
     { id: 'destinations', label: 'Destinations', icon: MapPin },
     { id: 'categories', label: 'Categories', icon: Layers },
-    { id: 'availability', label: 'Availability', icon: Calendar },
-    { id: 'extras', label: 'Tour Extras', icon: Sparkles },
-    { id: 'pickup', label: 'Pickup Locations', icon: Car },
-    { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'media', label: 'Media Library', icon: Image },
-    { id: 'seo', label: 'SEO & Meta', icon: Globe },
-    { id: 'settings', label: 'Settings & Supabase', icon: Settings },
+    { id: 'pickup', label: 'Pickup Locations', icon: Car },
+    { id: 'extras', label: 'Tour Extras', icon: Sparkles },
+    { id: 'coupons', label: 'Coupons & Vouchers', icon: Tag },
+    { id: 'faqs', label: 'FAQs Management', icon: HelpCircle },
+    { id: 'reviews', label: 'Traveler Reviews', icon: Star },
+    { id: 'seo', label: 'SEO & Meta Tags', icon: Globe },
+    { id: 'pages', label: 'Pages & Content', icon: FileText },
+    { id: 'settings', label: 'Site Settings', icon: Settings },
+    {
+      id: 'crm',
+      label: 'CRM & Travelers',
+      icon: Users,
+      badge: 'CRM',
+      children: [
+        { id: 'crm_dashboard', label: 'CRM Dashboard' },
+        { id: 'crm_leads', label: 'Leads Pipeline' },
+        { id: 'crm_customers', label: 'Customers' },
+        { id: 'crm_inquiries', label: 'Inquiries' },
+        { id: 'crm_tasks', label: 'Staff Tasks' },
+        { id: 'crm_followups', label: 'Follow-ups' },
+        { id: 'crm_conversations', label: 'Conversations' },
+        { id: 'crm_segments', label: 'Customer Segments' },
+        { id: 'crm_timeline', label: 'Activity Timeline' },
+      ],
+    },
+    { id: 'bookings', label: 'Bookings & Manifests', icon: CalendarCheck },
+    { id: 'availability', label: 'Availability', icon: Calendar },
+    { id: 'newsletter', label: 'Newsletter', icon: Mail },
   ];
 
   return (
