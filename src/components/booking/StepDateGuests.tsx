@@ -52,7 +52,9 @@ export const StepDateGuests: React.FC<StepDateGuestsProps> = ({
     onGuestsChange({ ...guests, infants: next });
   };
 
-  const isFormValid = date && availability.isAvailable && !availability.isSoldOut;
+  const totalPartySize = guests.adults + guests.children + guests.infants;
+  const exceedsCapacity = availability.isAvailable && totalPartySize > availability.remaining;
+  const isFormValid = date && availability.isAvailable && !availability.isSoldOut && !exceedsCapacity;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -128,8 +130,18 @@ export const StepDateGuests: React.FC<StepDateGuestsProps> = ({
                   <span>All passenger seats are fully booked. Please select another date.</span>
                 </div>
               </div>
+            ) : exceedsCapacity ? (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900 flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <div>
+                  <span className="font-bold block">Party size exceeds available capacity</span>
+                  <span>
+                    You have selected {totalPartySize} guests, but only {availability.remaining} spots remain on this departure. Please reduce group size or choose another date.
+                  </span>
+                </div>
+              </div>
             ) : (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-xs text-emerald-900 flex items-center justify-between">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-xs text-emerald-950 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>

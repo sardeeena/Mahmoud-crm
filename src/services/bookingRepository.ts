@@ -84,6 +84,37 @@ class SupabaseBookingRepository implements IBookingRepository {
       throw new Error(`Too many reservation requests submitted. Please wait ${limit.remainingSeconds} seconds before trying again.`);
     }
 
+    // 0. Enforce capacity and blackout dates before accepting reservation
+    const totalPartySize = (booking.guests.adults || 1) + (booking.guests.children || 0) + (booking.guests.infants || 0);
+    const bookingDateStr = booking.date ? booking.date.split('T')[0] : '';
+    
+    try {
+      const rawOps = localStorage.getItem('rse_ops_availability');
+      if (rawOps) {
+        const slots = JSON.parse(rawOps);
+        const slot = slots.find((s: any) => s.tourId === booking.tourId && s.date === bookingDateStr);
+        if (slot) {
+          if (slot.isBlackout || slot.status === 'unavailable') {
+            throw new Error(`This excursion date (${bookingDateStr}) is closed or set as an operational blackout date.`);
+          }
+          if (slot.status === 'sold_out') {
+            throw new Error(`This departure date (${bookingDateStr}) is completely sold out.`);
+          }
+          const currentBookedCount = this.getLocalBookings()
+            .filter((b) => b.tourId === booking.tourId && b.date?.split('T')[0] === bookingDateStr && b.status !== 'cancelled')
+            .reduce((sum, b) => sum + (b.guests.adults || 1) + (b.guests.children || 0) + (b.guests.infants || 0), 0);
+          if (slot.maxCapacity && (currentBookedCount + totalPartySize) > slot.maxCapacity) {
+            const remainingSeats = Math.max(0, slot.maxCapacity - currentBookedCount);
+            throw new Error(`Only ${remainingSeats} seat(s) remaining for departure on ${bookingDateStr}. Requested: ${totalPartySize} guests.`);
+          }
+        }
+      }
+    } catch (opsErr: any) {
+      if (opsErr.message && (opsErr.message.includes('closed') || opsErr.message.includes('sold out') || opsErr.message.includes('remaining'))) {
+        throw opsErr;
+      }
+    }
+
     // 1. Always keep local copy for instant client state
     const currentLocal = this.getLocalBookings();
     const updatedLocal = [booking, ...currentLocal.filter((b) => b.bookingReference !== booking.bookingReference)];
@@ -112,11 +143,41 @@ class SupabaseBookingRepository implements IBookingRepository {
         }
       }
 
-      // 2. Validate availability and capacity against database tour limits
+      // 2. Validate availability and capacity against database tour limits and tour_availability
       const totalPartySize = (booking.guests.adults || 1) + (booking.guests.children || 0) + (booking.guests.infants || 0);
       if (dbTourRecord) {
         if (dbTourRecord.max_guests && totalPartySize > dbTourRecord.max_guests) {
           throw new Error(`Group size of ${totalPartySize} exceeds maximum tour capacity of ${dbTourRecord.max_guests} guests.`);
+        }
+      }
+
+      // Check date-specific tour_availability table
+      const bookingDateStr = booking.date ? booking.date.split('T')[0] : '';
+      if (bookingDateStr) {
+        try {
+          const { data: dateAvail } = await supabase
+            .from('tour_availability')
+            .select('*')
+            .eq('tour_id', realTourId)
+            .eq('date', bookingDateStr)
+            .maybeSingle();
+
+          if (dateAvail) {
+            if (dateAvail.status === 'unavailable') {
+              throw new Error(`This excursion date (${bookingDateStr}) is closed or set as an operational blackout date.`);
+            }
+            if (dateAvail.status === 'sold_out') {
+              throw new Error(`This departure date (${bookingDateStr}) is completely sold out.`);
+            }
+            if (dateAvail.max_capacity && (dateAvail.booked_count + totalPartySize) > dateAvail.max_capacity) {
+              const remainingSeats = Math.max(0, dateAvail.max_capacity - dateAvail.booked_count);
+              throw new Error(`Only ${remainingSeats} seat(s) remaining for departure on ${bookingDateStr}. Requested: ${totalPartySize} guests.`);
+            }
+          }
+        } catch (availCheckErr: any) {
+          if (availCheckErr.message && availCheckErr.message.includes('remaining') || availCheckErr.message.includes('sold out') || availCheckErr.message.includes('closed')) {
+            throw availCheckErr;
+          }
         }
       }
 
@@ -139,27 +200,69 @@ class SupabaseBookingRepository implements IBookingRepository {
       const { data: authData } = await supabase.auth.getUser();
       const currentUserId = authData?.user?.id || null;
 
-      // 4. Insert or associate customer record
-      const { data: customerRecord, error: custError } = await supabase
-        .from('customers')
-        .insert({
-          user_id: currentUserId,
-          first_name: booking.customer.firstName.trim(),
-          last_name: booking.customer.lastName.trim(),
-          email: booking.customer.email.toLowerCase().trim(),
-          phone: `${booking.customer.countryCode} ${booking.customer.phoneNumber}`.trim(),
-          whatsapp: booking.customer.whatsappNumber ? booking.customer.whatsappNumber.trim() : null,
-          country: booking.customer.country,
-          hotel: booking.customer.hotelName || booking.pickup.hotelName || null,
-        })
-        .select('id')
-        .single();
+      // 4. Intelligent customer deduplication & association
+      const customerEmail = booking.customer.email.toLowerCase().trim();
+      const customerPhone = `${booking.customer.countryCode} ${booking.customer.phoneNumber}`.trim();
+      let customerId: string | null = null;
 
-      if (custError) {
-        console.warn('Customer record notice:', custError);
+      try {
+        // Check for existing customer by email
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id, user_id, phone, hotel')
+          .eq('email', customerEmail)
+          .maybeSingle();
+
+        if (existingCustomer?.id) {
+          customerId = existingCustomer.id;
+          // Update missing phone, hotel, or user_id association if newly authenticated
+          const updates: any = {};
+          if (!existingCustomer.user_id && currentUserId) updates.user_id = currentUserId;
+          if (booking.customer.hotelName || booking.pickup.hotelName) {
+            updates.hotel = booking.customer.hotelName || booking.pickup.hotelName;
+          }
+          if (customerPhone && !existingCustomer.phone) {
+            updates.phone = customerPhone;
+          }
+          if (Object.keys(updates).length > 0) {
+            await supabase.from('customers').update(updates).eq('id', customerId);
+          }
+        } else {
+          // If no email match, check by phone
+          const { data: existingByPhone } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('phone', customerPhone)
+            .maybeSingle();
+
+          if (existingByPhone?.id) {
+            customerId = existingByPhone.id;
+          } else {
+            // Create new customer record
+            const { data: customerRecord, error: custError } = await supabase
+              .from('customers')
+              .insert({
+                user_id: currentUserId,
+                first_name: booking.customer.firstName.trim(),
+                last_name: booking.customer.lastName.trim(),
+                email: customerEmail,
+                phone: customerPhone,
+                whatsapp: booking.customer.whatsappNumber ? booking.customer.whatsappNumber.trim() : null,
+                country: booking.customer.country,
+                hotel: booking.customer.hotelName || booking.pickup.hotelName || null,
+              })
+              .select('id')
+              .maybeSingle();
+
+            if (custError) {
+              console.warn('Customer record notice:', custError);
+            }
+            customerId = customerRecord?.id || null;
+          }
+        }
+      } catch (custLookupErr) {
+        console.warn('Customer deduplication lookup error:', custLookupErr);
       }
-
-      const customerId = customerRecord?.id || null;
 
       // 5. Insert main booking record with authoritative total
       const { data: dbBooking, error: bookError } = await supabase
@@ -240,6 +343,33 @@ class SupabaseBookingRepository implements IBookingRepository {
 
       if (passengerRows.length > 0) {
         await supabase.from('booking_passengers').insert(passengerRows);
+      }
+
+      // 7. Update tour_availability capacity in database
+      try {
+        if (bookingDateStr) {
+          const { data: currentAvail } = await supabase
+            .from('tour_availability')
+            .select('*')
+            .eq('tour_id', realTourId)
+            .eq('date', bookingDateStr)
+            .maybeSingle();
+
+          if (currentAvail) {
+            const newCount = (currentAvail.booked_count || 0) + totalPartySize;
+            const isFull = currentAvail.max_capacity && newCount >= currentAvail.max_capacity;
+            await supabase
+              .from('tour_availability')
+              .update({
+                booked_count: newCount,
+                status: isFull ? 'sold_out' : currentAvail.status,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', currentAvail.id);
+          }
+        }
+      } catch (availUpdateErr) {
+        console.warn('Notice updating booked capacity:', availUpdateErr);
       }
 
       // 7. Insert extras breakdown if any

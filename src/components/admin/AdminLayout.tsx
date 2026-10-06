@@ -24,10 +24,10 @@ import {
   Mail,
   Tag,
   FileText,
-  Target,
-  CheckSquare,
-  Clock,
-  MessageCircle,
+  Ship,
+  Anchor,
+  CloudSun,
+  Printer,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
@@ -53,7 +53,6 @@ export type AdminTab =
   | 'seo'
   | 'pages'
   | 'settings'
-  | 'crm'
   | 'crm_dashboard'
   | 'crm_leads'
   | 'crm_customers'
@@ -62,7 +61,17 @@ export type AdminTab =
   | 'crm_followups'
   | 'crm_conversations'
   | 'crm_segments'
-  | 'crm_timeline';
+  | 'crm_timeline'
+  | 'ops_departures'
+  | 'ops_calendar'
+  | 'ops_availability'
+  | 'ops_manifests'
+  | 'ops_pickups'
+  | 'ops_vessels'
+  | 'ops_guides'
+  | 'ops_assignments'
+  | 'ops_weather'
+  | 'ops_documents';
 
 interface AdminLayoutProps {
   activeTab: AdminTab;
@@ -87,8 +96,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     });
   }, []);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  const navItems: Array<{
+    id: string;
+    label: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    isHeader?: boolean;
+    children?: Array<{ id: string; label: string }>;
+  }> = [
+    { id: 'dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
     {
       id: 'tours',
       label: 'Tours & Excursions',
@@ -98,6 +113,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         { id: 'tour_new', label: 'Add New Tour' },
       ],
     },
+    { id: 'bookings', label: 'Reservations & Bookings', icon: CalendarCheck },
+
+    // OPERATIONS SECTION
+    { id: 'header_ops', label: 'OPERATIONS & DISPATCH', isHeader: true },
+    { id: 'ops_departures', label: "Today's Departures", icon: Anchor },
+    { id: 'ops_calendar', label: 'Operations Calendar', icon: Calendar },
+    { id: 'ops_availability', label: 'Availability & Capacity', icon: CalendarCheck },
+    { id: 'ops_manifests', label: 'Passenger Manifests', icon: FileText },
+    { id: 'ops_pickups', label: 'Pickup Schedule', icon: Car },
+    { id: 'ops_vessels', label: 'Fleet & Vessels', icon: Ship },
+    { id: 'ops_guides', label: 'Guides & Captains', icon: Users },
+    { id: 'ops_assignments', label: 'Tour Assignments', icon: ShieldCheck },
+    { id: 'ops_weather', label: 'Weather Bulletins', icon: CloudSun },
+    { id: 'ops_documents', label: 'Operational Documents', icon: Printer },
+
+    // CRM SECTION
+    { id: 'header_crm', label: 'CRM & TRAVELERS', isHeader: true },
+    { id: 'crm_dashboard', label: 'CRM Dashboard', icon: LayoutDashboard },
+    { id: 'crm_leads', label: 'Leads Pipeline', icon: Users },
+    { id: 'customers', label: 'Customers Directory', icon: Users },
+    { id: 'inquiries', label: 'Help Inquiries', icon: HelpCircle },
+    { id: 'crm_tasks', label: 'Staff Tasks', icon: Calendar },
+    { id: 'crm_followups', label: 'Follow-ups', icon: CalendarCheck },
+    { id: 'crm_conversations', label: 'Conversations Log', icon: Mail },
+    { id: 'crm_segments', label: 'Customer Segments', icon: Tag },
+    { id: 'crm_timeline', label: 'Activity Timeline', icon: Sparkles },
+
+    // CMS & SITE SETTINGS
+    { id: 'header_cms', label: 'CATALOG & CMS', isHeader: true },
     { id: 'destinations', label: 'Destinations', icon: MapPin },
     { id: 'categories', label: 'Categories', icon: Layers },
     { id: 'media', label: 'Media Library', icon: Image },
@@ -108,27 +152,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'reviews', label: 'Traveler Reviews', icon: Star },
     { id: 'seo', label: 'SEO & Meta Tags', icon: Globe },
     { id: 'pages', label: 'Pages & Content', icon: FileText },
-    { id: 'settings', label: 'Site Settings', icon: Settings },
-    {
-      id: 'crm',
-      label: 'CRM & Travelers',
-      icon: Users,
-      badge: 'CRM',
-      children: [
-        { id: 'crm_dashboard', label: 'CRM Dashboard' },
-        { id: 'crm_leads', label: 'Leads Pipeline' },
-        { id: 'crm_customers', label: 'Customers' },
-        { id: 'crm_inquiries', label: 'Inquiries' },
-        { id: 'crm_tasks', label: 'Staff Tasks' },
-        { id: 'crm_followups', label: 'Follow-ups' },
-        { id: 'crm_conversations', label: 'Conversations' },
-        { id: 'crm_segments', label: 'Customer Segments' },
-        { id: 'crm_timeline', label: 'Activity Timeline' },
-      ],
-    },
-    { id: 'bookings', label: 'Bookings & Manifests', icon: CalendarCheck },
-    { id: 'availability', label: 'Availability', icon: Calendar },
     { id: 'newsletter', label: 'Newsletter', icon: Mail },
+    { id: 'settings', label: 'Site Settings', icon: Settings },
   ];
 
   return (
@@ -215,9 +240,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </div>
 
             {/* Navigation links */}
-            <nav className="p-3 space-y-1 text-xs">
+            <nav className="p-3 space-y-1 text-xs overflow-y-auto max-h-[calc(100vh-190px)] scrollbar-thin scrollbar-thumb-stone-800">
               {navItems.map((item) => {
-                const Icon = item.icon;
+                if (item.isHeader) {
+                  return (
+                    <div
+                      key={item.id}
+                      className="pt-3 pb-1 px-3 text-[9px] font-bold uppercase tracking-wider text-stone-500 border-t border-stone-800/80 mt-2 first:mt-0 first:border-0"
+                    >
+                      {item.label}
+                    </div>
+                  );
+                }
+
+                const Icon = item.icon || ChevronRight;
                 const isCurrent = activeTab === item.id || (item.children && item.children.some((c) => c.id === activeTab));
 
                 return (

@@ -68,7 +68,29 @@ import { AdminPagesManager } from './components/admin/AdminPagesManager';
 import { AdminSettings } from './components/admin/AdminSettings';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { HelpInquiryModal } from './components/common/HelpInquiryModal';
-import { CrmHub, CrmSubTab } from './components/admin/crm/CrmHub';
+
+// CRM Modules
+import { CrmDashboard } from './components/admin/crm/CrmDashboard';
+import { CrmLeadsManager } from './components/admin/crm/CrmLeadsManager';
+import { CrmCustomersManager } from './components/admin/crm/CrmCustomersManager';
+import { CrmInquiriesManager } from './components/admin/crm/CrmInquiriesManager';
+import { CrmTasksManager } from './components/admin/crm/CrmTasksManager';
+import { CrmFollowUpsManager } from './components/admin/crm/CrmFollowUpsManager';
+import { CrmConversationsManager } from './components/admin/crm/CrmConversationsManager';
+import { CrmSegmentsManager } from './components/admin/crm/CrmSegmentsManager';
+import { CrmActivityTimeline } from './components/admin/crm/CrmActivityTimeline';
+
+// Operations Modules
+import { OperationsDepartures } from './components/admin/operations/OperationsDepartures';
+import { OperationsCalendar } from './components/admin/operations/OperationsCalendar';
+import { OperationsAvailability } from './components/admin/operations/OperationsAvailability';
+import { OperationsManifests } from './components/admin/operations/OperationsManifests';
+import { OperationsPickupSchedule } from './components/admin/operations/OperationsPickupSchedule';
+import { OperationsVessels } from './components/admin/operations/OperationsVessels';
+import { OperationsGuides } from './components/admin/operations/OperationsGuides';
+import { OperationsAssignments } from './components/admin/operations/OperationsAssignments';
+import { OperationsWeather } from './components/admin/operations/OperationsWeather';
+import { OperationsDocuments } from './components/admin/operations/OperationsDocuments';
 
 function MainApp() {
   const { user, isAdmin, loading: authLoading, refreshUser, checkAdminAccess } = useAuth();
@@ -370,10 +392,6 @@ function MainApp() {
       navigate('/admin/tours/new');
     } else if (tab === 'tour_edit' && param) {
       navigate(`/admin/tours/${param}/edit`);
-    } else if (tab === 'crm') {
-      navigate('/admin/crm');
-    } else if (tab.startsWith('crm_')) {
-      navigate(`/admin/crm/${tab.replace('crm_', '')}`);
     } else {
       navigate(`/admin/${tab}`);
     }
@@ -468,19 +486,88 @@ function MainApp() {
         activeAdminTab = 'tours';
       }
     } else if (adminSubRoute?.main === 'crm') {
-      const sub = adminSubRoute.sub;
-      if (sub && ['leads', 'customers', 'inquiries', 'tasks', 'followups', 'conversations', 'segments', 'timeline', 'dashboard'].includes(sub)) {
-        activeAdminTab = `crm_${sub}` as AdminTab;
+      if (adminSubRoute.sub === 'leads') {
+        activeAdminTab = 'crm_leads';
+      } else if (adminSubRoute.sub === 'customers') {
+        activeAdminTab = 'crm_customers';
+      } else if (adminSubRoute.sub === 'inquiries') {
+        activeAdminTab = 'crm_inquiries';
+      } else if (adminSubRoute.sub === 'tasks') {
+        activeAdminTab = 'crm_tasks';
+      } else if (adminSubRoute.sub === 'followups') {
+        activeAdminTab = 'crm_followups';
+      } else if (adminSubRoute.sub === 'conversations') {
+        activeAdminTab = 'crm_conversations';
+      } else if (adminSubRoute.sub === 'segments') {
+        activeAdminTab = 'crm_segments';
+      } else if (adminSubRoute.sub === 'timeline') {
+        activeAdminTab = 'crm_timeline';
       } else {
         activeAdminTab = 'crm_dashboard';
       }
-    } else if (adminSubRoute?.main && ['leads', 'tasks', 'followups', 'conversations', 'segments', 'timeline'].includes(adminSubRoute.main)) {
-      activeAdminTab = `crm_${adminSubRoute.main}` as AdminTab;
+    } else if (adminSubRoute?.main === 'operations' || adminSubRoute?.main === 'ops') {
+      if (adminSubRoute.sub === 'departures' || adminSubRoute.sub === 'today') {
+        activeAdminTab = 'ops_departures';
+      } else if (adminSubRoute.sub === 'calendar') {
+        activeAdminTab = 'ops_calendar';
+      } else if (adminSubRoute.sub === 'availability') {
+        activeAdminTab = 'ops_availability';
+      } else if (adminSubRoute.sub === 'manifests' || adminSubRoute.sub === 'manifest') {
+        activeAdminTab = 'ops_manifests';
+      } else if (adminSubRoute.sub === 'pickups' || adminSubRoute.sub === 'pickup') {
+        activeAdminTab = 'ops_pickups';
+      } else if (adminSubRoute.sub === 'vessels' || adminSubRoute.sub === 'fleet') {
+        activeAdminTab = 'ops_vessels';
+      } else if (adminSubRoute.sub === 'guides' || adminSubRoute.sub === 'captains') {
+        activeAdminTab = 'ops_guides';
+      } else if (adminSubRoute.sub === 'assignments' || adminSubRoute.sub === 'assign') {
+        activeAdminTab = 'ops_assignments';
+      } else if (adminSubRoute.sub === 'weather') {
+        activeAdminTab = 'ops_weather';
+      } else if (adminSubRoute.sub === 'documents' || adminSubRoute.sub === 'docs') {
+        activeAdminTab = 'ops_documents';
+      } else {
+        activeAdminTab = 'ops_departures';
+      }
     } else if (
       adminSubRoute?.main &&
-      ['bookings', 'inquiries', 'customers', 'newsletter', 'destinations', 'categories', 'availability', 'extras', 'pickup', 'coupons', 'faqs', 'reviews', 'media', 'seo', 'pages', 'settings'].includes(
-        adminSubRoute.main
-      )
+      [
+        'bookings',
+        'inquiries',
+        'customers',
+        'newsletter',
+        'destinations',
+        'categories',
+        'availability',
+        'extras',
+        'pickup',
+        'coupons',
+        'faqs',
+        'reviews',
+        'media',
+        'seo',
+        'pages',
+        'settings',
+        'crm_dashboard',
+        'crm_leads',
+        'crm_customers',
+        'crm_inquiries',
+        'crm_tasks',
+        'crm_followups',
+        'crm_conversations',
+        'crm_segments',
+        'crm_timeline',
+        'ops_departures',
+        'ops_calendar',
+        'ops_availability',
+        'ops_manifests',
+        'ops_pickups',
+        'ops_vessels',
+        'ops_guides',
+        'ops_assignments',
+        'ops_weather',
+        'ops_documents',
+      ].includes(adminSubRoute.main)
     ) {
       activeAdminTab = adminSubRoute.main as AdminTab;
     }
@@ -522,26 +609,65 @@ function MainApp() {
 
         {activeAdminTab === 'bookings' && <AdminBookingsList />}
 
-        {(activeAdminTab.startsWith('crm') || activeAdminTab === 'customers' || activeAdminTab === 'inquiries') && (
-          <CrmHub
-            currentSubTab={
-              activeAdminTab === 'customers'
-                ? 'customers'
-                : activeAdminTab === 'inquiries'
-                ? 'inquiries'
-                : activeAdminTab === 'crm'
-                ? ((adminSubRoute?.sub as any) || 'dashboard')
-                : ((activeAdminTab.replace('crm_', '') as any) || 'dashboard')
-            }
-            onSelectSubTab={(subTab) => {
-              navigate(`/admin/crm/${subTab}`);
-            }}
-            onViewBookingDetails={(ref) => {
-              navigate(`/my-booking/${ref}`);
-            }}
-            onNavigateTab={handleAdminSelectTab}
+        {/* OPERATIONS MODULES */}
+        {activeAdminTab === 'ops_departures' && (
+          <OperationsDepartures
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
           />
         )}
+
+        {activeAdminTab === 'ops_calendar' && (
+          <OperationsCalendar
+            onSelectDepartureDate={(d) => handleAdminSelectTab('ops_departures')}
+          />
+        )}
+
+        {activeAdminTab === 'ops_availability' && <OperationsAvailability />}
+
+        {activeAdminTab === 'ops_manifests' && <OperationsManifests />}
+
+        {activeAdminTab === 'ops_pickups' && <OperationsPickupSchedule />}
+
+        {activeAdminTab === 'ops_vessels' && <OperationsVessels />}
+
+        {activeAdminTab === 'ops_guides' && <OperationsGuides />}
+
+        {activeAdminTab === 'ops_assignments' && <OperationsAssignments />}
+
+        {activeAdminTab === 'ops_weather' && <OperationsWeather />}
+
+        {activeAdminTab === 'ops_documents' && (
+          <OperationsDocuments
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {/* CRM Modules */}
+        {activeAdminTab === 'crm_dashboard' && (
+          <CrmDashboard
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'crm_leads' && <CrmLeadsManager />}
+
+        {(activeAdminTab === 'customers' || activeAdminTab === 'crm_customers') && (
+          <CrmCustomersManager />
+        )}
+
+        {(activeAdminTab === 'inquiries' || activeAdminTab === 'crm_inquiries') && (
+          <CrmInquiriesManager />
+        )}
+
+        {activeAdminTab === 'crm_tasks' && <CrmTasksManager />}
+
+        {activeAdminTab === 'crm_followups' && <CrmFollowUpsManager />}
+
+        {activeAdminTab === 'crm_conversations' && <CrmConversationsManager />}
+
+        {activeAdminTab === 'crm_segments' && <CrmSegmentsManager />}
+
+        {activeAdminTab === 'crm_timeline' && <CrmActivityTimeline />}
 
         {activeAdminTab === 'newsletter' && <AdminNewsletterList />}
 
@@ -559,7 +685,7 @@ function MainApp() {
 
         {activeAdminTab === 'reviews' && <AdminReviewsList />}
 
-        {activeAdminTab === 'availability' && <AdminAvailabilityManager />}
+        {activeAdminTab === 'availability' && <OperationsAvailability />}
 
         {activeAdminTab === 'media' && <AdminMediaLibrary />}
 

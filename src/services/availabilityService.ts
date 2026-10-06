@@ -63,6 +63,97 @@ export function getTourAvailability(
     };
   }
 
+  // 1. Check if an authoritative operational slot or blackout date exists
+  try {
+    const rawOps = localStorage.getItem('rse_ops_availability');
+    if (rawOps) {
+      const slots = JSON.parse(rawOps);
+      const slot = slots.find((s: any) => s.tourId === tour.id && s.date === selectedDate);
+      if (slot) {
+        if (slot.isBlackout || slot.status === 'unavailable') {
+          return {
+            date: selectedDate,
+            tourId: tour.id,
+            capacity: slot.maxCapacity || tour.maxGuests || 24,
+            booked: slot.maxCapacity || tour.maxGuests || 24,
+            remaining: 0,
+            isAvailable: false,
+            isSoldOut: true,
+            isPastDate: false,
+            meetsMinimumNotice: true,
+            minNoticeHours,
+          };
+        }
+
+        // Count actual reservations from local bookings store
+        let actualBooked = 0;
+        try {
+          const rawBookings = localStorage.getItem('redsea_local_bookings');
+          if (rawBookings) {
+            const bookings = JSON.parse(rawBookings);
+            actualBooked = bookings
+              .filter(
+                (b: any) =>
+                  b.tourId === tour.id &&
+                  b.date?.split('T')[0] === selectedDate &&
+                  b.status !== 'cancelled'
+              )
+              .reduce(
+                (sum: number, b: any) =>
+                  sum + (b.guests?.adults || 1) + (b.guests?.children || 0) + (b.guests?.infants || 0),
+                0
+              );
+          }
+        } catch {
+          // ignore
+        }
+
+        const capacity = slot.maxCapacity || tour.maxGuests || 24;
+        const totalBooked = Math.min(capacity, Math.max(actualBooked, slot.bookedCount || 0));
+        const remaining = Math.max(0, capacity - totalBooked);
+        const isSoldOut = remaining <= 0 || slot.status === 'sold_out';
+
+        return {
+          date: selectedDate,
+          tourId: tour.id,
+          capacity,
+          booked: totalBooked,
+          remaining,
+          isAvailable: !isSoldOut,
+          isSoldOut,
+          isPastDate: false,
+          meetsMinimumNotice: true,
+          minNoticeHours,
+        };
+      }
+    }
+  } catch {
+    // fallback to dynamic calculation
+  }
+
+  // 2. Count actual bookings even without explicit slot override
+  let actualBooked = 0;
+  try {
+    const rawBookings = localStorage.getItem('redsea_local_bookings');
+    if (rawBookings) {
+      const bookings = JSON.parse(rawBookings);
+      actualBooked = bookings
+        .filter(
+          (b: any) =>
+            b.tourId === tour.id &&
+            b.date?.split('T')[0] === selectedDate &&
+            b.status !== 'cancelled'
+        )
+        .reduce(
+          (sum: number, b: any) =>
+            sum + (b.guests?.adults || 1) + (b.guests?.children || 0) + (b.guests?.infants || 0),
+          0
+        );
+    }
+  } catch {
+    // ignore
+  }
+
   // Calculate deterministic capacity for this tour & date schedule
   const seedString = `${tour.id}-${selectedDate}`;
   let hash = 0;
@@ -73,16 +164,16 @@ export function getTourAvailability(
   const positiveHash = Math.abs(hash);
 
   const capacity = tour.maxGuests || 20;
-  // Vary booked slots between 30% and 85% of capacity
-  const bookedPercent = 0.35 + (positiveHash % 50) / 100;
-  const booked = Math.min(capacity, Math.round(capacity * bookedPercent));
-  const remaining = Math.max(0, capacity - booked);
+  const bookedPercent = 0.25 + (positiveHash % 40) / 100;
+  const simulatedBooked = Math.round(capacity * bookedPercent);
+  const totalBooked = Math.min(capacity, simulatedBooked + actualBooked);
+  const remaining = Math.max(0, capacity - totalBooked);
 
   return {
     date: selectedDate,
     tourId: tour.id,
     capacity,
-    booked,
+    booked: totalBooked,
     remaining,
     isAvailable: remaining > 0,
     isSoldOut: remaining === 0,

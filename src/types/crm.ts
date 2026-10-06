@@ -1,21 +1,17 @@
-/**
- * Types & Data Contracts for Red Sea Excursions CRM Platform
- */
-
+import { UserRole } from './database';
 import { Booking } from './booking';
-import { DbInquiry, DbReview, UserRole } from './database';
 
-export type CrmLeadStage =
-  | 'new'
-  | 'contacted'
-  | 'interested'
-  | 'quotation_sent'
-  | 'booking_pending'
-  | 'booked'
-  | 'completed'
-  | 'lost';
+export type LeadStage =
+  | 'New'
+  | 'Contacted'
+  | 'Interested'
+  | 'Quotation Sent'
+  | 'Booking Pending'
+  | 'Booked'
+  | 'Completed'
+  | 'Lost';
 
-export type CrmLeadSource =
+export type LeadSource =
   | 'Website'
   | 'WhatsApp'
   | 'Facebook'
@@ -36,22 +32,26 @@ export interface CrmLead {
   whatsapp?: string | null;
   country?: string | null;
   hotel?: string | null;
-  source: CrmLeadSource;
+  source: LeadSource;
   interestedTourId?: string | null;
   interestedTourTitle?: string | null;
   travelDate?: string | null;
-  guestsCount?: number;
-  estimatedValueEur?: number;
+  numberOfGuests: number;
+  estimatedValue: number;
+  currency: string;
+  stage: LeadStage;
   notes?: string | null;
-  assignedStaff?: string | null;
-  stage: CrmLeadStage;
+  assignedStaffId?: string | null;
+  assignedStaffName?: string | null;
+  customerId?: string | null;
   followUpDate?: string | null;
+  lostReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export type CrmTaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-export type CrmTaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
+export type TaskStatus = 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
 
 export interface CrmTask {
   id: string;
@@ -60,82 +60,78 @@ export interface CrmTask {
   customerId?: string | null;
   customerName?: string | null;
   leadId?: string | null;
+  leadName?: string | null;
+  bookingId?: string | null;
   bookingReference?: string | null;
-  assignedStaff: string;
-  dueDate: string;
-  priority: CrmTaskPriority;
-  status: CrmTaskStatus;
-  createdAt: string;
+  assignedStaffId?: string | null;
+  assignedStaffName?: string | null;
+  dueDate?: string | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  isFollowUp: boolean;
   completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CrmFollowUp {
+export type CommChannel = 'WhatsApp' | 'Email' | 'Phone' | 'In-Person' | 'Web Chat' | 'SMS';
+
+export interface CrmCommunication {
   id: string;
   customerId?: string | null;
-  customerName: string;
-  customerPhone?: string | null;
-  customerEmail?: string | null;
+  customerName?: string | null;
   leadId?: string | null;
-  notes: string;
-  scheduledFor: string; // ISO date or date string
-  assignedStaff: string;
-  isCompleted: boolean;
-  completedAt?: string | null;
-  createdAt: string;
-}
-
-export type CrmCommunicationChannel = 'whatsapp' | 'email' | 'phone' | 'website_chat' | 'pier_desk';
-
-export interface CrmConversationMessage {
-  id: string;
-  customerId?: string | null;
-  customerEmail?: string | null;
-  customerPhone?: string | null;
-  customerName: string;
-  channel: CrmCommunicationChannel;
+  bookingId?: string | null;
+  channel: CommChannel;
   direction: 'inbound' | 'outbound';
-  sender: string;
-  recipient: string;
-  subject?: string | null;
-  message: string;
-  timestamp: string;
-}
-
-export interface CrmStaffNote {
-  id: string;
-  customerId: string;
-  author: string;
-  note: string;
+  summary: string;
+  content?: string | null;
+  staffName: string;
+  staffId?: string | null;
   createdAt: string;
-  isPinned?: boolean;
 }
 
-export interface CrmTimelineEvent {
+export interface CrmNote {
   id: string;
   customerId?: string | null;
-  customerName?: string;
-  type:
-    | 'account_created'
-    | 'inquiry_created'
-    | 'booking_created'
-    | 'payment_recorded'
-    | 'booking_status_changed'
-    | 'cancellation'
-    | 'review_submitted'
-    | 'staff_note'
-    | 'communication'
-    | 'lead_created'
-    | 'lead_stage_changed'
-    | 'task_completed';
-  title: string;
-  description: string;
-  timestamp: string;
-  icon?: string;
-  badgeColor?: string;
-  metadata?: Record<string, any>;
+  leadId?: string | null;
+  bookingId?: string | null;
+  content: string;
+  staffName: string;
+  staffId?: string | null;
+  isPinned: boolean;
+  createdAt: string;
 }
 
-export interface CrmCustomerSummary {
+export type CrmEventType =
+  | 'account_created'
+  | 'inquiry_created'
+  | 'booking_created'
+  | 'payment_recorded'
+  | 'booking_changed'
+  | 'cancellation'
+  | 'review_submitted'
+  | 'staff_note'
+  | 'communication'
+  | 'lead_created'
+  | 'stage_changed'
+  | 'task_created'
+  | 'task_completed';
+
+export interface CrmActivity {
+  id: string;
+  customerId?: string | null;
+  leadId?: string | null;
+  bookingId?: string | null;
+  eventType: CrmEventType;
+  title: string;
+  description?: string | null;
+  actor: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
+
+export interface CrmCustomerDetail {
   id: string;
   fullName: string;
   email: string;
@@ -150,24 +146,21 @@ export interface CrmCustomerSummary {
   totalBookings: number;
   completedBookings: number;
   cancelledBookings: number;
-  totalRevenueEur: number;
-  outstandingAmountEur: number;
+  totalRevenue: number;
+  outstandingAmount: number;
   lastContactDate?: string | null;
-  customerSource: CrmLeadSource | string;
+  source: string;
   createdAt: string;
-  updatedAt: string;
+  role: UserRole;
+  isRegistered: boolean;
   avatarUrl?: string | null;
-}
-
-export interface CrmCustomerDetail extends CrmCustomerSummary {
   bookings: Booking[];
-  inquiries: DbInquiry[];
-  communications: CrmConversationMessage[];
-  staffNotes: CrmStaffNote[];
+  inquiries: any[];
+  communications: CrmCommunication[];
+  staffNotes: CrmNote[];
   tasks: CrmTask[];
-  followUps: CrmFollowUp[];
-  reviews: DbReview[];
-  timeline: CrmTimelineEvent[];
+  activities: CrmActivity[];
+  reviews: any[];
 }
 
 export interface CrmDashboardMetrics {
@@ -178,7 +171,9 @@ export interface CrmDashboardMetrics {
   followUpsDueCount: number;
   overdueFollowUpsCount: number;
   newCustomersCount: number;
-  conversionRatePercent: number;
+  conversionRate: number; // percentage
   totalRevenueEur: number;
   outstandingPaymentsEur: number;
+  totalActiveLeads: number;
+  totalWonLeadsEur: number;
 }
