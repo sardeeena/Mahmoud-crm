@@ -28,6 +28,11 @@ import {
   Anchor,
   CloudSun,
   Printer,
+  CreditCard,
+  RotateCcw,
+  DollarSign,
+  TrendingUp,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
@@ -71,11 +76,17 @@ export type AdminTab =
   | 'ops_guides'
   | 'ops_assignments'
   | 'ops_weather'
-  | 'ops_documents';
+  | 'ops_documents'
+  | 'fin_payments'
+  | 'fin_invoices'
+  | 'fin_refunds'
+  | 'fin_balances'
+  | 'fin_revenue'
+  | 'fin_reports';
 
 interface AdminLayoutProps {
   activeTab: AdminTab;
-  onSelectTab: (tab: AdminTab, param?: string) => void;
+  onSelectTab: (tabTab: AdminTab, param?: string) => void;
   onNavigateSite: () => void;
   children: React.ReactNode;
 }
@@ -127,6 +138,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'ops_assignments', label: 'Tour Assignments', icon: ShieldCheck },
     { id: 'ops_weather', label: 'Weather Bulletins', icon: CloudSun },
     { id: 'ops_documents', label: 'Operational Documents', icon: Printer },
+
+    // FINANCE SECTION
+    { id: 'header_finance', label: 'FINANCE & ACCOUNTING', isHeader: true },
+    { id: 'fin_payments', label: 'Payments', icon: CreditCard },
+    { id: 'fin_invoices', label: 'Invoices', icon: FileText },
+    { id: 'fin_refunds', label: 'Refunds & Returns', icon: RotateCcw },
+    { id: 'fin_balances', label: 'Outstanding Balances', icon: AlertCircle },
+    { id: 'fin_revenue', label: 'Revenue Analysis', icon: DollarSign },
+    { id: 'fin_reports', label: 'Financial Reports', icon: TrendingUp },
 
     // CRM SECTION
     { id: 'header_crm', label: 'CRM & TRAVELERS', isHeader: true },

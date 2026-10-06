@@ -92,6 +92,14 @@ import { OperationsAssignments } from './components/admin/operations/OperationsA
 import { OperationsWeather } from './components/admin/operations/OperationsWeather';
 import { OperationsDocuments } from './components/admin/operations/OperationsDocuments';
 
+// Finance Modules
+import { FinancePayments } from './components/admin/finance/FinancePayments';
+import { FinanceInvoices } from './components/admin/finance/FinanceInvoices';
+import { FinanceRefunds } from './components/admin/finance/FinanceRefunds';
+import { FinanceOutstandingBalances } from './components/admin/finance/FinanceOutstandingBalances';
+import { FinanceRevenue } from './components/admin/finance/FinanceRevenue';
+import { FinanceReports } from './components/admin/finance/FinanceReports';
+
 function MainApp() {
   const { user, isAdmin, loading: authLoading, refreshUser, checkAdminAccess } = useAuth();
   const [currentCurrency, setCurrentCurrency] = useState<CurrencyConfig>(CURRENCY_CONFIGS.EUR);
@@ -529,6 +537,22 @@ function MainApp() {
       } else {
         activeAdminTab = 'ops_departures';
       }
+    } else if (adminSubRoute?.main === 'finance' || adminSubRoute?.main === 'fin') {
+      if (adminSubRoute.sub === 'payments' || adminSubRoute.sub === 'pay') {
+        activeAdminTab = 'fin_payments';
+      } else if (adminSubRoute.sub === 'invoices' || adminSubRoute.sub === 'inv') {
+        activeAdminTab = 'fin_invoices';
+      } else if (adminSubRoute.sub === 'refunds' || adminSubRoute.sub === 'ref') {
+        activeAdminTab = 'fin_refunds';
+      } else if (adminSubRoute.sub === 'balances' || adminSubRoute.sub === 'outstanding') {
+        activeAdminTab = 'fin_balances';
+      } else if (adminSubRoute.sub === 'revenue' || adminSubRoute.sub === 'rev') {
+        activeAdminTab = 'fin_revenue';
+      } else if (adminSubRoute.sub === 'reports' || adminSubRoute.sub === 'rep') {
+        activeAdminTab = 'fin_reports';
+      } else {
+        activeAdminTab = 'fin_payments';
+      }
     } else if (
       adminSubRoute?.main &&
       [
@@ -567,6 +591,12 @@ function MainApp() {
         'ops_assignments',
         'ops_weather',
         'ops_documents',
+        'fin_payments',
+        'fin_invoices',
+        'fin_refunds',
+        'fin_balances',
+        'fin_revenue',
+        'fin_reports',
       ].includes(adminSubRoute.main)
     ) {
       activeAdminTab = adminSubRoute.main as AdminTab;
@@ -641,6 +671,39 @@ function MainApp() {
             onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
           />
         )}
+
+        {/* FINANCE MODULES */}
+        {activeAdminTab === 'fin_payments' && (
+          <FinancePayments
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'fin_invoices' && (
+          <FinanceInvoices
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'fin_refunds' && (
+          <FinanceRefunds
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'fin_balances' && (
+          <FinanceOutstandingBalances
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'fin_revenue' && (
+          <FinanceRevenue
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'fin_reports' && <FinanceReports />}
 
         {/* CRM Modules */}
         {activeAdminTab === 'crm_dashboard' && (
