@@ -64,12 +64,16 @@ The platform provides real-time excursion discovery, automated multi-step bookin
 - **Live Digital Vouchers**: Direct print and voucher inspection modal with barcode generation and hotel meeting point info.
 - **Wishlist & Saved Tours**: Fast off-canvas drawer to save favorite excursions with real-time counters.
 
-### 🛡️ Executive Admin CMS & Operations
+### 🛡️ Executive Admin CMS, Operations, CRM & Finance
 - **Role-Based Access Control (RBAC)**: Support for `admin`, `manager`, `staff`, and `customer` roles enforced via PostgreSQL Row-Level Security (RLS).
 - **Tours Management**: Complete CRUD interface for excursions (pricing, itineraries, inclusions, exclusions, gallery images, difficulty, and publish states).
 - **Bookings Management**: Real-time status modification (`confirmed`, `pending`, `cancellation_requested`, `cancelled`, `completed`), payment tracking, and customer contact inspection.
-- **Availability Calendar**: Manage daily slot caps, blackout dates, and capacity counters.
-- **Customer CRM**: View traveler profiles, booking frequencies, and contact channels (WhatsApp/Phone).
+- **Availability Calendar & Capacity**: Manage daily slot caps, blackout dates, and passenger capacity counters.
+- **Customer CRM**: Leads pipeline, customer profiles, inquiries, tasks & follow-ups, activity timeline, and booking history.
+- **Operations & Maritime Fleet**: Today's departures, operational assignments, passenger manifests, hotel pickup schedules, vessel fleet management, guide/captain assignments, and live marine weather bulletins.
+- **Finance & Accounting**: Payments ledger, invoice generation with PDF printing, controlled refund records with audit trail, outstanding balances, and multi-currency reporting.
+- **Communications**: Email & WhatsApp dispatches, reusable template engine with variable interpolation, deduplicated staff internal notifications, and complete communication audit logs.
+- **Executive Management Reporting**: Five specialized analytical views (Executive, Sales, Operations, Customers, Finance) querying real Supabase data with configurable date ranges (Today, Yesterday, This Week, This Month, Last Month, This Year, Custom) and CSV/Excel/Print exports.
 - **Database & Sync Diagnostics**: Live health status panel showing Supabase connection, schema cache status, and table counts.
 
 ---

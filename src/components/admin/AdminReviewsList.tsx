@@ -69,7 +69,7 @@ export const AdminReviewsList: React.FC = () => {
             .select('*')
             .order('created_at', { ascending: false });
 
-          if (!error && data && data.length > 0) {
+          if (!error && data) {
             if (!isCancelled) {
               setReviews(data as DbReview[]);
               setLoading(false);

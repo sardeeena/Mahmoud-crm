@@ -134,14 +134,14 @@ export async function listPayments(filter?: {
         .select('*')
         .order('payment_date', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         payments = data.map((d) => ({
           id: d.id,
           bookingId: d.booking_id,
           bookingReference: (d as any).booking_reference || d.booking_id,
           customerId: d.customer_id,
           customerName: (d as any).customer_name || 'Guest',
-          customerEmail: (d as any).customer_email || 'guest@example.com',
+          customerEmail: (d as any).customer_email || '',
           customerPhone: (d as any).customer_phone || null,
           amount: Number(d.amount),
           currency: d.currency || 'EUR',
@@ -527,7 +527,7 @@ export async function listRefunds(filter?: {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         refunds = data.map((d) => ({
           id: d.id,
           bookingId: d.booking_id,
@@ -535,7 +535,7 @@ export async function listRefunds(filter?: {
           paymentId: d.payment_id,
           customerId: d.customer_id,
           customerName: (d as any).customer_name || 'Guest',
-          customerEmail: (d as any).customer_email || 'guest@example.com',
+          customerEmail: (d as any).customer_email || '',
           amount: Number(d.amount),
           currency: d.currency || 'EUR',
           reason: d.reason,

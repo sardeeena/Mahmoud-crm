@@ -696,7 +696,7 @@ export async function listVessels(): Promise<DbVessel[]> {
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.from('vessels').select('*').order('name');
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         vessels = data as DbVessel[];
         setLocal(LOCAL_VESSELS_KEY, vessels);
       }
@@ -771,7 +771,7 @@ export async function listGuides(): Promise<DbGuide[]> {
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.from('guides').select('*').order('full_name');
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         guides = data as DbGuide[];
         setLocal(LOCAL_GUIDES_KEY, guides);
       }
@@ -843,7 +843,7 @@ export async function listAssignments(dateTarget?: string): Promise<OperationalA
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.from('operational_assignments').select('*');
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         assignments = data.map((d) => ({
           id: d.id,
           tourId: d.tour_id,
@@ -1009,7 +1009,7 @@ export async function listWeatherBulletins(): Promise<DbWeatherBulletin[]> {
         .from('weather_bulletins')
         .select('*')
         .order('bulletin_date', { ascending: false });
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         weather = data as DbWeatherBulletin[];
         setLocal(LOCAL_WEATHER_KEY, weather);
       }

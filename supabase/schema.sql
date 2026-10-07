@@ -2354,4 +2354,399 @@ CREATE POLICY "Admins can manage media assets"
     WITH CHECK (public.is_admin());
 
 
+-- ==============================================================================
+-- 20. CRM SYSTEM (LEADS, TASKS, COMMUNICATIONS, NOTES, ACTIVITIES)
+-- ==============================================================================
+ALTER TABLE public.customers
+    ADD COLUMN IF NOT EXISTS whatsapp TEXT,
+    ADD COLUMN IF NOT EXISTS notes TEXT,
+    ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}',
+    ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'Website',
+    ADD COLUMN IF NOT EXISTS last_contact_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS total_revenue NUMERIC(10,2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS outstanding_amount NUMERIC(10,2) DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS public.leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    whatsapp TEXT,
+    country TEXT,
+    hotel TEXT,
+    source TEXT NOT NULL DEFAULT 'Website',
+    interested_tour_id UUID REFERENCES public.tours(id) ON DELETE SET NULL,
+    interested_tour_title TEXT,
+    travel_date DATE,
+    number_of_guests INT NOT NULL DEFAULT 1,
+    estimated_value NUMERIC(10,2) NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'EUR',
+    stage TEXT NOT NULL DEFAULT 'New',
+    notes TEXT,
+    assigned_staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    assigned_staff_name TEXT,
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    follow_up_date TIMESTAMPTZ,
+    lost_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leads_stage ON public.leads(stage);
+CREATE INDEX IF NOT EXISTS idx_leads_assigned ON public.leads(assigned_staff_id);
+CREATE INDEX IF NOT EXISTS idx_leads_follow_up ON public.leads(follow_up_date);
+CREATE INDEX IF NOT EXISTS idx_leads_created_at ON public.leads(created_at DESC);
+
+DROP TRIGGER IF EXISTS trigger_leads_updated_at ON public.leads;
+CREATE TRIGGER trigger_leads_updated_at
+    BEFORE UPDATE ON public.leads
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.crm_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT,
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    customer_name TEXT,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
+    lead_name TEXT,
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+    booking_reference TEXT,
+    assigned_staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    assigned_staff_name TEXT,
+    due_date TIMESTAMPTZ,
+    priority TEXT NOT NULL DEFAULT 'Medium',
+    status TEXT NOT NULL DEFAULT 'Pending',
+    is_follow_up BOOLEAN NOT NULL DEFAULT FALSE,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_tasks_status ON public.crm_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_crm_tasks_due_date ON public.crm_tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_crm_tasks_customer ON public.crm_tasks(customer_id);
+CREATE INDEX IF NOT EXISTS idx_crm_tasks_lead ON public.crm_tasks(lead_id);
+
+DROP TRIGGER IF EXISTS trigger_crm_tasks_updated_at ON public.crm_tasks;
+CREATE TRIGGER trigger_crm_tasks_updated_at
+    BEFORE UPDATE ON public.crm_tasks
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.crm_communications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    customer_name TEXT,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+    channel TEXT NOT NULL DEFAULT 'WhatsApp',
+    direction TEXT NOT NULL DEFAULT 'outbound',
+    summary TEXT NOT NULL,
+    content TEXT,
+    staff_name TEXT NOT NULL DEFAULT 'Admin Staff',
+    staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_comms_customer ON public.crm_communications(customer_id);
+CREATE INDEX IF NOT EXISTS idx_crm_comms_created_at ON public.crm_communications(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.crm_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+    content TEXT NOT NULL,
+    staff_name TEXT NOT NULL DEFAULT 'Staff Member',
+    staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_notes_customer ON public.crm_notes(customer_id);
+
+CREATE TABLE IF NOT EXISTS public.crm_activities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    actor TEXT NOT NULL DEFAULT 'System',
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_act_customer ON public.crm_activities(customer_id);
+CREATE INDEX IF NOT EXISTS idx_crm_act_created ON public.crm_activities(created_at DESC);
+
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_communications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_activities ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Staff can manage leads" ON public.leads;
+CREATE POLICY "Staff can manage leads" ON public.leads FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage crm tasks" ON public.crm_tasks;
+CREATE POLICY "Staff can manage crm tasks" ON public.crm_tasks FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage crm communications" ON public.crm_communications;
+CREATE POLICY "Staff can manage crm communications" ON public.crm_communications FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage crm notes" ON public.crm_notes;
+CREATE POLICY "Staff can manage crm notes" ON public.crm_notes FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can view crm activities" ON public.crm_activities;
+CREATE POLICY "Staff can view crm activities" ON public.crm_activities FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+
+-- ==============================================================================
+-- 21. OPERATIONS SYSTEM (DEPARTURES, ASSIGNMENTS, MANIFESTS)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.operational_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    departure_time TEXT NOT NULL DEFAULT '08:30',
+    vessel_id UUID REFERENCES public.vessels(id) ON DELETE SET NULL,
+    guide_id UUID REFERENCES public.guides(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'Scheduled' CHECK (status IN ('Scheduled', 'Preparing', 'Ready', 'Departed', 'Completed', 'Cancelled')),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(tour_id, date, departure_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_op_assign_date ON public.operational_assignments(date);
+CREATE INDEX IF NOT EXISTS idx_op_assign_tour ON public.operational_assignments(tour_id);
+CREATE INDEX IF NOT EXISTS idx_op_assign_vessel ON public.operational_assignments(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_op_assign_guide ON public.operational_assignments(guide_id);
+
+ALTER TABLE public.bookings
+    ADD COLUMN IF NOT EXISTS operational_status TEXT DEFAULT 'Scheduled',
+    ADD COLUMN IF NOT EXISTS pickup_status TEXT DEFAULT 'Waiting',
+    ADD COLUMN IF NOT EXISTS pickup_time TEXT,
+    ADD COLUMN IF NOT EXISTS driver_vehicle TEXT,
+    ADD COLUMN IF NOT EXISTS assigned_vessel_id UUID REFERENCES public.vessels(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS assigned_guide_id UUID REFERENCES public.guides(id) ON DELETE SET NULL;
+
+ALTER TABLE public.booking_passengers
+    ADD COLUMN IF NOT EXISTS date_of_birth DATE,
+    ADD COLUMN IF NOT EXISTS gender TEXT,
+    ADD COLUMN IF NOT EXISTS phone TEXT,
+    ADD COLUMN IF NOT EXISTS special_requests TEXT,
+    ADD COLUMN IF NOT EXISTS pickup_location TEXT;
+
+ALTER TABLE public.operational_assignments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Staff can manage operational assignments" ON public.operational_assignments;
+CREATE POLICY "Staff can manage operational assignments"
+    ON public.operational_assignments FOR ALL
+    TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
+
+-- ==============================================================================
+-- 22. FINANCE SYSTEM (PAYMENTS, INVOICES, REFUNDS, AUDIT TRAIL)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.payment_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE RESTRICT,
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    currency TEXT NOT NULL DEFAULT 'EUR',
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('Cash', 'Card', 'Bank Transfer', 'Online Payment', 'Other')),
+    status TEXT NOT NULL DEFAULT 'Paid' CHECK (status IN ('Pending', 'Paid', 'Partially Paid', 'Failed', 'Refunded')),
+    transaction_reference TEXT,
+    notes TEXT,
+    recorded_by TEXT DEFAULT 'Staff',
+    payment_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_booking ON public.payment_transactions(booking_id);
+CREATE INDEX IF NOT EXISTS idx_payments_customer ON public.payment_transactions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_payments_date ON public.payment_transactions(payment_date);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON public.payment_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_payments_currency ON public.payment_transactions(currency);
+
+CREATE TABLE IF NOT EXISTS public.refund_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE RESTRICT,
+    payment_id UUID REFERENCES public.payment_transactions(id) ON DELETE SET NULL,
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    currency TEXT NOT NULL DEFAULT 'EUR',
+    reason TEXT NOT NULL,
+    refund_method TEXT NOT NULL DEFAULT 'Card Reversal',
+    transaction_reference TEXT,
+    notes TEXT,
+    processed_by TEXT DEFAULT 'Staff',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_refunds_booking ON public.refund_records(booking_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_customer ON public.refund_records(customer_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_date ON public.refund_records(created_at);
+
+CREATE TABLE IF NOT EXISTS public.invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_number TEXT NOT NULL UNIQUE,
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE RESTRICT,
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    subtotal NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    discount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    tax_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    total NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    paid NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    balance NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    currency TEXT NOT NULL DEFAULT 'EUR',
+    status TEXT NOT NULL DEFAULT 'issued' CHECK (status IN ('draft', 'issued', 'paid', 'partially_paid', 'overdue', 'cancelled')),
+    line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    company_details JSONB NOT NULL DEFAULT '{}'::jsonb,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_number ON public.invoices(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_invoices_booking ON public.invoices(booking_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON public.invoices(status);
+
+ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.refund_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Staff can manage payments" ON public.payment_transactions;
+CREATE POLICY "Staff can manage payments" ON public.payment_transactions
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage refunds" ON public.refund_records;
+CREATE POLICY "Staff can manage refunds" ON public.refund_records
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage invoices" ON public.invoices;
+CREATE POLICY "Staff can manage invoices" ON public.invoices
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Customers can view their own payments" ON public.payment_transactions;
+CREATE POLICY "Customers can view their own payments" ON public.payment_transactions
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.bookings b
+            WHERE b.id = payment_transactions.booking_id
+              AND b.user_id = (SELECT auth.uid())
+        )
+    );
+
+DROP POLICY IF EXISTS "Customers can view their own invoices" ON public.invoices;
+CREATE POLICY "Customers can view their own invoices" ON public.invoices
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.bookings b
+            WHERE b.id = invoices.booking_id
+              AND b.user_id = (SELECT auth.uid())
+        )
+    );
+
+
+-- ==============================================================================
+-- 23. COMMUNICATIONS SYSTEM (MESSAGES, TEMPLATES, NOTIFICATIONS)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.communication_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    channel TEXT NOT NULL CHECK (channel IN ('Email', 'WhatsApp')),
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    customer_name TEXT,
+    recipient_address TEXT NOT NULL,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+    booking_reference TEXT,
+    template_key TEXT,
+    subject TEXT,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Queued' CHECK (status IN ('Queued', 'Sent', 'Delivered', 'Failed')),
+    provider_name TEXT DEFAULT 'None',
+    provider_message_id TEXT,
+    failure_reason TEXT,
+    sent_at TIMESTAMPTZ,
+    delivered_at TIMESTAMPTZ,
+    staff_name TEXT NOT NULL DEFAULT 'System Dispatcher',
+    staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comm_msgs_channel ON public.communication_messages(channel);
+CREATE INDEX IF NOT EXISTS idx_comm_msgs_status ON public.communication_messages(status);
+CREATE INDEX IF NOT EXISTS idx_comm_msgs_customer ON public.communication_messages(customer_id);
+CREATE INDEX IF NOT EXISTS idx_comm_msgs_booking ON public.communication_messages(booking_id);
+CREATE INDEX IF NOT EXISTS idx_comm_msgs_created ON public.communication_messages(created_at);
+
+CREATE TABLE IF NOT EXISTS public.communication_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_key TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'Both' CHECK (channel IN ('Email', 'WhatsApp', 'Both')),
+    subject TEXT,
+    body_text TEXT NOT NULL,
+    variables JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.staff_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category TEXT NOT NULL CHECK (category IN (
+        'new_booking',
+        'new_inquiry',
+        'payment_pending',
+        'cancellation',
+        'new_review',
+        'followup_due',
+        'operational_issue'
+    )),
+    dedup_key TEXT UNIQUE,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical', 'success')),
+    entity_type TEXT,
+    entity_id TEXT,
+    link_tab TEXT,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_staff_notif_unread ON public.staff_notifications(is_read, created_at);
+CREATE INDEX IF NOT EXISTS idx_staff_notif_category ON public.staff_notifications(category);
+
+ALTER TABLE public.communication_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.communication_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Staff can manage communication messages" ON public.communication_messages;
+CREATE POLICY "Staff can manage communication messages" ON public.communication_messages
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage templates" ON public.communication_templates;
+CREATE POLICY "Staff can manage templates" ON public.communication_templates
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage notifications" ON public.staff_notifications;
+CREATE POLICY "Staff can manage notifications" ON public.staff_notifications
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+
+
 

@@ -642,7 +642,7 @@ export async function listCommunicationMessages(filter?: {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         messages = data.map((d) => ({
           id: d.id,
           channel: d.channel as CommunicationChannel,

@@ -274,7 +274,7 @@ export async function listLeads(filter?: {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         leads = data.map((d) => ({
           id: d.id,
           name: d.name,
@@ -517,7 +517,7 @@ export async function listTasks(filter?: {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         tasks = data.map((d) => ({
           id: d.id,
           title: d.title,
@@ -760,7 +760,7 @@ export async function listCommunications(filter?: {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         comms = data.map((d) => ({
           id: d.id,
           customerId: d.customer_id,
@@ -852,7 +852,7 @@ export async function listNotes(filter?: {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         notes = data.map((d) => ({
           id: d.id,
           customerId: d.customer_id,
@@ -973,7 +973,7 @@ export async function getGlobalActivityTimeline(limit: number = 50): Promise<Crm
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         activities = data.map((d) => ({
           id: d.id,
           customerId: d.customer_id,

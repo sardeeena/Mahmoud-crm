@@ -148,7 +148,7 @@ export async function listInquiries(filter?: { status?: string }): Promise<DbInq
       }
 
       const { data, error } = await query;
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return data as DbInquiry[];
       }
     } catch (err) {

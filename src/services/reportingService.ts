@@ -228,7 +228,7 @@ export async function fetchExecutiveReport(interval: DateRangeInterval): Promise
   const totalDemand = intervalInquiries.length + nonCancelledBookings.length;
   const conversionRate = totalDemand > 0
     ? Math.round((nonCancelledBookings.length / totalDemand) * 1000) / 10
-    : 72.5;
+    : 0;
 
   const averageBookingValueEur = nonCancelledBookings.length > 0
     ? Math.round((revenueEur / nonCancelledBookings.length) * 100) / 100
@@ -368,8 +368,15 @@ export async function fetchSalesReport(interval: DateRangeInterval): Promise<Sal
   });
   bookingsBySource.sort((a, b) => b.count - a.count);
 
-  // Conversion rate
-  const conversionRate = totalBookingsCount > 0 ? 68.4 : 0;
+  // Conversion rate based on demand (bookings + inquiries in interval)
+  const intervalInquiries = inquiries.filter((inq) => {
+    const inqDate = (inq.created_at || '').split('T')[0];
+    return inqDate >= interval.startDate && inqDate <= interval.endDate;
+  });
+  const totalDemand = intervalInquiries.length + totalBookingsCount;
+  const conversionRate = totalDemand > 0
+    ? Math.round((totalBookingsCount / totalDemand) * 1000) / 10
+    : 0;
 
   return {
     totalRevenueEur,
@@ -583,9 +590,18 @@ export async function fetchOperationsReport(interval: DateRangeInterval): Promis
       return a.vesselId === ves.id && aDate >= interval.startDate && aDate <= interval.endDate;
     });
 
-    const tripsCount = Math.max(vesAssignments.length, 1);
-    // Passengers carried on this vessel
-    const carried = Math.round(tripsCount * (ves.passenger_capacity * 0.72));
+    const tripsCount = vesAssignments.length;
+    // Passengers carried on this vessel based on matching excursion bookings
+    let carried = 0;
+    vesAssignments.forEach((va) => {
+      const matched = activeBookings.filter(
+        (b) => b.date === va.date && (b.tourId === va.tourId || b.tourSlug === va.tourId) && b.status !== 'cancelled'
+      );
+      matched.forEach((b) => {
+        carried += (b.guests?.adults || 1) + (b.guests?.children || 0) + (b.guests?.infants || 0);
+      });
+    });
+
     const totalCap = tripsCount * ves.passenger_capacity;
     const utilPct = totalCap > 0 ? Math.min(100, Math.round((carried / totalCap) * 100)) : 0;
 

@@ -290,10 +290,28 @@ To verify:
 - `newsletter_subscriptions`: Traveler email subscriptions with assigned promo codes (`REDSEA15`) and source tracking.
 - `reviews`: Verified traveler ratings and reviews with star scores.
 
-### 7. System & Metadata
-- `seo_metadata`: Canonical SEO tags, OpenGraph cards, and search keywords.
-- `site_settings`: Global business hours, WhatsApp hotline numbers, and company legal info.
-- `audit_logs`: Audit trail recording administrative actions.
+### 8. CRM & Leads Pipeline
+- `leads`: Full lead progression pipeline (`New`, `Contacted`, `Interested`, `Quotation Sent`, `Booking Pending`, `Booked`, `Completed`, `Lost`) with estimated value, tour interest, and follow-up dates.
+- `crm_tasks`: Follow-ups and task queue with priorities (`Low`, `Medium`, `High`, `Urgent`) and due dates.
+- `crm_communications`: Channel interaction logs (WhatsApp, Email, Phone, In-Person).
+- `crm_notes`: Internal agent and concierge notes with pinning support.
+- `crm_activities`: Unified chronological customer activity feed.
+
+### 9. Operations & Fleet Dispatch
+- `operational_assignments`: Daily departure assignments linking tour, date, time, vessel, and guide/captain.
+
+### 10. Finance & Audit Trail
+- `payment_transactions`: Immutable payment ledger (Cash, Card, Bank Transfer, Online Payment) with status (`Pending`, `Paid`, `Partially Paid`, `Failed`, `Refunded`).
+- `refund_records`: Controlled refund audit records preventing silent modification of historical payments.
+- `invoices`: Formal invoice generation with line items, tax, discounts, paid amount, and outstanding balances.
+
+### 11. Communications & Notifications
+- `communication_messages`: Full dispatch audit trail for Email and WhatsApp with delivery states (`Queued`, `Sent`, `Delivered`, `Failed`) and provider tracking.
+- `communication_templates`: Reusable email and WhatsApp templates with dynamic variables (`{{customer_name}}`, `{{booking_reference}}`, `{{tour_name}}`, etc.).
+- `staff_notifications`: Internal deduplicated staff notifications across 7 operational categories with severity levels.
+
+### 12. Media Assets
+- `media_assets`: Centralized media library tracking Supabase Storage paths, mime types, file sizes, and tour associations.
 
 ---
 
