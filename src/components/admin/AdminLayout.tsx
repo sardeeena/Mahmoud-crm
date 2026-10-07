@@ -33,6 +33,9 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
+  MessageSquare,
+  Bell,
+  History,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
@@ -82,7 +85,12 @@ export type AdminTab =
   | 'fin_refunds'
   | 'fin_balances'
   | 'fin_revenue'
-  | 'fin_reports';
+  | 'fin_reports'
+  | 'comm_email'
+  | 'comm_whatsapp'
+  | 'comm_templates'
+  | 'comm_notifications'
+  | 'comm_history';
 
 interface AdminLayoutProps {
   activeTab: AdminTab;
@@ -147,6 +155,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'fin_balances', label: 'Outstanding Balances', icon: AlertCircle },
     { id: 'fin_revenue', label: 'Revenue Analysis', icon: DollarSign },
     { id: 'fin_reports', label: 'Financial Reports', icon: TrendingUp },
+
+    // COMMUNICATIONS SECTION
+    { id: 'header_comm', label: 'COMMUNICATIONS & DISPATCH', isHeader: true },
+    { id: 'comm_email', label: 'Email Dispatcher', icon: Mail },
+    { id: 'comm_whatsapp', label: 'WhatsApp Console', icon: MessageSquare },
+    { id: 'comm_templates', label: 'Message Templates', icon: FileText },
+    { id: 'comm_notifications', label: 'Staff Notifications', icon: Bell },
+    { id: 'comm_history', label: 'Communication History', icon: History },
 
     // CRM SECTION
     { id: 'header_crm', label: 'CRM & TRAVELERS', isHeader: true },

@@ -100,6 +100,13 @@ import { FinanceOutstandingBalances } from './components/admin/finance/FinanceOu
 import { FinanceRevenue } from './components/admin/finance/FinanceRevenue';
 import { FinanceReports } from './components/admin/finance/FinanceReports';
 
+// Communications Modules
+import { CommunicationsEmail } from './components/admin/communications/CommunicationsEmail';
+import { CommunicationsWhatsApp } from './components/admin/communications/CommunicationsWhatsApp';
+import { CommunicationsTemplates } from './components/admin/communications/CommunicationsTemplates';
+import { CommunicationsNotifications } from './components/admin/communications/CommunicationsNotifications';
+import { CommunicationsHistory } from './components/admin/communications/CommunicationsHistory';
+
 function MainApp() {
   const { user, isAdmin, loading: authLoading, refreshUser, checkAdminAccess } = useAuth();
   const [currentCurrency, setCurrentCurrency] = useState<CurrencyConfig>(CURRENCY_CONFIGS.EUR);
@@ -553,6 +560,20 @@ function MainApp() {
       } else {
         activeAdminTab = 'fin_payments';
       }
+    } else if (adminSubRoute?.main === 'communications' || adminSubRoute?.main === 'comm') {
+      if (adminSubRoute.sub === 'email' || adminSubRoute.sub === 'mail') {
+        activeAdminTab = 'comm_email';
+      } else if (adminSubRoute.sub === 'whatsapp' || adminSubRoute.sub === 'wa') {
+        activeAdminTab = 'comm_whatsapp';
+      } else if (adminSubRoute.sub === 'templates' || adminSubRoute.sub === 'tmpl') {
+        activeAdminTab = 'comm_templates';
+      } else if (adminSubRoute.sub === 'notifications' || adminSubRoute.sub === 'notif') {
+        activeAdminTab = 'comm_notifications';
+      } else if (adminSubRoute.sub === 'history' || adminSubRoute.sub === 'log') {
+        activeAdminTab = 'comm_history';
+      } else {
+        activeAdminTab = 'comm_email';
+      }
     } else if (
       adminSubRoute?.main &&
       [
@@ -597,6 +618,11 @@ function MainApp() {
         'fin_balances',
         'fin_revenue',
         'fin_reports',
+        'comm_email',
+        'comm_whatsapp',
+        'comm_templates',
+        'comm_notifications',
+        'comm_history',
       ].includes(adminSubRoute.main)
     ) {
       activeAdminTab = adminSubRoute.main as AdminTab;
@@ -704,6 +730,37 @@ function MainApp() {
         )}
 
         {activeAdminTab === 'fin_reports' && <FinanceReports />}
+
+        {/* COMMUNICATIONS MODULES */}
+        {activeAdminTab === 'comm_email' && (
+          <CommunicationsEmail
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'comm_whatsapp' && (
+          <CommunicationsWhatsApp
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'comm_templates' && (
+          <CommunicationsTemplates
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'comm_notifications' && (
+          <CommunicationsNotifications
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
+
+        {activeAdminTab === 'comm_history' && (
+          <CommunicationsHistory
+            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+          />
+        )}
 
         {/* CRM Modules */}
         {activeAdminTab === 'crm_dashboard' && (

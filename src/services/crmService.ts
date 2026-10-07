@@ -923,6 +923,10 @@ export async function addStaffNote(input: Partial<CrmNote>): Promise<CrmNote> {
 // TIMELINE ACTIVITIES SERVICE
 // ------------------------------------------------------------------------------
 
+export const logActivity = async (act: Partial<CrmActivity>): Promise<void> => {
+  return recordActivity(act);
+};
+
 export async function recordActivity(act: Partial<CrmActivity>): Promise<void> {
   const newAct: CrmActivity = {
     id: `act-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
