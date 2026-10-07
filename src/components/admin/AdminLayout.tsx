@@ -42,6 +42,10 @@ import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '.
 
 export type AdminTab =
   | 'dashboard'
+  | 'dash_sales'
+  | 'dash_ops'
+  | 'dash_customers'
+  | 'dash_finance'
   | 'tours'
   | 'tour_new'
   | 'tour_edit'
@@ -122,7 +126,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     isHeader?: boolean;
     children?: Array<{ id: string; label: string }>;
   }> = [
-    { id: 'dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
+    {
+      id: 'dashboard',
+      label: 'Executive Dashboard',
+      icon: LayoutDashboard,
+      children: [
+        { id: 'dashboard', label: '1. Executive Overview' },
+        { id: 'dash_sales', label: '2. Sales Dashboard' },
+        { id: 'dash_ops', label: '3. Operations Dashboard' },
+        { id: 'dash_customers', label: '4. Customer Dashboard' },
+        { id: 'dash_finance', label: '5. Finance Dashboard' },
+      ],
+    },
     {
       id: 'tours',
       label: 'Tours & Excursions',

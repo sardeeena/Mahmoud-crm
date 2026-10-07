@@ -491,7 +491,19 @@ function MainApp() {
     let activeAdminTab: AdminTab = 'dashboard';
     let editTourId: string | undefined = undefined;
 
-    if (adminSubRoute?.main === 'tours') {
+    if (adminSubRoute?.main === 'dashboard' || adminSubRoute?.main === 'dash') {
+      if (adminSubRoute.sub === 'sales') {
+        activeAdminTab = 'dash_sales';
+      } else if (adminSubRoute.sub === 'ops' || adminSubRoute.sub === 'operations') {
+        activeAdminTab = 'dash_ops';
+      } else if (adminSubRoute.sub === 'customers' || adminSubRoute.sub === 'cust') {
+        activeAdminTab = 'dash_customers';
+      } else if (adminSubRoute.sub === 'finance' || adminSubRoute.sub === 'fin') {
+        activeAdminTab = 'dash_finance';
+      } else {
+        activeAdminTab = 'dashboard';
+      }
+    } else if (adminSubRoute?.main === 'tours') {
       if (adminSubRoute.sub === 'new') {
         activeAdminTab = 'tour_new';
       } else if (adminSubRoute.sub && adminSubRoute.action === 'edit') {
@@ -623,6 +635,10 @@ function MainApp() {
         'comm_templates',
         'comm_notifications',
         'comm_history',
+        'dash_sales',
+        'dash_ops',
+        'dash_customers',
+        'dash_finance',
       ].includes(adminSubRoute.main)
     ) {
       activeAdminTab = adminSubRoute.main as AdminTab;
@@ -638,6 +654,39 @@ function MainApp() {
           <AdminDashboard
             onNavigateTab={handleAdminSelectTab}
             onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            initialViewMode="executive"
+          />
+        )}
+
+        {activeAdminTab === 'dash_sales' && (
+          <AdminDashboard
+            onNavigateTab={handleAdminSelectTab}
+            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            initialViewMode="sales"
+          />
+        )}
+
+        {activeAdminTab === 'dash_ops' && (
+          <AdminDashboard
+            onNavigateTab={handleAdminSelectTab}
+            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            initialViewMode="operations"
+          />
+        )}
+
+        {activeAdminTab === 'dash_customers' && (
+          <AdminDashboard
+            onNavigateTab={handleAdminSelectTab}
+            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            initialViewMode="customers"
+          />
+        )}
+
+        {activeAdminTab === 'dash_finance' && (
+          <AdminDashboard
+            onNavigateTab={handleAdminSelectTab}
+            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            initialViewMode="finance"
           />
         )}
 
