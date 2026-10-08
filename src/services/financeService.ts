@@ -3,12 +3,15 @@ import {
   FinancePayment,
   FinancePaymentMethod,
   FinancePaymentStatus,
+  PaymentProvider,
   FinanceInvoice,
   InvoiceLineItem,
   FinanceRefund,
+  RefundStatus,
   OutstandingBalanceItem,
   FinancialReportData,
   CompanyBillingDetails,
+  CurrencyBreakdownItem,
 } from '../types/finance';
 import { bookingRepository } from './bookingRepository';
 import { Booking } from '../types/booking';
@@ -16,6 +19,7 @@ import { Booking } from '../types/booking';
 const LOCAL_PAYMENTS_KEY = 'rse_fin_payments';
 const LOCAL_INVOICES_KEY = 'rse_fin_invoices';
 const LOCAL_REFUNDS_KEY = 'rse_fin_refunds';
+const LOCAL_PROVIDERS_KEY = 'rse_fin_providers';
 
 export const COMPANY_DETAILS: CompanyBillingDetails = {
   name: 'Red Sea Voyages S.A.E.',
@@ -32,6 +36,54 @@ export const COMPANY_DETAILS: CompanyBillingDetails = {
   iban: 'EG4200100014000001099238472',
   swiftBic: 'CIBEEGCX',
 };
+
+export const DEFAULT_PROVIDERS: PaymentProvider[] = [
+  {
+    id: 'cash',
+    name: 'Marina Office Cash Desk',
+    providerType: 'manual',
+    isConnected: true,
+    isManual: true,
+    supportedCurrencies: ['EUR', 'USD', 'GBP', 'EGP'],
+    description: 'In-person physical cash collection at Hurghada Marina pier or hotel pickup.',
+  },
+  {
+    id: 'pos_terminal',
+    name: 'Pier Mobile POS Terminal',
+    providerType: 'manual',
+    isConnected: true,
+    isManual: true,
+    supportedCurrencies: ['EUR', 'USD', 'GBP', 'EGP'],
+    description: 'Physical chip & PIN / contactless terminal managed by pier desk supervisor.',
+  },
+  {
+    id: 'bank_transfer',
+    name: 'CIB Bank Official Wire',
+    providerType: 'bank_transfer',
+    isConnected: true,
+    isManual: true,
+    supportedCurrencies: ['EUR', 'USD', 'GBP', 'EGP'],
+    description: 'Direct wire transfer to Commercial International Bank (Egypt) account.',
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe Payments',
+    providerType: 'gateway',
+    isConnected: false,
+    isManual: false,
+    supportedCurrencies: ['EUR', 'USD', 'GBP'],
+    description: 'Online card processing. Currently disconnected (No server-side Stripe secret key configured).',
+  },
+  {
+    id: 'paypal',
+    name: 'PayPal Gateway',
+    providerType: 'gateway',
+    isConnected: false,
+    isManual: false,
+    supportedCurrencies: ['EUR', 'USD', 'GBP'],
+    description: 'Digital wallet gateway. Currently disconnected (PayPal client ID not configured).',
+  },
+];
 
 function getLocal<T>(key: string, fallback: T): T {
   try {
@@ -50,10 +102,43 @@ function setLocal<T>(key: string, data: T): void {
   }
 }
 
-/**
- * Automatically derives seed payments from existing system bookings
- * if the finance ledger is empty.
- */
+// ------------------------------------------------------------------------------
+// PAYMENT PROVIDERS (Honest Integration Registry)
+// ------------------------------------------------------------------------------
+
+export async function listPaymentProviders(): Promise<PaymentProvider[]> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('payment_providers')
+        .select('*')
+        .order('is_connected', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const mapped: PaymentProvider[] = data.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          providerType: d.provider_type,
+          isConnected: d.is_connected,
+          isManual: d.is_manual,
+          supportedCurrencies: d.supported_currencies || ['EUR', 'USD', 'GBP', 'EGP'],
+          description: d.description || '',
+        }));
+        setLocal(LOCAL_PROVIDERS_KEY, mapped);
+        return mapped;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return getLocal<PaymentProvider[]>(LOCAL_PROVIDERS_KEY, DEFAULT_PROVIDERS);
+}
+
+// ------------------------------------------------------------------------------
+// 1. PAYMENTS LEDGER
+// ------------------------------------------------------------------------------
+
 async function ensureSeedPayments(): Promise<FinancePayment[]> {
   const current = getLocal<FinancePayment[]>(LOCAL_PAYMENTS_KEY, []);
   if (current.length > 0) return current;
@@ -77,6 +162,8 @@ async function ensureSeedPayments(): Promise<FinancePayment[]> {
         amount: total,
         currency: 'EUR',
         paymentMethod: b.paymentMethod === 'pay_online' ? 'Online Payment' : 'Cash',
+        provider: b.paymentMethod === 'pay_online' ? 'pos_terminal' : 'cash',
+        isManual: true,
         paymentStatus: 'Paid',
         paymentDate: b.createdAt || new Date().toISOString(),
         transactionReference: `TXN-${b.bookingReference.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -99,6 +186,8 @@ async function ensureSeedPayments(): Promise<FinancePayment[]> {
         amount: partialAmount,
         currency: 'EUR',
         paymentMethod: 'Card',
+        provider: 'pos_terminal',
+        isManual: true,
         paymentStatus: 'Partially Paid',
         paymentDate: b.createdAt || new Date().toISOString(),
         transactionReference: `DEP-${b.bookingReference.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -113,15 +202,12 @@ async function ensureSeedPayments(): Promise<FinancePayment[]> {
   return generated;
 }
 
-// ------------------------------------------------------------------------------
-// 1. PAYMENTS LEDGER
-// ------------------------------------------------------------------------------
-
 export async function listPayments(filter?: {
   bookingId?: string;
   customerId?: string;
   status?: string;
   method?: string;
+  provider?: string;
   currency?: string;
   search?: string;
 }): Promise<FinancePayment[]> {
@@ -135,17 +221,19 @@ export async function listPayments(filter?: {
         .order('payment_date', { ascending: false });
 
       if (!error && data) {
-        payments = data.map((d) => ({
+        payments = data.map((d: any) => ({
           id: d.id,
           bookingId: d.booking_id,
-          bookingReference: (d as any).booking_reference || d.booking_id,
+          bookingReference: d.booking_reference || d.booking_id,
           customerId: d.customer_id,
-          customerName: (d as any).customer_name || 'Guest',
-          customerEmail: (d as any).customer_email || '',
-          customerPhone: (d as any).customer_phone || null,
+          customerName: d.customer_name || 'Guest',
+          customerEmail: d.customer_email || '',
+          customerPhone: d.customer_phone || null,
           amount: Number(d.amount),
           currency: d.currency || 'EUR',
           paymentMethod: d.payment_method as FinancePaymentMethod,
+          provider: d.provider || 'cash',
+          isManual: d.is_manual ?? true,
           paymentStatus: d.status as FinancePaymentStatus,
           paymentDate: d.payment_date,
           transactionReference: d.transaction_reference || `TXN-${d.id.substring(0, 8)}`,
@@ -164,8 +252,13 @@ export async function listPayments(filter?: {
   return payments.filter((p) => {
     if (filter?.bookingId && p.bookingId !== filter.bookingId && p.bookingReference !== filter.bookingId) return false;
     if (filter?.customerId && p.customerId !== filter.customerId) return false;
-    if (filter?.status && filter.status !== 'all' && p.paymentStatus !== filter.status) return false;
+    if (filter?.status && filter.status !== 'all') {
+      const pNorm = p.paymentStatus.toLowerCase();
+      const fNorm = filter.status.toLowerCase();
+      if (pNorm !== fNorm) return false;
+    }
     if (filter?.method && filter.method !== 'all' && p.paymentMethod !== filter.method) return false;
+    if (filter?.provider && filter.provider !== 'all' && p.provider !== filter.provider) return false;
     if (filter?.currency && filter.currency !== 'all' && p.currency !== filter.currency) return false;
     if (filter?.search?.trim()) {
       const q = filter.search.toLowerCase();
@@ -191,12 +284,29 @@ export async function recordPayment(paymentData: {
   amount: number;
   currency: string;
   paymentMethod: FinancePaymentMethod;
+  provider?: string;
+  isManual?: boolean;
   paymentStatus: FinancePaymentStatus;
   paymentDate?: string;
   transactionReference?: string;
   notes?: string | null;
   recordedBy?: string;
 }): Promise<FinancePayment> {
+  // Provider Validation: Do NOT pretend provider is connected
+  const providers = await listPaymentProviders();
+  const selectedProviderId = paymentData.provider || (paymentData.paymentMethod === 'Cash' ? 'cash' : 'pos_terminal');
+  const providerDef = providers.find((p) => p.id === selectedProviderId);
+
+  if (providerDef && !providerDef.isConnected && !providerDef.isManual) {
+    throw new Error(
+      `Payment provider "${providerDef.name}" is currently disconnected. Live API keys are not provisioned. Please record this payment using an active manual provider (Cash Office, Pier POS, or Bank Wire).`
+    );
+  }
+
+  if (paymentData.amount <= 0) {
+    throw new Error('Payment amount must be greater than zero.');
+  }
+
   const allPayments = await listPayments();
   const paymentDate = paymentData.paymentDate || new Date().toISOString();
   const txRef =
@@ -214,6 +324,8 @@ export async function recordPayment(paymentData: {
     amount: Number(paymentData.amount),
     currency: paymentData.currency || 'EUR',
     paymentMethod: paymentData.paymentMethod,
+    provider: selectedProviderId,
+    isManual: providerDef ? providerDef.isManual : true,
     paymentStatus: paymentData.paymentStatus,
     paymentDate,
     transactionReference: txRef,
@@ -225,7 +337,7 @@ export async function recordPayment(paymentData: {
   const updatedPayments = [newPayment, ...allPayments];
   setLocal(LOCAL_PAYMENTS_KEY, updatedPayments);
 
-  // Recalculate booking payment status in bookingRepository
+  // Recalculate booking payment status server/service side
   try {
     const allBookings = await bookingRepository.listBookings();
     const targetBooking = allBookings.find(
@@ -236,15 +348,25 @@ export async function recordPayment(paymentData: {
       const bookingPayments = updatedPayments.filter(
         (p) =>
           (p.bookingReference === targetBooking.bookingReference || p.bookingId === targetBooking.bookingId) &&
-          p.paymentStatus === 'Paid'
+          (p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
       );
       const totalPaid = bookingPayments.reduce((sum, p) => sum + p.amount, 0);
+
+      // Subtract processed refunds
+      const allRefunds = await listRefunds();
+      const processedRefunds = allRefunds.filter(
+        (r) =>
+          (r.bookingReference === targetBooking.bookingReference || r.bookingId === targetBooking.bookingId) &&
+          r.status === 'processed'
+      );
+      const totalRefunded = processedRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
+      const netPaid = Math.max(0, totalPaid - totalRefunded);
       const bookingTotal = targetBooking.pricing?.totalEur || 0;
 
       let nextStatus: any = 'pending';
-      if (totalPaid >= bookingTotal) {
+      if (netPaid >= bookingTotal) {
         nextStatus = 'paid';
-      } else if (totalPaid > 0) {
+      } else if (netPaid > 0) {
         nextStatus = 'partially_paid';
       }
 
@@ -264,10 +386,16 @@ export async function recordPayment(paymentData: {
       await supabase.from('payment_transactions').insert({
         id: newPayment.id.startsWith('pay-') ? undefined : newPayment.id,
         booking_id: newPayment.bookingId,
+        booking_reference: newPayment.bookingReference,
         customer_id: newPayment.customerId,
+        customer_name: newPayment.customerName,
+        customer_email: newPayment.customerEmail,
+        customer_phone: newPayment.customerPhone,
         amount: newPayment.amount,
         currency: newPayment.currency,
         payment_method: newPayment.paymentMethod,
+        provider: newPayment.provider,
+        is_manual: newPayment.isManual,
         status: newPayment.paymentStatus,
         transaction_reference: newPayment.transactionReference,
         notes: newPayment.notes,
@@ -293,6 +421,52 @@ export async function listInvoices(filter?: {
 }): Promise<FinanceInvoice[]> {
   let invoices = getLocal<FinanceInvoice[]>(LOCAL_INVOICES_KEY, []);
 
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .order('issue_date', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        invoices = data.map((d: any) => ({
+          id: d.id,
+          invoiceNumber: d.invoice_number,
+          bookingId: d.booking_id,
+          bookingReference: d.booking_reference || d.booking_id,
+          customerId: d.customer_id,
+          issueDate: d.issue_date,
+          dueDate: d.due_date,
+          customer: {
+            name: d.customer_name || 'Guest',
+            email: d.customer_email || '',
+            phone: d.customer_phone || null,
+          },
+          tourTitle: d.tour_title || 'Excursion',
+          tourDate: d.tour_date || d.issue_date,
+          guests: { adults: 1, children: 0, infants: 0 },
+          lineItems: (d.line_items as InvoiceLineItem[]) || [],
+          subtotal: Number(d.subtotal),
+          discount: Number(d.discount),
+          taxRatePercent: 0,
+          taxAmount: Number(d.tax_amount),
+          total: Number(d.total),
+          paid: Number(d.paid),
+          balance: Number(d.balance),
+          currency: d.currency || 'EUR',
+          status: d.status,
+          companyDetails: (d.company_details as CompanyBillingDetails) || COMPANY_DETAILS,
+          notes: d.notes,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+        }));
+        setLocal(LOCAL_INVOICES_KEY, invoices);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // If no invoices exist, generate invoices from bookings
   if (invoices.length === 0) {
     const bookings = await bookingRepository.listBookings();
@@ -302,7 +476,7 @@ export async function listInvoices(filter?: {
       const bookingPayments = payments.filter(
         (p) =>
           (p.bookingReference === b.bookingReference || p.bookingId === b.bookingId) &&
-          p.paymentStatus === 'Paid'
+          (p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
       );
       const paidAmount = bookingPayments.reduce((sum, p) => sum + p.amount, 0);
       const total = b.pricing?.totalEur || 0;
@@ -351,11 +525,9 @@ export async function listInvoices(filter?: {
         });
       }
 
-      const invNum = `INV-2026-${String(idx + 101).padStart(4, '0')}`;
-
       return {
         id: `inv-${b.bookingReference}`,
-        invoiceNumber: invNum,
+        invoiceNumber: `INV-${new Date().getFullYear()}-${String(idx + 1).padStart(4, '0')}`,
         bookingId: b.bookingId || b.bookingReference,
         bookingReference: b.bookingReference,
         customerId: (b as any).customerId || null,
@@ -364,20 +536,14 @@ export async function listInvoices(filter?: {
         customer: {
           name: `${b.customer.firstName} ${b.customer.lastName}`,
           email: b.customer.email,
-          phone: b.customer.phoneNumber
-            ? `${b.customer.countryCode || ''} ${b.customer.phoneNumber}`
-            : null,
-          hotel: b.pickup.hotelName || b.customer.hotelName || null,
-          roomNumber: b.pickup.roomNumber || b.customer.roomNumber || null,
-          country: b.customer.country || null,
+          phone: b.customer.phoneNumber,
+          hotel: b.pickup.hotelName,
+          roomNumber: b.pickup.roomNumber,
+          country: (b.customer as any).nationality || b.customer.countryCode,
         },
         tourTitle: b.tourTitle,
         tourDate: b.date,
-        guests: {
-          adults: b.guests.adults || 1,
-          children: b.guests.children || 0,
-          infants: b.guests.infants || 0,
-        },
+        guests: b.guests,
         lineItems,
         subtotal,
         discount,
@@ -389,9 +555,9 @@ export async function listInvoices(filter?: {
         currency: 'EUR',
         status: invoiceStatus,
         companyDetails: COMPANY_DETAILS,
-        notes: 'Thank you for exploring the Red Sea with Red Sea Voyages. Certified Marine Safety & Environmental Compliant.',
+        notes: 'Commercial Invoice issued for maritime tour services.',
         createdAt: b.createdAt || new Date().toISOString(),
-        updatedAt: b.updatedAt || new Date().toISOString(),
+        updatedAt: b.createdAt || new Date().toISOString(),
       };
     });
 
@@ -399,9 +565,12 @@ export async function listInvoices(filter?: {
   }
 
   return invoices.filter((inv) => {
-    if (filter?.bookingId && inv.bookingId !== filter.bookingId && inv.bookingReference !== filter.bookingId)
+    if (filter?.bookingId && inv.bookingId !== filter.bookingId && inv.bookingReference !== filter.bookingId) {
       return false;
-    if (filter?.status && filter.status !== 'all' && inv.status !== filter.status) return false;
+    }
+    if (filter?.status && filter.status !== 'all' && inv.status !== filter.status) {
+      return false;
+    }
     if (filter?.search?.trim()) {
       const q = filter.search.toLowerCase();
       return (
@@ -417,27 +586,28 @@ export async function listInvoices(filter?: {
 }
 
 export async function generateInvoiceForBooking(bookingReference: string): Promise<FinanceInvoice | null> {
-  const existingInvoices = await listInvoices();
-  const existing = existingInvoices.find(
-    (inv) => inv.bookingReference === bookingReference || inv.bookingId === bookingReference
-  );
-  if (existing) return existing;
-
   const bookings = await bookingRepository.listBookings();
-  const b = bookings.find((item) => item.bookingReference === bookingReference || item.bookingId === bookingReference);
+  const b = bookings.find((item) => item.bookingReference === bookingReference);
   if (!b) return null;
 
-  const payments = await listPayments();
-  const bookingPayments = payments.filter(
-    (p) =>
-      (p.bookingReference === b.bookingReference || p.bookingId === b.bookingId) &&
-      p.paymentStatus === 'Paid'
+  const existingInvoices = await listInvoices();
+  const alreadyExisting = existingInvoices.find(
+    (inv) => inv.bookingReference === bookingReference || inv.bookingId === b.bookingId
   );
-  const paidAmount = bookingPayments.reduce((sum, p) => sum + p.amount, 0);
+  if (alreadyExisting) return alreadyExisting;
+
+  const payments = await listPayments({ bookingId: bookingReference });
+  const paidAmount = payments
+    .filter((p) => p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
+    .reduce((sum, p) => sum + p.amount, 0);
+
   const total = b.pricing?.totalEur || 0;
   const subtotal = b.pricing?.subtotalEur || total;
   const discount = b.pricing?.discountEur || 0;
   const balance = Math.max(0, total - paidAmount);
+
+  const seq = existingInvoices.length + 1;
+  const invNumber = `INV-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`;
 
   const lineItems: InvoiceLineItem[] = [
     {
@@ -463,10 +633,9 @@ export async function generateInvoiceForBooking(bookingReference: string): Promi
     });
   }
 
-  const invoiceCount = existingInvoices.length + 1;
   const newInvoice: FinanceInvoice = {
     id: `inv-${b.bookingReference}`,
-    invoiceNumber: `INV-2026-${String(invoiceCount + 100).padStart(4, '0')}`,
+    invoiceNumber: invNumber,
     bookingId: b.bookingId || b.bookingReference,
     bookingReference: b.bookingReference,
     customerId: (b as any).customerId || null,
@@ -475,20 +644,14 @@ export async function generateInvoiceForBooking(bookingReference: string): Promi
     customer: {
       name: `${b.customer.firstName} ${b.customer.lastName}`,
       email: b.customer.email,
-      phone: b.customer.phoneNumber
-        ? `${b.customer.countryCode || ''} ${b.customer.phoneNumber}`
-        : null,
-      hotel: b.pickup.hotelName || b.customer.hotelName || null,
-      roomNumber: b.pickup.roomNumber || b.customer.roomNumber || null,
-      country: b.customer.country || null,
+      phone: b.customer.phoneNumber,
+      hotel: b.pickup.hotelName,
+      roomNumber: b.pickup.roomNumber,
+      country: (b.customer as any).nationality || b.customer.countryCode,
     },
     tourTitle: b.tourTitle,
     tourDate: b.date,
-    guests: {
-      adults: b.guests.adults || 1,
-      children: b.guests.children || 0,
-      infants: b.guests.infants || 0,
-    },
+    guests: b.guests,
     lineItems,
     subtotal,
     discount,
@@ -507,6 +670,37 @@ export async function generateInvoiceForBooking(bookingReference: string): Promi
 
   const updated = [newInvoice, ...existingInvoices];
   setLocal(LOCAL_INVOICES_KEY, updated);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase.from('invoices').insert({
+        invoice_number: newInvoice.invoiceNumber,
+        booking_id: newInvoice.bookingId,
+        customer_id: newInvoice.customerId,
+        customer_name: newInvoice.customer.name,
+        customer_email: newInvoice.customer.email,
+        customer_phone: newInvoice.customer.phone,
+        tour_title: newInvoice.tourTitle,
+        tour_date: newInvoice.tourDate ? newInvoice.tourDate.split('T')[0] : undefined,
+        issue_date: newInvoice.issueDate,
+        due_date: newInvoice.dueDate,
+        subtotal: newInvoice.subtotal,
+        discount: newInvoice.discount,
+        tax_amount: newInvoice.taxAmount,
+        total: newInvoice.total,
+        paid: newInvoice.paid,
+        balance: newInvoice.balance,
+        currency: newInvoice.currency,
+        status: newInvoice.status,
+        line_items: newInvoice.lineItems,
+        company_details: newInvoice.companyDetails,
+        notes: newInvoice.notes,
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   return newInvoice;
 }
 
@@ -516,6 +710,7 @@ export async function generateInvoiceForBooking(bookingReference: string): Promi
 
 export async function listRefunds(filter?: {
   bookingId?: string;
+  status?: string;
   search?: string;
 }): Promise<FinanceRefund[]> {
   let refunds = getLocal<FinanceRefund[]>(LOCAL_REFUNDS_KEY, []);
@@ -528,22 +723,29 @@ export async function listRefunds(filter?: {
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        refunds = data.map((d) => ({
+        refunds = data.map((d: any) => ({
           id: d.id,
           bookingId: d.booking_id,
-          bookingReference: (d as any).booking_reference || d.booking_id,
+          bookingReference: d.booking_reference || d.booking_id,
           paymentId: d.payment_id,
           customerId: d.customer_id,
-          customerName: (d as any).customer_name || 'Guest',
-          customerEmail: (d as any).customer_email || '',
+          customerName: d.customer_name || 'Guest',
+          customerEmail: d.customer_email || '',
           amount: Number(d.amount),
+          requestedAmount: Number(d.requested_amount || d.amount),
+          approvedAmount: d.approved_amount != null ? Number(d.approved_amount) : null,
           currency: d.currency || 'EUR',
           reason: d.reason,
+          status: (d.status || 'processed') as RefundStatus,
+          requestedBy: d.requested_by || 'Staff',
+          approvedBy: d.approved_by || null,
+          processedDate: d.processed_date || null,
           refundMethod: d.refund_method as any,
           transactionReference: d.transaction_reference || `REF-${d.id.substring(0, 8)}`,
           processedBy: d.processed_by || 'Staff',
           notes: d.notes,
           createdAt: d.created_at,
+          updatedAt: d.updated_at,
         }));
         setLocal(LOCAL_REFUNDS_KEY, refunds);
       }
@@ -554,6 +756,7 @@ export async function listRefunds(filter?: {
 
   return refunds.filter((r) => {
     if (filter?.bookingId && r.bookingId !== filter.bookingId && r.bookingReference !== filter.bookingId) return false;
+    if (filter?.status && filter.status !== 'all' && r.status !== filter.status) return false;
     if (filter?.search?.trim()) {
       const q = filter.search.toLowerCase();
       return (
@@ -567,42 +770,46 @@ export async function listRefunds(filter?: {
   });
 }
 
-export async function processRefund(refundData: {
+/**
+ * Step 1: Request a Refund (Creates a record pending approval)
+ */
+export async function requestRefund(refundData: {
   bookingId: string;
   bookingReference: string;
   paymentId?: string | null;
   customerId?: string | null;
   customerName: string;
   customerEmail: string;
-  amount: number;
+  requestedAmount: number;
   currency: string;
   reason: string;
   refundMethod: FinanceRefund['refundMethod'];
+  requestedBy: string;
   notes?: string | null;
-  processedBy?: string;
 }): Promise<{ success: boolean; error?: string; refund?: FinanceRefund }> {
-  // 1. Audit Check: Verify refund amount does not exceed total paid amount for this booking
+  // Audit Check: Verify requested amount does not exceed net paid amount for this booking
   const payments = await listPayments({ bookingId: refundData.bookingReference });
   const totalPaid = payments
-    .filter((p) => p.paymentStatus === 'Paid')
+    .filter((p) => p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
     .reduce((sum, p) => sum + p.amount, 0);
 
   const existingRefunds = await listRefunds({ bookingId: refundData.bookingReference });
-  const totalAlreadyRefunded = existingRefunds.reduce((sum, r) => sum + r.amount, 0);
+  const processedRefunds = existingRefunds.filter((r) => r.status === 'processed');
+  const totalAlreadyRefunded = processedRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
   const maxAvailableToRefund = Math.max(0, totalPaid - totalAlreadyRefunded);
 
-  if (refundData.amount <= 0) {
-    return { success: false, error: 'Refund amount must be greater than zero.' };
+  if (refundData.requestedAmount <= 0) {
+    return { success: false, error: 'Refund requested amount must be greater than zero.' };
   }
 
-  if (refundData.amount > maxAvailableToRefund) {
+  if (refundData.requestedAmount > maxAvailableToRefund) {
     return {
       success: false,
-      error: `Cannot refund €${refundData.amount}. Maximum refundable balance is €${maxAvailableToRefund} (€${totalPaid} paid minus €${totalAlreadyRefunded} previous refunds).`,
+      error: `Cannot request €${refundData.requestedAmount}. Maximum refundable balance is €${maxAvailableToRefund} (€${totalPaid} paid minus €${totalAlreadyRefunded} processed refunds).`,
     };
   }
 
-  const txRef = `REF-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const txRef = `REQ-REF-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   const newRefund: FinanceRefund = {
     id: `ref-${Date.now().toString(36)}`,
@@ -612,53 +819,42 @@ export async function processRefund(refundData: {
     customerId: refundData.customerId || null,
     customerName: refundData.customerName,
     customerEmail: refundData.customerEmail,
-    amount: Number(refundData.amount),
+    amount: refundData.requestedAmount,
+    requestedAmount: Number(refundData.requestedAmount),
+    approvedAmount: null,
     currency: refundData.currency || 'EUR',
     reason: refundData.reason.trim(),
+    status: 'pending_approval',
+    requestedBy: refundData.requestedBy || 'Staff',
+    approvedBy: null,
+    processedDate: null,
     refundMethod: refundData.refundMethod,
     transactionReference: txRef,
-    processedBy: refundData.processedBy || 'Finance Auditor',
+    processedBy: 'Pending Audit',
     notes: refundData.notes || null,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   const allRefunds = await listRefunds();
   setLocal(LOCAL_REFUNDS_KEY, [newRefund, ...allRefunds]);
 
-  // Update booking payment status (full refund or partial)
-  try {
-    const allBookings = await bookingRepository.listBookings();
-    const targetBooking = allBookings.find(
-      (b) => b.bookingReference === refundData.bookingReference || b.bookingId === refundData.bookingId
-    );
-
-    if (targetBooking) {
-      const newTotalRefunded = totalAlreadyRefunded + newRefund.amount;
-      const isFullRefund = newTotalRefunded >= totalPaid;
-
-      await bookingRepository.updateBooking({
-        ...targetBooking,
-        paymentStatus: isFullRefund ? 'refunded' : 'partially_paid',
-        status: isFullRefund ? 'cancelled' : targetBooking.status,
-        cancellationReason: isFullRefund ? `Refunded: ${newRefund.reason}` : targetBooking.cancellationReason,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-  } catch (err) {
-    console.warn('Failed to update booking status after refund:', err);
-  }
-
-  // Sync with Supabase if configured
   if (isSupabaseConfigured()) {
     try {
       await supabase.from('refund_records').insert({
         id: newRefund.id.startsWith('ref-') ? undefined : newRefund.id,
         booking_id: newRefund.bookingId,
+        booking_reference: newRefund.bookingReference,
         payment_id: newRefund.paymentId,
         customer_id: newRefund.customerId,
+        customer_name: newRefund.customerName,
+        customer_email: newRefund.customerEmail,
         amount: newRefund.amount,
+        requested_amount: newRefund.requestedAmount,
         currency: newRefund.currency,
         reason: newRefund.reason,
+        status: newRefund.status,
+        requested_by: newRefund.requestedBy,
         refund_method: newRefund.refundMethod,
         transaction_reference: newRefund.transactionReference,
         processed_by: newRefund.processedBy,
@@ -672,8 +868,168 @@ export async function processRefund(refundData: {
   return { success: true, refund: newRefund };
 }
 
+/**
+ * Step 2: Approve a Refund (Authorized finance auditor/admin approves the amount)
+ */
+export async function approveRefund(
+  refundId: string,
+  approvedAmount: number,
+  approvedBy: string = 'Finance Manager'
+): Promise<{ success: boolean; error?: string; refund?: FinanceRefund }> {
+  const allRefunds = await listRefunds();
+  const target = allRefunds.find((r) => r.id === refundId);
+  if (!target) return { success: false, error: 'Refund record not found.' };
+
+  if (approvedAmount <= 0) {
+    return { success: false, error: 'Approved amount must be greater than zero.' };
+  }
+
+  target.approvedAmount = approvedAmount;
+  target.amount = approvedAmount;
+  target.status = 'approved';
+  target.approvedBy = approvedBy;
+  target.updatedAt = new Date().toISOString();
+
+  setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('refund_records')
+        .update({
+          approved_amount: approvedAmount,
+          amount: approvedAmount,
+          status: 'approved',
+          approved_by: approvedBy,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', refundId);
+    } catch {
+      // ignore
+    }
+  }
+
+  return { success: true, refund: target };
+}
+
+/**
+ * Step 3: Process / Disburse Refund (Never mark a refund completed unless operation actually occurred)
+ */
+export async function processRefund(
+  refundId: string,
+  processedBy: string = 'Finance Auditor',
+  transactionReference?: string
+): Promise<{ success: boolean; error?: string; refund?: FinanceRefund }> {
+  const allRefunds = await listRefunds();
+  const target = allRefunds.find((r) => r.id === refundId);
+  if (!target) return { success: false, error: 'Refund record not found.' };
+
+  const finalAmount = target.approvedAmount || target.requestedAmount;
+
+  target.status = 'processed';
+  target.processedDate = new Date().toISOString();
+  target.processedBy = processedBy;
+  target.amount = finalAmount;
+  if (transactionReference?.trim()) {
+    target.transactionReference = transactionReference.trim();
+  }
+  target.updatedAt = new Date().toISOString();
+
+  setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
+
+  // Update booking payment status based on real net balance
+  try {
+    const allBookings = await bookingRepository.listBookings();
+    const targetBooking = allBookings.find(
+      (b) => b.bookingReference === target.bookingReference || b.bookingId === target.bookingId
+    );
+
+    if (targetBooking) {
+      const payments = await listPayments({ bookingId: target.bookingReference });
+      const totalPaid = payments
+        .filter((p) => p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
+        .reduce((sum, p) => sum + p.amount, 0);
+
+      const processedRefunds = allRefunds.filter(
+        (r) =>
+          (r.bookingReference === target.bookingReference || r.bookingId === target.bookingId) &&
+          r.status === 'processed'
+      );
+      const totalRefunded = processedRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
+
+      const isFullRefund = totalRefunded >= totalPaid;
+
+      await bookingRepository.updateBooking({
+        ...targetBooking,
+        paymentStatus: isFullRefund ? 'refunded' : 'partially_paid',
+        status: isFullRefund ? 'cancelled' : targetBooking.status,
+        cancellationReason: isFullRefund ? `Refunded in full: ${target.reason}` : targetBooking.cancellationReason,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to update booking status after refund processing:', err);
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('refund_records')
+        .update({
+          status: 'processed',
+          processed_date: target.processedDate,
+          processed_by: processedBy,
+          transaction_reference: target.transactionReference,
+          amount: finalAmount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', refundId);
+    } catch {
+      // ignore
+    }
+  }
+
+  return { success: true, refund: target };
+}
+
+/**
+ * Step 4: Reject a Refund
+ */
+export async function rejectRefund(
+  refundId: string,
+  rejectedBy: string = 'Finance Manager',
+  reason?: string
+): Promise<{ success: boolean; error?: string; refund?: FinanceRefund }> {
+  const allRefunds = await listRefunds();
+  const target = allRefunds.find((r) => r.id === refundId);
+  if (!target) return { success: false, error: 'Refund record not found.' };
+
+  target.status = 'rejected';
+  target.notes = `${target.notes || ''} [Rejected by ${rejectedBy}: ${reason || 'Not eligible'}]`.trim();
+  target.updatedAt = new Date().toISOString();
+
+  setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('refund_records')
+        .update({
+          status: 'rejected',
+          notes: target.notes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', refundId);
+    } catch {
+      // ignore
+    }
+  }
+
+  return { success: true, refund: target };
+}
+
 // ------------------------------------------------------------------------------
-// 4. OUTSTANDING BALANCES TRACKING
+// 4. OUTSTANDING BALANCES TRACKING (Real Calculations, Never Trust Frontend)
 // ------------------------------------------------------------------------------
 
 export async function getOutstandingBalances(filter?: {
@@ -683,21 +1039,33 @@ export async function getOutstandingBalances(filter?: {
 }): Promise<OutstandingBalanceItem[]> {
   const bookings = await bookingRepository.listBookings();
   const payments = await listPayments();
+  const refunds = await listRefunds();
   const todayStr = new Date().toISOString().split('T')[0];
 
   const items: OutstandingBalanceItem[] = [];
 
   bookings.forEach((b) => {
-    if (b.status === 'cancelled') return;
+    const bookingTotal = b.pricing?.totalEur || 0;
 
-    const totalAmount = b.pricing?.totalEur || 0;
     const bookingPayments = payments.filter(
       (p) =>
         (p.bookingReference === b.bookingReference || p.bookingId === b.bookingId) &&
-        p.paymentStatus === 'Paid'
+        (p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
     );
     const paidAmount = bookingPayments.reduce((sum, p) => sum + p.amount, 0);
-    const balanceAmount = Math.max(0, totalAmount - paidAmount);
+
+    const bookingRefunds = refunds.filter(
+      (r) =>
+        (r.bookingReference === b.bookingReference || r.bookingId === b.bookingId) &&
+        r.status === 'processed'
+    );
+    const refundAmount = bookingRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
+
+    const netPaid = Math.max(0, paidAmount - refundAmount);
+    const balanceAmount = Math.max(0, bookingTotal - netPaid);
+
+    // If booking was cancelled and has 0 net paid, no balance is due
+    if (b.status === 'cancelled' && netPaid === 0) return;
 
     if (balanceAmount > 0) {
       const tourDate = b.date ? b.date.split('T')[0] : '';
@@ -721,9 +1089,13 @@ export async function getOutstandingBalances(filter?: {
         hotel: b.pickup.hotelName || b.customer.hotelName || 'Direct Marina',
         tourTitle: b.tourTitle,
         tourDate: b.date,
-        totalAmount,
+        totalAmount: bookingTotal,
+        bookingTotal,
         paidAmount,
+        amountPaid: paidAmount,
+        refundAmount,
         balanceAmount,
+        amountDue: balanceAmount,
         currency: 'EUR',
         dueDate: b.date,
         status,
@@ -752,7 +1124,7 @@ export async function getOutstandingBalances(filter?: {
 }
 
 // ------------------------------------------------------------------------------
-// 5. FINANCIAL REPORTS & ANALYTICS (CURRENCY RESPECTFUL)
+// 5. FINANCIAL REPORTS & REVENUE ANALYTICS (Real Database Aggregation)
 // ------------------------------------------------------------------------------
 
 export async function getFinancialReports(
@@ -763,9 +1135,9 @@ export async function getFinancialReports(
   const payments = await listPayments();
   const refunds = await listRefunds();
 
-  // Filter bookings and payments strictly matching targetCurrency
+  // Filter bookings strictly matching targetCurrency
   const currencyBookings = bookings.filter((b) => {
-    const cur = 'EUR'; // Base database catalog currency
+    const cur = 'EUR'; // Standard catalog base currency
     if (cur !== targetCurrency) return false;
     if (b.status === 'cancelled') return false;
     const bDate = b.date ? b.date.split('T')[0] : '';
@@ -776,7 +1148,7 @@ export async function getFinancialReports(
 
   const currencyPayments = payments.filter((p) => {
     if (p.currency !== targetCurrency) return false;
-    if (p.paymentStatus !== 'Paid') return false;
+    if (p.paymentStatus !== 'Paid' && p.paymentStatus !== 'paid') return false;
     const pDate = p.paymentDate.split('T')[0];
     if (dateRange?.start && pDate < dateRange.start) return false;
     if (dateRange?.end && pDate > dateRange.end) return false;
@@ -785,7 +1157,8 @@ export async function getFinancialReports(
 
   const currencyRefunds = refunds.filter((r) => {
     if (r.currency !== targetCurrency) return false;
-    const rDate = r.createdAt.split('T')[0];
+    if (r.status !== 'processed') return false; // Only processed refunds count towards ledger totals
+    const rDate = (r.processedDate || r.createdAt).split('T')[0];
     if (dateRange?.start && rDate < dateRange.start) return false;
     if (dateRange?.end && rDate > dateRange.end) return false;
     return true;
@@ -794,7 +1167,7 @@ export async function getFinancialReports(
   // Calculate Totals
   const totalRevenue = currencyBookings.reduce((sum, b) => sum + (b.pricing?.totalEur || 0), 0);
   const totalPaid = currencyPayments.reduce((sum, p) => sum + p.amount, 0);
-  const totalRefunded = currencyRefunds.reduce((sum, r) => sum + r.amount, 0);
+  const totalRefunded = currencyRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
   const totalDiscounts = currencyBookings.reduce((sum, b) => sum + (b.pricing?.discountEur || 0), 0);
   const totalOutstanding = Math.max(0, totalRevenue - totalPaid);
 
@@ -811,6 +1184,20 @@ export async function getFinancialReports(
   const revenueByDate = Array.from(dateMap.entries())
     .map(([date, data]) => ({ date, amount: data.amount, bookingsCount: data.bookingsCount }))
     .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Revenue by Month
+  const monthMap = new Map<string, { amount: number; bookingsCount: number }>();
+  currencyBookings.forEach((b) => {
+    const m = b.date ? b.date.substring(0, 7) : 'Unknown';
+    const current = monthMap.get(m) || { amount: 0, bookingsCount: 0 };
+    current.amount += b.pricing?.totalEur || 0;
+    current.bookingsCount += 1;
+    monthMap.set(m, current);
+  });
+
+  const revenueByMonth = Array.from(monthMap.entries())
+    .map(([month, data]) => ({ month, amount: data.amount, bookingsCount: data.bookingsCount }))
+    .sort((a, b) => a.month.localeCompare(b.month));
 
   // Revenue by Tour
   const tourMap = new Map<string, { tourTitle: string; amount: number; bookingsCount: number }>();
@@ -866,6 +1253,29 @@ export async function getFinancialReports(
     }))
     .sort((a, b) => b.amount - a.amount);
 
+  // Full Multi-Currency Breakdown
+  const supportedCurrencies = ['EUR', 'USD', 'GBP', 'EGP'];
+  const currencyBreakdown: CurrencyBreakdownItem[] = supportedCurrencies.map((cur) => {
+    const cBookings = bookings.filter((b) => cur === 'EUR' && b.status !== 'cancelled');
+    const cPayments = payments.filter((p) => p.currency === cur && (p.paymentStatus === 'Paid' || p.paymentStatus === 'paid'));
+    const cRefunds = refunds.filter((r) => r.currency === cur && r.status === 'processed');
+
+    const gross = cBookings.reduce((sum, b) => sum + (b.pricing?.totalEur || 0), 0);
+    const collected = cPayments.reduce((sum, p) => sum + p.amount, 0);
+    const ref = cRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
+    const net = Math.max(0, collected - ref);
+    const out = Math.max(0, gross - collected);
+
+    return {
+      currency: cur,
+      grossBookings: gross,
+      collectedPayments: collected,
+      refunds: ref,
+      netRevenue: net,
+      outstandingBalances: out,
+    };
+  });
+
   return {
     currency: targetCurrency,
     totals: {
@@ -878,9 +1288,11 @@ export async function getFinancialReports(
       bookingsCount: currencyBookings.length,
     },
     revenueByDate,
+    revenueByMonth,
     revenueByTour,
     revenueByDestination,
     paymentsReceivedByMethod,
-    refundsList: currencyRefunds,
+    currencyBreakdown,
+    refundsList: refunds,
   };
 }

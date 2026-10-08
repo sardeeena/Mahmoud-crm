@@ -6,11 +6,26 @@ export type FinancePaymentMethod =
   | 'Other';
 
 export type FinancePaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'refunded'
+  | 'partially_refunded'
   | 'Pending'
   | 'Paid'
   | 'Partially Paid'
   | 'Failed'
   | 'Refunded';
+
+export interface PaymentProvider {
+  id: string;
+  name: string;
+  providerType: 'manual' | 'gateway' | 'bank_transfer' | 'wallet';
+  isConnected: boolean;
+  isManual: boolean;
+  supportedCurrencies: string[];
+  description: string;
+}
 
 export interface FinancePayment {
   id: string;
@@ -23,6 +38,8 @@ export interface FinancePayment {
   amount: number;
   currency: string; // 'EUR' | 'USD' | 'GBP' | 'EGP'
   paymentMethod: FinancePaymentMethod;
+  provider: string; // 'cash' | 'pos_terminal' | 'bank_transfer' | 'stripe' | 'paypal' | string
+  isManual: boolean;
   paymentStatus: FinancePaymentStatus;
   paymentDate: string;
   transactionReference: string;
@@ -96,6 +113,13 @@ export interface FinanceInvoice {
   updatedAt: string;
 }
 
+export type RefundStatus =
+  | 'requested'
+  | 'pending_approval'
+  | 'approved'
+  | 'processed'
+  | 'rejected';
+
 export interface FinanceRefund {
   id: string;
   bookingId: string;
@@ -104,14 +128,21 @@ export interface FinanceRefund {
   customerId: string | null;
   customerName: string;
   customerEmail: string;
-  amount: number;
+  amount: number; // approved/final processed amount
+  requestedAmount: number;
+  approvedAmount: number | null;
   currency: string;
   reason: string;
+  status: RefundStatus;
+  requestedBy: string;
+  approvedBy: string | null;
+  processedDate: string | null;
   refundMethod: 'Card Reversal' | 'Cash Return' | 'Bank Wire' | 'Store Credit / Voucher' | 'Other';
   transactionReference: string;
   processedBy: string;
   notes?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface OutstandingBalanceItem {
@@ -125,12 +156,25 @@ export interface OutstandingBalanceItem {
   tourTitle: string;
   tourDate: string;
   totalAmount: number;
+  bookingTotal: number;
   paidAmount: number;
+  amountPaid: number;
+  refundAmount: number;
   balanceAmount: number;
+  amountDue: number;
   currency: string;
   dueDate: string;
   status: 'overdue' | 'due_today' | 'upcoming';
   paymentStatus: FinancePaymentStatus;
+}
+
+export interface CurrencyBreakdownItem {
+  currency: string;
+  grossBookings: number;
+  collectedPayments: number;
+  refunds: number;
+  netRevenue: number;
+  outstandingBalances: number;
 }
 
 export interface FinancialReportData {
@@ -146,6 +190,11 @@ export interface FinancialReportData {
   };
   revenueByDate: Array<{
     date: string;
+    amount: number;
+    bookingsCount: number;
+  }>;
+  revenueByMonth: Array<{
+    month: string;
     amount: number;
     bookingsCount: number;
   }>;
@@ -165,5 +214,6 @@ export interface FinancialReportData {
     amount: number;
     transactionsCount: number;
   }>;
+  currencyBreakdown: CurrencyBreakdownItem[];
   refundsList: FinanceRefund[];
 }

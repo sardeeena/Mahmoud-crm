@@ -2922,3 +2922,80 @@ DROP POLICY IF EXISTS "Staff can manage pickup schedules" ON public.pickup_sched
 CREATE POLICY "Staff can manage pickup schedules" ON public.pickup_schedules
     FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+
+-- ==============================================================================
+-- 25. ENHANCED PRODUCTION REAL FINANCE SYSTEM
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.payment_providers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    provider_type TEXT NOT NULL CHECK (provider_type IN ('manual', 'gateway', 'bank_transfer', 'wallet')),
+    is_connected BOOLEAN NOT NULL DEFAULT false,
+    is_manual BOOLEAN NOT NULL DEFAULT true,
+    supported_currencies TEXT[] NOT NULL DEFAULT ARRAY['EUR', 'USD', 'GBP', 'EGP'],
+    description TEXT,
+    config JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO public.payment_providers (id, name, provider_type, is_connected, is_manual, supported_currencies, description)
+VALUES
+    ('cash', 'Marina Office Cash Desk', 'manual', true, true, ARRAY['EUR', 'USD', 'GBP', 'EGP'], 'In-person physical cash collection at Hurghada Marina pier or hotel pickup.'),
+    ('pos_terminal', 'Pier Mobile POS Terminal', 'manual', true, true, ARRAY['EUR', 'USD', 'GBP', 'EGP'], 'Physical chip & PIN / contactless terminal managed by pier desk supervisor.'),
+    ('bank_transfer', 'CIB Bank Official Wire', 'bank_transfer', true, true, ARRAY['EUR', 'USD', 'GBP', 'EGP'], 'Direct wire transfer to Commercial International Bank (Egypt) account.'),
+    ('stripe', 'Stripe Payments', 'gateway', false, false, ARRAY['EUR', 'USD', 'GBP'], 'Online credit/debit card processing. Currently disconnected (No server-side Stripe secret key configured).'),
+    ('paypal', 'PayPal Gateway', 'gateway', false, false, ARRAY['EUR', 'USD', 'GBP'], 'Digital wallet gateway. Currently disconnected (PayPal client ID not provisioned).')
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    provider_type = EXCLUDED.provider_type,
+    is_connected = EXCLUDED.is_connected,
+    is_manual = EXCLUDED.is_manual,
+    description = EXCLUDED.description;
+
+ALTER TABLE public.payment_transactions 
+    ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'cash',
+    ADD COLUMN IF NOT EXISTS is_manual BOOLEAN NOT NULL DEFAULT true,
+    ADD COLUMN IF NOT EXISTS customer_name TEXT,
+    ADD COLUMN IF NOT EXISTS customer_email TEXT,
+    ADD COLUMN IF NOT EXISTS customer_phone TEXT,
+    ADD COLUMN IF NOT EXISTS booking_reference TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_payments_provider ON public.payment_transactions(provider);
+CREATE INDEX IF NOT EXISTS idx_payments_is_manual ON public.payment_transactions(is_manual);
+CREATE INDEX IF NOT EXISTS idx_payments_booking_ref ON public.payment_transactions(booking_reference);
+
+ALTER TABLE public.refund_records
+    ADD COLUMN IF NOT EXISTS requested_amount NUMERIC(10,2),
+    ADD COLUMN IF NOT EXISTS approved_amount NUMERIC(10,2),
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'processed' CHECK (status IN ('requested', 'pending_approval', 'approved', 'processed', 'rejected')),
+    ADD COLUMN IF NOT EXISTS requested_by TEXT DEFAULT 'Staff',
+    ADD COLUMN IF NOT EXISTS approved_by TEXT,
+    ADD COLUMN IF NOT EXISTS processed_date TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS customer_name TEXT,
+    ADD COLUMN IF NOT EXISTS customer_email TEXT,
+    ADD COLUMN IF NOT EXISTS customer_phone TEXT,
+    ADD COLUMN IF NOT EXISTS booking_reference TEXT,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS idx_refunds_status ON public.refund_records(status);
+CREATE INDEX IF NOT EXISTS idx_refunds_booking_ref ON public.refund_records(booking_reference);
+
+ALTER TABLE public.invoices
+    ADD COLUMN IF NOT EXISTS customer_name TEXT,
+    ADD COLUMN IF NOT EXISTS customer_email TEXT,
+    ADD COLUMN IF NOT EXISTS customer_phone TEXT,
+    ADD COLUMN IF NOT EXISTS tour_title TEXT,
+    ADD COLUMN IF NOT EXISTS tour_date DATE;
+
+ALTER TABLE public.payment_providers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone authenticated can view payment providers" ON public.payment_providers;
+CREATE POLICY "Anyone authenticated can view payment providers" ON public.payment_providers
+    FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage payment providers" ON public.payment_providers;
+CREATE POLICY "Admins can manage payment providers" ON public.payment_providers
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+

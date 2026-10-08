@@ -12,6 +12,8 @@ import {
   Download,
   CheckCircle2,
   PieChart,
+  BarChart3,
+  Globe,
 } from 'lucide-react';
 import { getFinancialReports } from '../../../services/financeService';
 import { FinancialReportData } from '../../../types/finance';
@@ -106,69 +108,163 @@ export const FinanceRevenue: React.FC<FinanceRevenueProps> = ({ onNavigateTab })
         </span>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards: Gross Bookings, Collected Payments, Outstanding, Refunds, Net Revenue */}
       <div className="grid grid-cols-1 sm:grid-cols-5 gap-3.5">
         <div className="bg-stone-950 border border-stone-800/80 rounded-xl p-4">
           <span className="text-[10px] uppercase text-stone-500 font-bold block mb-1">
-            Gross Booked
+            Gross Bookings
           </span>
           <div className="font-mono font-bold text-xl text-white">
             {currencySymbol}{report?.totals.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-stone-500 mt-1 block">Total contracted value</span>
+          <span className="text-[11px] text-stone-500 mt-1 block">Contracted gross value</span>
         </div>
 
         <div className="bg-stone-950 border border-stone-800/80 rounded-xl p-4">
           <span className="text-[10px] uppercase text-stone-500 font-bold block mb-1">
-            Cash & Gateway Settled
+            Collected Payments
           </span>
           <div className="font-mono font-bold text-xl text-emerald-400">
             {currencySymbol}{report?.totals.totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-stone-500 mt-1 block">In bank & cashier tills</span>
+          <span className="text-[11px] text-stone-500 mt-1 block">Bank & cashier settled</span>
         </div>
 
         <div className="bg-stone-950 border border-stone-800/80 rounded-xl p-4">
           <span className="text-[10px] uppercase text-stone-500 font-bold block mb-1">
-            Pending Receivables
+            Outstanding Balances
           </span>
           <div className="font-mono font-bold text-xl text-amber-400">
             {currencySymbol}{report?.totals.totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-stone-500 mt-1 block">Due at pier or hotel pickup</span>
+          <span className="text-[11px] text-stone-500 mt-1 block">Due at pier / pickup</span>
         </div>
 
         <div className="bg-stone-950 border border-stone-800/80 rounded-xl p-4">
           <span className="text-[10px] uppercase text-stone-500 font-bold block mb-1">
-            Reversals / Refunds
+            Processed Refunds
           </span>
-          <div className="font-mono font-bold text-xl text-red-400">
+          <div className="font-mono font-bold text-xl text-rose-400">
             -{currencySymbol}{report?.totals.totalRefunded.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-stone-500 mt-1 block">Disputes & weather cancellations</span>
+          <span className="text-[11px] text-stone-500 mt-1 block">Executed returns & claims</span>
         </div>
 
         <div className="bg-stone-950 border border-stone-800/80 rounded-xl p-4">
           <span className="text-[10px] uppercase text-stone-500 font-bold block mb-1">
-            Net Realized Revenue
+            Net Revenue
           </span>
           <div className="font-mono font-bold text-xl text-[#2dd4bf]">
             {currencySymbol}{netRealizedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-stone-500 mt-1 block">Net bankable earnings</span>
+          <span className="text-[11px] text-stone-500 mt-1 block">Collected less refunds</span>
         </div>
       </div>
 
-      {/* Grid: Revenue by Tour & Revenue by Destination */}
+      {/* Multi-Currency Comparative Breakdown */}
+      <div className="bg-stone-950 border border-stone-800 rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+          <div className="flex items-center space-x-2">
+            <Globe className="w-4 h-4 text-[#2dd4bf]" />
+            <h3 className="font-bold text-white text-sm">Currency Breakdown Across Operating Portfolios</h3>
+          </div>
+          <span className="text-[11px] text-stone-500 font-mono">Isolated Ledger Balances</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-stone-900/60 text-stone-400 text-[10px] uppercase font-semibold">
+              <tr>
+                <th className="py-2.5 px-3">Currency</th>
+                <th className="py-2.5 px-3">Gross Bookings</th>
+                <th className="py-2.5 px-3">Collected Payments</th>
+                <th className="py-2.5 px-3">Processed Refunds</th>
+                <th className="py-2.5 px-3">Net Revenue</th>
+                <th className="py-2.5 px-3">Outstanding Balances</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-800/60 text-stone-300 font-mono">
+              {report?.currencyBreakdown?.map((cb) => (
+                <tr key={cb.currency} className="hover:bg-stone-900/30">
+                  <td className="py-2.5 px-3 font-bold text-white">
+                    <span className="px-2 py-0.5 rounded bg-stone-800 text-stone-200 text-[11px]">
+                      {cb.currency}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-stone-300">
+                    {cb.grossBookings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-3 text-emerald-400 font-semibold">
+                    {cb.collectedPayments.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-3 text-rose-400">
+                    -{cb.refunds.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-3 text-[#2dd4bf] font-bold">
+                    {cb.netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-3 text-amber-400">
+                    {cb.outstandingBalances.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Grid: Revenue by Month & Revenue by Tour */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue by Excursion Tour */}
+        {/* Revenue by Month */}
+        <div className="bg-stone-950 border border-stone-800 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-[#2dd4bf]" />
+              <h3 className="font-bold text-white text-sm">Revenue by Month</h3>
+            </div>
+            <span className="text-[11px] text-stone-500 font-mono">Monthly Run-rate</span>
+          </div>
+
+          <div className="space-y-3">
+            {(!report?.revenueByMonth || report.revenueByMonth.length === 0) ? (
+              <p className="text-xs text-stone-500">No monthly records in {selectedCurrency}.</p>
+            ) : (
+              report.revenueByMonth.map((m) => {
+                const totalGross = report.totals.totalRevenue || 1;
+                const percent = Math.min(100, Math.round((m.amount / totalGross) * 100));
+
+                return (
+                  <div key={m.month} className="space-y-1 text-xs">
+                    <div className="flex justify-between items-center text-stone-300">
+                      <span className="font-mono font-medium text-white">{m.month}</span>
+                      <span className="font-mono font-bold text-emerald-400">
+                        {currencySymbol}{m.amount.toFixed(2)} ({percent}%)
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-stone-900 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-stone-500">
+                      <span>{m.bookingsCount} departures confirmed</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Revenue by Tour */}
         <div className="bg-stone-950 border border-stone-800 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-stone-800 pb-3">
             <div className="flex items-center space-x-2">
               <Compass className="w-4 h-4 text-[#2dd4bf]" />
-              <h3 className="font-bold text-white text-sm">Revenue by Excursion</h3>
+              <h3 className="font-bold text-white text-sm">Revenue by Tour</h3>
             </div>
-            <span className="text-[11px] text-stone-500 font-mono">Ranked by volume</span>
+            <span className="text-[11px] text-stone-500 font-mono">Ranked by Gross Volume</span>
           </div>
 
           <div className="space-y-3">
@@ -198,55 +294,55 @@ export const FinanceRevenue: React.FC<FinanceRevenueProps> = ({ onNavigateTab })
             })}
           </div>
         </div>
+      </div>
 
-        {/* Revenue by Destination & Methods */}
-        <div className="space-y-6">
-          {/* Revenue by Destination */}
-          <div className="bg-stone-950 border border-stone-800 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-4 h-4 text-emerald-400" />
-                <h3 className="font-bold text-white text-sm">Revenue by Destination Sector</h3>
-              </div>
-              <span className="text-[11px] text-stone-500 font-mono">Red Sea Sector</span>
+      {/* Grid: Revenue by Destination & Methods */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Revenue by Destination */}
+        <div className="bg-stone-950 border border-stone-800 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+            <div className="flex items-center space-x-2">
+              <MapPin className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-white text-sm">Revenue by Destination Sector</h3>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              {report?.revenueByDestination.map((dest) => (
-                <div key={dest.destination} className="p-3 bg-stone-900/60 rounded-lg border border-stone-800/80 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-stone-400 block">{dest.destination}</span>
-                  <div className="font-mono font-bold text-base text-white">
-                    {currencySymbol}{dest.amount.toFixed(2)}
-                  </div>
-                  <div className="text-[10px] text-stone-500">{dest.bookingsCount} departures</div>
-                </div>
-              ))}
-            </div>
+            <span className="text-[11px] text-stone-500 font-mono">Red Sea Sector</span>
           </div>
 
-          {/* Revenue by Payment Method */}
-          <div className="bg-stone-950 border border-stone-800 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
-              <div className="flex items-center space-x-2">
-                <CreditCard className="w-4 h-4 text-amber-400" />
-                <h3 className="font-bold text-white text-sm">Collections by Payment Gateway</h3>
-              </div>
-              <span className="text-[11px] text-stone-500 font-mono">Settlement Breakdown</span>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              {report?.paymentsReceivedByMethod.map((item) => (
-                <div key={item.method} className="flex justify-between items-center p-2.5 bg-stone-900/40 rounded border border-stone-800/60">
-                  <div>
-                    <span className="font-bold text-white">{item.method}</span>
-                    <span className="text-[10px] text-stone-500 block">{item.transactionsCount} transactions</span>
-                  </div>
-                  <span className="font-mono font-bold text-sm text-emerald-400">
-                    {currencySymbol}{item.amount.toFixed(2)}
-                  </span>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            {report?.revenueByDestination.map((dest) => (
+              <div key={dest.destination} className="p-3 bg-stone-900/60 rounded-lg border border-stone-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-stone-400 block">{dest.destination}</span>
+                <div className="font-mono font-bold text-base text-white">
+                  {currencySymbol}{dest.amount.toFixed(2)}
                 </div>
-              ))}
+                <div className="text-[10px] text-stone-500">{dest.bookingsCount} departures</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Revenue by Payment Method */}
+        <div className="bg-stone-950 border border-stone-800 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+            <div className="flex items-center space-x-2">
+              <CreditCard className="w-4 h-4 text-amber-400" />
+              <h3 className="font-bold text-white text-sm">Collections by Payment Method</h3>
             </div>
+            <span className="text-[11px] text-stone-500 font-mono">Settlement Breakdown</span>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            {report?.paymentsReceivedByMethod.map((item) => (
+              <div key={item.method} className="flex justify-between items-center p-2.5 bg-stone-900/40 rounded border border-stone-800/60">
+                <div>
+                  <span className="font-bold text-white">{item.method}</span>
+                  <span className="text-[10px] text-stone-500 block">{item.transactionsCount} transactions</span>
+                </div>
+                <span className="font-mono font-bold text-sm text-emerald-400">
+                  {currencySymbol}{item.amount.toFixed(2)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
