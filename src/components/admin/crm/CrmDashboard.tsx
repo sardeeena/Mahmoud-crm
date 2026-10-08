@@ -171,19 +171,38 @@ export const CrmDashboard: React.FC<CrmDashboardProps> = ({
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {/* New Leads */}
+        {/* Total & New Leads */}
         <div
           onClick={() => onNavigateTab('crm_leads')}
           className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
         >
           <div className="flex items-center justify-between text-stone-400 mb-1.5">
-            <span className="text-[10px] uppercase font-bold tracking-wider">New Leads</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider">Leads Pipeline</span>
             <Users className="w-4 h-4 text-sky-400" />
           </div>
           <div className="text-xl font-bold font-display text-white">
-            {metrics?.newLeadsCount ?? '...'}
+            {metrics?.totalLeadsCount ?? '...'}
           </div>
-          <span className="text-[10px] text-stone-500">Pipeline intake</span>
+          <span className="text-[10px] text-stone-500">
+            {metrics?.newLeadsCount ?? 0} new &bull; {metrics?.qualifiedLeadsCount ?? 0} qualified
+          </span>
+        </div>
+
+        {/* Won & Lost Deals */}
+        <div
+          onClick={() => onNavigateTab('crm_leads')}
+          className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
+        >
+          <div className="flex items-center justify-between text-stone-400 mb-1.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider">Won / Conversion</span>
+            <TrendingUp className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-xl font-bold font-display text-white">
+            {metrics?.wonLeadsCount ?? 0} <span className="text-xs text-emerald-400 font-normal">({metrics?.conversionRate ?? 0}%)</span>
+          </div>
+          <span className="text-[10px] text-stone-500">
+            €{(metrics?.totalWonLeadsEur || 0).toLocaleString()} closed
+          </span>
         </div>
 
         {/* Open Inquiries */}
@@ -192,76 +211,63 @@ export const CrmDashboard: React.FC<CrmDashboardProps> = ({
           className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
         >
           <div className="flex items-center justify-between text-stone-400 mb-1.5">
-            <span className="text-[10px] uppercase font-bold tracking-wider">Open Inquiries</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider">Help Inquiries</span>
             <MessageSquare className="w-4 h-4 text-[#2dd4bf]" />
           </div>
           <div className="text-xl font-bold font-display text-white">
-            {metrics?.openInquiriesCount ?? '...'}
+            {metrics?.newInquiriesCount ?? 0}
           </div>
-          <span className="text-[10px] text-stone-500">Awaiting reply</span>
+          <span className="text-[10px] text-stone-500">New concierge tickets</span>
         </div>
 
-        {/* Bookings Today / This Week */}
-        <div
-          onClick={() => onNavigateTab('bookings')}
-          className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
-        >
-          <div className="flex items-center justify-between text-stone-400 mb-1.5">
-            <span className="text-[10px] uppercase font-bold tracking-wider">Bookings Today</span>
-            <CalendarCheck className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-xl font-bold font-display text-white">
-            {metrics?.bookingsTodayCount ?? '...'}
-          </div>
-          <span className="text-[10px] text-stone-500">
-            {metrics?.bookingsThisWeekCount ?? 0} this week
-          </span>
-        </div>
-
-        {/* Follow-ups Due */}
+        {/* Overdue & Open Tasks */}
         <div
           onClick={() => onNavigateTab('crm_followups')}
           className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
         >
           <div className="flex items-center justify-between text-stone-400 mb-1.5">
             <span className="text-[10px] uppercase font-bold tracking-wider">Follow-ups Due</span>
-            <Clock className="w-4 h-4 text-amber-400" />
+            <Clock className={`w-4 h-4 ${(metrics?.overdueFollowUpsCount || 0) > 0 ? 'text-red-400' : 'text-amber-400'}`} />
           </div>
           <div className="text-xl font-bold font-display text-white">
-            {metrics?.followUpsDueCount ?? '...'}
+            {metrics?.followUpsDueCount ?? 0}
           </div>
-          <span className="text-[10px] text-stone-500">Scheduled today</span>
+          <span className={`text-[10px] ${(metrics?.overdueFollowUpsCount || 0) > 0 ? 'text-red-400 font-bold' : 'text-stone-500'}`}>
+            {metrics?.overdueFollowUpsCount ?? 0} overdue &bull; {metrics?.openTasksCount ?? 0} open
+          </span>
         </div>
 
-        {/* Conversion Rate */}
-        <div
-          onClick={() => onNavigateTab('crm_leads')}
-          className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
-        >
-          <div className="flex items-center justify-between text-stone-400 mb-1.5">
-            <span className="text-[10px] uppercase font-bold tracking-wider">Conversion</span>
-            <TrendingUp className="w-4 h-4 text-[#2dd4bf]" />
-          </div>
-          <div className="text-xl font-bold font-display text-white">
-            {metrics?.conversionRate ?? 65}%
-          </div>
-          <span className="text-[10px] text-stone-500">Leads to booked</span>
-        </div>
-
-        {/* Total Revenue & Outstanding */}
+        {/* Customers & Repeat */}
         <div
           onClick={() => onNavigateTab('crm_customers')}
           className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
         >
           <div className="flex items-center justify-between text-stone-400 mb-1.5">
-            <span className="text-[10px] uppercase font-bold tracking-wider">Total Revenue</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider">Repeat Travelers</span>
+            <UserCheck className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="text-xl font-bold font-display text-white">
+            {metrics?.repeatCustomersCount ?? 0}
+          </div>
+          <span className="text-[10px] text-stone-500">
+            {metrics?.newCustomersCount ?? 0} new this week
+          </span>
+        </div>
+
+        {/* Total Revenue & CLV */}
+        <div
+          onClick={() => onNavigateTab('crm_customers')}
+          className="bg-stone-950 border border-stone-800 hover:border-stone-700 p-3.5 rounded-xl cursor-pointer transition-colors"
+        >
+          <div className="flex items-center justify-between text-stone-400 mb-1.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider">Lifetime Value</span>
             <DollarSign className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-xl font-bold font-display text-white">
-            €{(metrics?.totalRevenueEur || 0).toLocaleString()}
+            €{(metrics?.customerLifetimeValueAvgEur || 0).toLocaleString()}
           </div>
-          <span className="text-[10px] text-amber-400 font-mono">
-            €{(metrics?.outstandingPaymentsEur || 0).toLocaleString()} pending
+          <span className="text-[10px] text-emerald-400 font-mono">
+            €{(metrics?.totalRevenueEur || 0).toLocaleString()} gross
           </span>
         </div>
       </div>

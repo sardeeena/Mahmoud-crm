@@ -291,8 +291,12 @@ To verify:
 - `reviews`: Verified traveler ratings and reviews with star scores.
 
 ### 8. CRM & Leads Pipeline
-- `leads`: Full lead progression pipeline (`New`, `Contacted`, `Interested`, `Quotation Sent`, `Booking Pending`, `Booked`, `Completed`, `Lost`) with estimated value, tour interest, and follow-up dates.
-- `crm_tasks`: Follow-ups and task queue with priorities (`Low`, `Medium`, `High`, `Urgent`) and due dates.
+- `leads`: Full lead progression pipeline (`New`, `Contacted`, `Interested`, `Quotation Sent`, `Booking Pending`, `Booked`, `Completed`, `Lost`) with estimated value, tour interest, score, destination, and follow-up dates.
+- `crm_lead_stages`: Configurable pipeline stages with customizable badges, colors, and win/loss flags.
+- `crm_tasks`: Follow-ups and task queue with priorities (`Low`, `Medium`, `High`, `Urgent`), channel types, and due dates.
+- `crm_conversations`: Persistent multi-channel conversation system (WhatsApp, Email, Phone, Web Chat) with honest provider state tracking (`resend`, `meta_whatsapp`, `unconfigured`).
+- `crm_tags`: Admin-configured customer tags (`VIP`, `repeat_customer`, `family`, `diving`, `safari`, `high_value`).
+- `crm_segments`: Dynamic rule-based customer segments and traveler cohorts with CSV export.
 - `crm_communications`: Channel interaction logs (WhatsApp, Email, Phone, In-Person).
 - `crm_notes`: Internal agent and concierge notes with pinning support.
 - `crm_activities`: Unified chronological customer activity feed.

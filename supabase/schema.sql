@@ -2748,5 +2748,177 @@ CREATE POLICY "Staff can manage notifications" ON public.staff_notifications
     FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 
+-- ------------------------------------------------------------------------------
+-- 3.32 CRM SYSTEM TABLES (LEAD STAGES, TAGS, SEGMENTS, CONVERSATIONS)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.crm_lead_stages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    label TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '#2dd4bf',
+    sort_order INT NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_won BOOLEAN NOT NULL DEFAULT FALSE,
+    is_lost BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
+CREATE TABLE IF NOT EXISTS public.crm_tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    color TEXT NOT NULL DEFAULT '#2dd4bf',
+    category TEXT DEFAULT 'general',
+    usage_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.crm_segments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT,
+    badge_label TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '#2dd4bf',
+    icon TEXT NOT NULL DEFAULT 'Tag',
+    rule_type TEXT NOT NULL,
+    filter_criteria JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.crm_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+    channel TEXT NOT NULL CHECK (channel IN ('whatsapp', 'email', 'phone', 'web_chat', 'sms')),
+    direction TEXT NOT NULL CHECK (direction IN ('inbound', 'outbound')),
+    sender_identifier TEXT NOT NULL,
+    recipient_identifier TEXT NOT NULL,
+    subject TEXT,
+    message_body TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'unconfigured',
+    provider_message_id TEXT,
+    provider_status TEXT NOT NULL DEFAULT 'logged',
+    error_details TEXT,
+    staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    staff_name TEXT NOT NULL DEFAULT 'Admin Staff',
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_conversations_customer ON public.crm_conversations(customer_id);
+CREATE INDEX IF NOT EXISTS idx_crm_conversations_lead ON public.crm_conversations(lead_id);
+CREATE INDEX IF NOT EXISTS idx_crm_conversations_booking ON public.crm_conversations(booking_id);
+CREATE INDEX IF NOT EXISTS idx_crm_conversations_created_at ON public.crm_conversations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_conversations_channel ON public.crm_conversations(channel);
+
+ALTER TABLE public.crm_lead_stages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_segments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_conversations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Staff can manage crm_lead_stages" ON public.crm_lead_stages;
+CREATE POLICY "Staff can manage crm_lead_stages" ON public.crm_lead_stages
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage crm_tags" ON public.crm_tags;
+CREATE POLICY "Staff can manage crm_tags" ON public.crm_tags
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage crm_segments" ON public.crm_segments;
+CREATE POLICY "Staff can manage crm_segments" ON public.crm_segments
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage crm_conversations" ON public.crm_conversations;
+CREATE POLICY "Staff can manage crm_conversations" ON public.crm_conversations
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+
+-- ==============================================================================
+-- 23. PRODUCTION TOUR OPERATIONS (DEPARTURES, CALENDAR, MANIFESTS, PICKUPS)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.departures (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    start_time TEXT NOT NULL DEFAULT '08:30',
+    end_time TEXT NOT NULL DEFAULT '16:30',
+    capacity INT NOT NULL DEFAULT 35,
+    booked_passengers INT NOT NULL DEFAULT 0,
+    remaining_capacity INT NOT NULL DEFAULT 35,
+    status TEXT NOT NULL DEFAULT 'scheduled' CHECK (
+        status IN ('scheduled', 'confirmed', 'boarding', 'in_progress', 'completed', 'cancelled')
+    ),
+    guide_id UUID REFERENCES public.guides(id) ON DELETE SET NULL,
+    vessel_id REFERENCES public.vessels(id) ON DELETE SET NULL,
+    captain_id UUID REFERENCES public.guides(id) ON DELETE SET NULL,
+    driver_id UUID REFERENCES public.guides(id) ON DELETE SET NULL,
+    driver_name TEXT,
+    vehicle_name TEXT,
+    crew_ids UUID[] DEFAULT ARRAY[]::UUID[],
+    notes TEXT,
+    weather_status TEXT DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(tour_id, date, start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_departures_date ON public.departures(date);
+CREATE INDEX IF NOT EXISTS idx_departures_tour ON public.departures(tour_id);
+CREATE INDEX IF NOT EXISTS idx_departures_vessel ON public.departures(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_departures_guide ON public.departures(guide_id);
+CREATE INDEX IF NOT EXISTS idx_departures_status ON public.departures(status);
+
+DROP TRIGGER IF EXISTS trigger_departures_updated_at ON public.departures;
+CREATE TRIGGER trigger_departures_updated_at
+    BEFORE UPDATE ON public.departures
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- Pickup schedules table
+CREATE TABLE IF NOT EXISTS public.pickup_schedules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE CASCADE,
+    booking_reference TEXT NOT NULL,
+    customer_name TEXT NOT NULL,
+    customer_phone TEXT,
+    hotel TEXT NOT NULL,
+    location TEXT NOT NULL DEFAULT 'Hurghada',
+    pickup_time TEXT NOT NULL DEFAULT '07:30',
+    driver_id UUID REFERENCES public.guides(id) ON DELETE SET NULL,
+    driver_name TEXT,
+    vehicle TEXT,
+    passenger_count INT NOT NULL DEFAULT 1,
+    departure_id UUID REFERENCES public.departures(id) ON DELETE SET NULL,
+    tour_title TEXT,
+    tour_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    departure_time TEXT DEFAULT '08:30',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (
+        status IN ('pending', 'confirmed', 'picked_up', 'no_show', 'cancelled')
+    ),
+    special_requests TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pickups_date ON public.pickup_schedules(tour_date);
+CREATE INDEX IF NOT EXISTS idx_pickups_status ON public.pickup_schedules(status);
+CREATE INDEX IF NOT EXISTS idx_pickups_booking ON public.pickup_schedules(booking_reference);
+
+ALTER TABLE public.departures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pickup_schedules ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view departures" ON public.departures;
+CREATE POLICY "Public can view departures" ON public.departures
+    FOR SELECT TO public USING (true);
+
+DROP POLICY IF EXISTS "Staff can manage departures" ON public.departures;
+CREATE POLICY "Staff can manage departures" ON public.departures
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Staff can manage pickup schedules" ON public.pickup_schedules;
+CREATE POLICY "Staff can manage pickup schedules" ON public.pickup_schedules
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 

@@ -3,14 +3,22 @@ import {
   CrmLead,
   LeadStage,
   LeadSource,
+  CrmLeadStageConfig,
   CrmTask,
   TaskStatus,
   TaskPriority,
+  FollowUpChannel,
   CrmCommunication,
+  CommChannel,
+  CrmConversationRecord,
+  ConversationProvider,
+  ConversationProviderStatus,
   CrmNote,
   CrmActivity,
   CrmCustomerDetail,
   CrmDashboardMetrics,
+  CrmTag,
+  CrmSegment,
 } from '../types/crm';
 import { bookingRepository } from './bookingRepository';
 import { listInquiries } from './inquiryService';
@@ -20,14 +28,22 @@ export type {
   CrmLead,
   LeadStage,
   LeadSource,
+  CrmLeadStageConfig,
   CrmTask,
   TaskStatus,
   TaskPriority,
+  FollowUpChannel,
   CrmCommunication,
+  CommChannel,
+  CrmConversationRecord,
+  ConversationProvider,
+  ConversationProviderStatus,
   CrmNote,
   CrmActivity,
   CrmCustomerDetail,
   CrmDashboardMetrics,
+  CrmTag,
+  CrmSegment,
 };
 
 const LOCAL_LEADS_KEY = 'rse_crm_leads';
@@ -35,206 +51,29 @@ const LOCAL_TASKS_KEY = 'rse_crm_tasks';
 const LOCAL_COMMS_KEY = 'rse_crm_comms';
 const LOCAL_NOTES_KEY = 'rse_crm_notes';
 const LOCAL_ACTIVITIES_KEY = 'rse_crm_activities';
+const LOCAL_CONVERSATIONS_KEY = 'rse_crm_conversations';
+const LOCAL_TAGS_KEY = 'rse_crm_tags';
 const LOCAL_CUSTOMERS_EXTRA_KEY = 'rse_crm_customers_extra';
 
-// Realistic sample seed data for tourism operators in Hurghada / Red Sea
-const INITIAL_LEADS: CrmLead[] = [
-  {
-    id: 'lead-001',
-    name: 'Sarah Jenkins',
-    email: 'sarah.jenkins@gmail.com',
-    phone: '+44 7911 123456',
-    whatsapp: '+44 7911 123456',
-    country: 'United Kingdom',
-    hotel: 'Steigenberger ALDAU Beach Hotel, Hurghada',
-    source: 'Website',
-    interestedTourTitle: 'Giftun Island VIP Yacht & Snorkeling Cruise',
-    travelDate: '2026-10-15',
-    numberOfGuests: 4,
-    estimatedValue: 360,
-    currency: 'EUR',
-    stage: 'Quotation Sent',
-    notes: 'Family with two teenagers. Interested in private snorkeling guide.',
-    assignedStaffName: 'Captain Tarek',
-    followUpDate: '2026-10-07T10:00:00.000Z',
-    createdAt: '2026-10-04T09:20:00.000Z',
-    updatedAt: '2026-10-05T14:30:00.000Z',
-  },
-  {
-    id: 'lead-002',
-    name: 'Markus Weber',
-    email: 'markus.weber@web.de',
-    phone: '+49 170 9876543',
-    whatsapp: '+49 170 9876543',
-    country: 'Germany',
-    hotel: 'Mövenpick Resort El Gouna',
-    source: 'WhatsApp',
-    interestedTourTitle: 'Red Sea Mega Safari: Quad, Dune Buggy & Bedouin Dinner',
-    travelDate: '2026-10-12',
-    numberOfGuests: 2,
-    estimatedValue: 170,
-    currency: 'EUR',
-    stage: 'Interested',
-    notes: 'Requested pickup from El Gouna marina. Prefers sunset quad tour.',
-    assignedStaffName: 'Mona Zaki (Concierge)',
-    followUpDate: '2026-10-06T14:00:00.000Z',
-    createdAt: '2026-10-05T11:15:00.000Z',
-    updatedAt: '2026-10-05T16:00:00.000Z',
-  },
-  {
-    id: 'lead-003',
-    name: 'Elena Rostova',
-    email: 'elena.rostova@yandex.ru',
-    phone: '+7 903 555-1212',
-    whatsapp: '+7 903 555-1212',
-    country: 'Russia',
-    hotel: 'Baron Palace Sahl Hasheesh',
-    source: 'Hotel',
-    interestedTourTitle: 'Private Luxury Speedboat Charter & Dolphin Encounter',
-    travelDate: '2026-10-20',
-    numberOfGuests: 5,
-    estimatedValue: 650,
-    currency: 'EUR',
-    stage: 'Booking Pending',
-    notes: 'Celebrating husband birthday. Asked for champagne and fruit basket onboard.',
-    assignedStaffName: 'Ahmed Fathy',
-    followUpDate: '2026-10-06T09:00:00.000Z',
-    createdAt: '2026-10-03T16:45:00.000Z',
-    updatedAt: '2026-10-05T18:20:00.000Z',
-  },
-  {
-    id: 'lead-004',
-    name: 'Luca Moretti',
-    email: 'luca.moretti@libero.it',
-    phone: '+39 347 1122334',
-    whatsapp: '+39 347 1122334',
-    country: 'Italy',
-    hotel: 'Jaz Makadina, Makadi Bay',
-    source: 'Instagram',
-    interestedTourTitle: 'Scuba Diving Intro at Abu Ramada Reef',
-    travelDate: '2026-10-25',
-    numberOfGuests: 2,
-    estimatedValue: 240,
-    currency: 'EUR',
-    stage: 'Contacted',
-    notes: 'First time diving. Wants Italian-speaking divemaster.',
-    assignedStaffName: 'Captain Tarek',
-    followUpDate: '2026-10-08T11:30:00.000Z',
-    createdAt: '2026-10-05T08:00:00.000Z',
-    updatedAt: '2026-10-05T08:30:00.000Z',
-  },
-  {
-    id: 'lead-005',
-    name: 'David Van Houten',
-    email: 'david.vh@kpnmail.nl',
-    phone: '+31 6 12345678',
-    country: 'Netherlands',
-    hotel: 'Premier Le Reve Hotel, Sahl Hasheesh',
-    source: 'Google',
-    interestedTourTitle: 'Luxor Day Tour: Valley of Kings & Karnak Temple',
-    travelDate: '2026-10-18',
-    numberOfGuests: 2,
-    estimatedValue: 320,
-    currency: 'EUR',
-    stage: 'New',
-    notes: 'Inquired via website form regarding private limousine transfer.',
-    assignedStaffName: null,
-    followUpDate: '2026-10-06T12:00:00.000Z',
-    createdAt: '2026-10-06T06:10:00.000Z',
-    updatedAt: '2026-10-06T06:10:00.000Z',
-  },
+export const DEFAULT_STAGES: CrmLeadStageConfig[] = [
+  { id: 'stg-1', name: 'New', label: 'New Lead', color: '#38bdf8', sortOrder: 1, isActive: true, isWon: false, isLost: false },
+  { id: 'stg-2', name: 'Contacted', label: 'Contacted', color: '#818cf8', sortOrder: 2, isActive: true, isWon: false, isLost: false },
+  { id: 'stg-3', name: 'Qualified', label: 'Qualified Prospect', color: '#a78bfa', sortOrder: 3, isActive: true, isWon: false, isLost: false },
+  { id: 'stg-4', name: 'Proposal', label: 'Proposal / Quotation', color: '#fbbf24', sortOrder: 4, isActive: true, isWon: false, isLost: false },
+  { id: 'stg-5', name: 'Follow-up', label: 'Follow-up Due', color: '#f97316', sortOrder: 5, isActive: true, isWon: false, isLost: false },
+  { id: 'stg-6', name: 'Won', label: 'Won / Booked', color: '#10b981', sortOrder: 6, isActive: true, isWon: true, isLost: false },
+  { id: 'stg-7', name: 'Lost', label: 'Lost Deal', color: '#ef4444', sortOrder: 7, isActive: true, isWon: false, isLost: true },
 ];
 
-const INITIAL_TASKS: CrmTask[] = [
-  {
-    id: 'task-001',
-    title: 'Call Markus Weber regarding El Gouna pickup time',
-    description: 'Verify resort security clearance and confirm 15:30 pier departure.',
-    leadId: 'lead-002',
-    leadName: 'Markus Weber',
-    assignedStaffName: 'Mona Zaki (Concierge)',
-    dueDate: '2026-10-06T14:00:00.000Z',
-    priority: 'High',
-    status: 'Pending',
-    isFollowUp: true,
-    createdAt: '2026-10-05T11:30:00.000Z',
-    updatedAt: '2026-10-05T11:30:00.000Z',
-  },
-  {
-    id: 'task-002',
-    title: 'Follow up on Luxor private charter quotation for David',
-    description: 'Check Egyptologist guide availability for English & Dutch.',
-    leadId: 'lead-005',
-    leadName: 'David Van Houten',
-    assignedStaffName: 'Ahmed Fathy',
-    dueDate: '2026-10-06T12:00:00.000Z',
-    priority: 'Medium',
-    status: 'Pending',
-    isFollowUp: true,
-    createdAt: '2026-10-06T06:15:00.000Z',
-    updatedAt: '2026-10-06T06:15:00.000Z',
-  },
-  {
-    id: 'task-003',
-    title: 'Collect Coast Guard manifest copies for Baron Palace guests',
-    description: 'Need passport photos for naval clearance prior to speed boat departure.',
-    leadId: 'lead-003',
-    leadName: 'Elena Rostova',
-    assignedStaffName: 'Captain Tarek',
-    dueDate: '2026-10-07T08:00:00.000Z',
-    priority: 'Urgent',
-    status: 'In Progress',
-    isFollowUp: false,
-    createdAt: '2026-10-05T17:00:00.000Z',
-    updatedAt: '2026-10-05T17:00:00.000Z',
-  },
-  {
-    id: 'task-004',
-    title: 'Confirm fruit platter & flowers for VIP yacht charter',
-    description: 'Order from Hurghada Marina gourmet provisioning desk.',
-    assignedStaffName: 'Mona Zaki (Concierge)',
-    dueDate: '2026-10-08T16:00:00.000Z',
-    priority: 'Medium',
-    status: 'Pending',
-    isFollowUp: false,
-    createdAt: '2026-10-05T14:00:00.000Z',
-    updatedAt: '2026-10-05T14:00:00.000Z',
-  },
-];
-
-const INITIAL_ACTIVITIES: CrmActivity[] = [
-  {
-    id: 'act-001',
-    eventType: 'lead_created',
-    title: 'New Lead Created',
-    description: 'David Van Houten submitted inquiry for Luxor Day Tour from website form.',
-    actor: 'System (Web Form)',
-    createdAt: '2026-10-06T06:10:00.000Z',
-  },
-  {
-    id: 'act-002',
-    eventType: 'communication',
-    title: 'WhatsApp Message Sent',
-    description: 'Quotation sent to Sarah Jenkins for Giftun Island VIP Yacht.',
-    actor: 'Captain Tarek',
-    createdAt: '2026-10-05T14:30:00.000Z',
-  },
-  {
-    id: 'act-003',
-    eventType: 'stage_changed',
-    title: 'Lead Moved to Booking Pending',
-    description: 'Elena Rostova accepted private speed boat charter package.',
-    actor: 'Ahmed Fathy',
-    createdAt: '2026-10-05T18:20:00.000Z',
-  },
-  {
-    id: 'act-004',
-    eventType: 'task_created',
-    title: 'Follow-up Task Scheduled',
-    description: 'Call Markus Weber regarding El Gouna pickup time tomorrow.',
-    actor: 'Mona Zaki (Concierge)',
-    createdAt: '2026-10-05T11:30:00.000Z',
-  },
+export const DEFAULT_TAGS: CrmTag[] = [
+  { id: 'tag-1', name: 'VIP', description: 'High-value executive guests requiring white-glove concierge', color: '#fbbf24', category: 'tier', usageCount: 4, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tag-2', name: 'repeat_customer', description: 'Traveled more than once with Red Sea Excursions', color: '#34d399', category: 'loyalty', usageCount: 6, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tag-3', name: 'family', description: 'Traveling with children or multi-generational parties', color: '#60a5fa', category: 'interest', usageCount: 12, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tag-4', name: 'diving', description: 'Certified scuba divers or PADI course seekers', color: '#06b6d4', category: 'interest', usageCount: 8, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tag-5', name: 'snorkeling', description: 'Reef exploration and dolphin encounters', color: '#2dd4bf', category: 'interest', usageCount: 15, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tag-6', name: 'safari', description: 'Desert quad, dune buggy, and Bedouin evening dinner', color: '#f97316', category: 'interest', usageCount: 11, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tag-7', name: 'honeymoon', description: 'Couples celebrating wedding, anniversary or honeymoon', color: '#f43f5e', category: 'interest', usageCount: 5, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tag-8', name: 'high_value', description: 'High cumulative booking spenders (€500+)', color: '#a855f7', category: 'tier', usageCount: 7, createdAt: '2026-01-01T00:00:00Z' },
 ];
 
 // Helper storage functions
@@ -262,17 +101,32 @@ function setLocal<T>(key: string, data: T) {
 
 export async function listLeads(filter?: {
   stage?: string;
+  source?: string;
   search?: string;
   staff?: string;
+  tourId?: string;
+  status?: string;
 }): Promise<CrmLead[]> {
-  let leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, INITIAL_LEADS);
+  let leads: CrmLead[] = [];
 
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('leads')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (filter?.stage && filter.stage !== 'all') {
+        query = query.eq('stage', filter.stage);
+      }
+      if (filter?.source && filter.source !== 'all') {
+        query = query.eq('source', filter.source);
+      }
+      if (filter?.status && filter.status !== 'all') {
+        query = query.eq('status', filter.status);
+      }
+
+      const { data, error } = await query;
 
       if (!error && data) {
         leads = data.map((d) => ({
@@ -286,31 +140,55 @@ export async function listLeads(filter?: {
           source: (d.source as LeadSource) || 'Website',
           interestedTourId: d.interested_tour_id,
           interestedTourTitle: d.interested_tour_title,
+          destination: d.destination,
           travelDate: d.travel_date,
           numberOfGuests: d.number_of_guests || 1,
           estimatedValue: Number(d.estimated_value) || 0,
           currency: d.currency || 'EUR',
           stage: (d.stage as LeadStage) || 'New',
+          status: d.status || 'active',
+          score: d.score !== undefined ? d.score : 50,
           notes: d.notes,
+          tags: d.tags || [],
           assignedStaffId: d.assigned_staff_id,
           assignedStaffName: d.assigned_staff_name,
           customerId: d.customer_id,
           followUpDate: d.follow_up_date,
+          lastContactAt: d.last_contact_at,
+          contactAttemptsCount: d.contact_attempts_count || 0,
           lostReason: d.lost_reason,
           createdAt: d.created_at,
           updatedAt: d.updated_at,
         }));
         setLocal(LOCAL_LEADS_KEY, leads);
+        return applyLeadClientFilters(leads, filter);
       }
     } catch {
-      // fallback to cached leads
+      // fallback to cached leads below
     }
   }
 
+  leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, []);
+  return applyLeadClientFilters(leads, filter);
+}
+
+function applyLeadClientFilters(
+  leads: CrmLead[],
+  filter?: {
+    stage?: string;
+    source?: string;
+    search?: string;
+    staff?: string;
+    tourId?: string;
+    status?: string;
+  }
+): CrmLead[] {
   return leads.filter((l) => {
     if (filter?.stage && filter.stage !== 'all' && l.stage !== filter.stage) return false;
-    if (filter?.staff && filter.staff !== 'all' && l.assignedStaffName !== filter.staff)
-      return false;
+    if (filter?.source && filter.source !== 'all' && l.source !== filter.source) return false;
+    if (filter?.status && filter.status !== 'all' && l.status !== filter.status) return false;
+    if (filter?.staff && filter.staff !== 'all' && l.assignedStaffName !== filter.staff) return false;
+    if (filter?.tourId && filter.tourId !== 'all' && l.interestedTourId !== filter.tourId) return false;
     if (filter?.search) {
       const q = filter.search.toLowerCase();
       return (
@@ -318,7 +196,8 @@ export async function listLeads(filter?: {
         l.email.toLowerCase().includes(q) ||
         (l.phone && l.phone.includes(q)) ||
         (l.hotel && l.hotel.toLowerCase().includes(q)) ||
-        (l.interestedTourTitle && l.interestedTourTitle.toLowerCase().includes(q))
+        (l.interestedTourTitle && l.interestedTourTitle.toLowerCase().includes(q)) ||
+        (l.country && l.country.toLowerCase().includes(q))
       );
     }
     return true;
@@ -337,24 +216,29 @@ export async function createLead(input: Partial<CrmLead>): Promise<CrmLead> {
     source: input.source || 'Website',
     interestedTourId: input.interestedTourId || null,
     interestedTourTitle: input.interestedTourTitle || null,
+    destination: input.destination || null,
     travelDate: input.travelDate || null,
-    numberOfGuests: input.numberOfGuests || 1,
-    estimatedValue: input.estimatedValue || 0,
+    numberOfGuests: input.numberOfGuests || 2,
+    estimatedValue: input.estimatedValue !== undefined ? input.estimatedValue : 150,
     currency: input.currency || 'EUR',
     stage: input.stage || 'New',
+    status: 'active',
+    score: input.score !== undefined ? input.score : 50,
     notes: input.notes || null,
+    tags: input.tags || [],
     assignedStaffId: input.assignedStaffId || null,
-    assignedStaffName: input.assignedStaffName || null,
+    assignedStaffName: input.assignedStaffName || 'Captain Tarek',
     customerId: input.customerId || null,
     followUpDate: input.followUpDate || null,
+    lastContactAt: null,
+    contactAttemptsCount: 0,
     lostReason: input.lostReason || null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
-  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, INITIAL_LEADS);
-  const updated = [newLead, ...leads];
-  setLocal(LOCAL_LEADS_KEY, updated);
+  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, []);
+  setLocal(LOCAL_LEADS_KEY, [newLead, ...leads]);
 
   if (isSupabaseConfigured()) {
     try {
@@ -370,13 +254,19 @@ export async function createLead(input: Partial<CrmLead>): Promise<CrmLead> {
           source: newLead.source,
           interested_tour_id: newLead.interestedTourId,
           interested_tour_title: newLead.interestedTourTitle,
+          destination: newLead.destination,
           travel_date: newLead.travelDate,
           number_of_guests: newLead.numberOfGuests,
           estimated_value: newLead.estimatedValue,
           currency: newLead.currency,
           stage: newLead.stage,
+          status: newLead.status,
+          score: newLead.score,
           notes: newLead.notes,
+          tags: newLead.tags,
           assigned_staff_name: newLead.assignedStaffName,
+          assigned_staff_id: newLead.assignedStaffId,
+          customer_id: newLead.customerId,
           follow_up_date: newLead.followUpDate,
         })
         .select('*')
@@ -402,20 +292,71 @@ export async function createLead(input: Partial<CrmLead>): Promise<CrmLead> {
   return newLead;
 }
 
+export async function updateLead(leadId: string, updates: Partial<CrmLead>): Promise<boolean> {
+  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, []);
+  const updated = leads.map((l) =>
+    l.id === leadId
+      ? { ...l, ...updates, updatedAt: new Date().toISOString() }
+      : l
+  );
+  setLocal(LOCAL_LEADS_KEY, updated);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('leads')
+        .update({
+          name: updates.name,
+          email: updates.email,
+          phone: updates.phone,
+          whatsapp: updates.whatsapp,
+          country: updates.country,
+          hotel: updates.hotel,
+          source: updates.source,
+          interested_tour_id: updates.interestedTourId,
+          interested_tour_title: updates.interestedTourTitle,
+          destination: updates.destination,
+          travel_date: updates.travelDate,
+          number_of_guests: updates.numberOfGuests,
+          estimated_value: updates.estimatedValue,
+          currency: updates.currency,
+          stage: updates.stage,
+          status: updates.status,
+          score: updates.score,
+          notes: updates.notes,
+          tags: updates.tags,
+          assigned_staff_name: updates.assignedStaffName,
+          assigned_staff_id: updates.assignedStaffId,
+          customer_id: updates.customerId,
+          follow_up_date: updates.followUpDate,
+          lost_reason: updates.lostReason,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', leadId);
+    } catch {
+      // ignore
+    }
+  }
+
+  return true;
+}
+
 export async function updateLeadStage(
   leadId: string,
   newStage: LeadStage,
   lostReason?: string
 ): Promise<boolean> {
-  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, INITIAL_LEADS);
+  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, []);
   const target = leads.find((l) => l.id === leadId);
   const oldStage = target?.stage || 'Unknown';
+  const status = newStage === 'Won' ? 'converted' : newStage === 'Lost' ? 'lost' : 'active';
 
   const updated = leads.map((l) =>
     l.id === leadId
       ? {
           ...l,
           stage: newStage,
+          status: status as any,
           lostReason: newStage === 'Lost' ? lostReason || l.lostReason : null,
           updatedAt: new Date().toISOString(),
         }
@@ -429,6 +370,7 @@ export async function updateLeadStage(
         .from('leads')
         .update({
           stage: newStage,
+          status,
           lost_reason: newStage === 'Lost' ? lostReason : null,
           updated_at: new Date().toISOString(),
         })
@@ -449,40 +391,35 @@ export async function updateLeadStage(
   return true;
 }
 
-export async function updateLead(leadId: string, updates: Partial<CrmLead>): Promise<boolean> {
-  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, INITIAL_LEADS);
-  const updated = leads.map((l) =>
-    l.id === leadId ? { ...l, ...updates, updatedAt: new Date().toISOString() } : l
-  );
-  setLocal(LOCAL_LEADS_KEY, updated);
+export async function recordLeadContactAttempt(
+  leadId: string,
+  channel: FollowUpChannel,
+  notes: string,
+  staffName: string = 'Admin Staff'
+): Promise<boolean> {
+  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, []);
+  const target = leads.find((l) => l.id === leadId);
+  const newAttempts = (target?.contactAttemptsCount || 0) + 1;
+  const now = new Date().toISOString();
 
-  if (isSupabaseConfigured()) {
-    try {
-      const payload: any = { updated_at: new Date().toISOString() };
-      if (updates.name !== undefined) payload.name = updates.name;
-      if (updates.email !== undefined) payload.email = updates.email;
-      if (updates.phone !== undefined) payload.phone = updates.phone;
-      if (updates.whatsapp !== undefined) payload.whatsapp = updates.whatsapp;
-      if (updates.country !== undefined) payload.country = updates.country;
-      if (updates.hotel !== undefined) payload.hotel = updates.hotel;
-      if (updates.stage !== undefined) payload.stage = updates.stage;
-      if (updates.notes !== undefined) payload.notes = updates.notes;
-      if (updates.assignedStaffName !== undefined) payload.assigned_staff_name = updates.assignedStaffName;
-      if (updates.followUpDate !== undefined) payload.follow_up_date = updates.followUpDate;
-      if (updates.estimatedValue !== undefined) payload.estimated_value = updates.estimatedValue;
-      if (updates.travelDate !== undefined) payload.travel_date = updates.travelDate;
+  await updateLead(leadId, {
+    contactAttemptsCount: newAttempts,
+    lastContactAt: now,
+  });
 
-      await supabase.from('leads').update(payload).eq('id', leadId);
-    } catch {
-      // ignore
-    }
-  }
+  await recordActivity({
+    leadId,
+    eventType: 'contact_attempt',
+    title: `Contact Attempt via ${channel}`,
+    description: notes || `Attempted contact with lead via ${channel}.`,
+    actor: staffName,
+  });
 
   return true;
 }
 
 export async function deleteLead(leadId: string): Promise<boolean> {
-  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, INITIAL_LEADS);
+  const leads = getLocal<CrmLead[]>(LOCAL_LEADS_KEY, []);
   setLocal(
     LOCAL_LEADS_KEY,
     leads.filter((l) => l.id !== leadId)
@@ -506,16 +443,29 @@ export async function deleteLead(leadId: string): Promise<boolean> {
 export async function listTasks(filter?: {
   status?: string;
   staff?: string;
+  priority?: string;
   isFollowUp?: boolean;
 }): Promise<CrmTask[]> {
-  let tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, INITIAL_TASKS);
+  let tasks: CrmTask[] = [];
 
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('crm_tasks')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (filter?.status && filter.status !== 'all') {
+        query = query.eq('status', filter.status);
+      }
+      if (filter?.priority && filter.priority !== 'all') {
+        query = query.eq('priority', filter.priority);
+      }
+      if (filter?.isFollowUp !== undefined) {
+        query = query.eq('is_follow_up', filter.isFollowUp);
+      }
+
+      const { data, error } = await query;
 
       if (!error && data) {
         tasks = data.map((d) => ({
@@ -534,21 +484,30 @@ export async function listTasks(filter?: {
           priority: (d.priority as TaskPriority) || 'Medium',
           status: (d.status as TaskStatus) || 'Pending',
           isFollowUp: Boolean(d.is_follow_up),
+          followUpChannel: (d.follow_up_channel as FollowUpChannel) || 'Phone',
+          outcomeNotes: d.outcome_notes,
           completedAt: d.completed_at,
+          completedByName: d.completed_by_name,
           createdAt: d.created_at,
           updatedAt: d.updated_at,
         }));
         setLocal(LOCAL_TASKS_KEY, tasks);
+        return filterTasksClient(tasks, filter);
       }
     } catch {
       // ignore
     }
   }
 
+  tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, []);
+  return filterTasksClient(tasks, filter);
+}
+
+function filterTasksClient(tasks: CrmTask[], filter?: { status?: string; staff?: string; priority?: string; isFollowUp?: boolean }) {
   return tasks.filter((t) => {
     if (filter?.status && filter.status !== 'all' && t.status !== filter.status) return false;
-    if (filter?.staff && filter.staff !== 'all' && t.assignedStaffName !== filter.staff)
-      return false;
+    if (filter?.priority && filter.priority !== 'all' && t.priority !== filter.priority) return false;
+    if (filter?.staff && filter.staff !== 'all' && t.assignedStaffName !== filter.staff) return false;
     if (filter?.isFollowUp !== undefined && t.isFollowUp !== filter.isFollowUp) return false;
     return true;
   });
@@ -557,7 +516,7 @@ export async function listTasks(filter?: {
 export async function createTask(input: Partial<CrmTask>): Promise<CrmTask> {
   const newTask: CrmTask = {
     id: `task-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
-    title: input.title || 'Untitled Follow-up',
+    title: input.title || 'Untitled Task',
     description: input.description || null,
     customerId: input.customerId || null,
     customerName: input.customerName || null,
@@ -570,13 +529,16 @@ export async function createTask(input: Partial<CrmTask>): Promise<CrmTask> {
     dueDate: input.dueDate || new Date(Date.now() + 86400000).toISOString(),
     priority: input.priority || 'Medium',
     status: input.status || 'Pending',
-    isFollowUp: input.isFollowUp !== undefined ? input.isFollowUp : true,
+    isFollowUp: input.isFollowUp !== undefined ? input.isFollowUp : false,
+    followUpChannel: input.followUpChannel || 'Phone',
+    outcomeNotes: null,
     completedAt: null,
+    completedByName: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
-  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, INITIAL_TASKS);
+  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, []);
   setLocal(LOCAL_TASKS_KEY, [newTask, ...tasks]);
 
   if (isSupabaseConfigured()) {
@@ -597,6 +559,7 @@ export async function createTask(input: Partial<CrmTask>): Promise<CrmTask> {
           priority: newTask.priority,
           status: newTask.status,
           is_follow_up: newTask.isFollowUp,
+          follow_up_channel: newTask.followUpChannel,
         })
         .select('*')
         .maybeSingle();
@@ -610,27 +573,22 @@ export async function createTask(input: Partial<CrmTask>): Promise<CrmTask> {
   }
 
   await recordActivity({
-    customerId: newTask.customerId || undefined,
-    leadId: newTask.leadId || undefined,
-    eventType: 'task_created',
-    title: newTask.isFollowUp ? 'Follow-up Scheduled' : 'Task Assigned',
-    description: `${newTask.title} (Assigned to: ${newTask.assignedStaffName})`,
-    actor: newTask.assignedStaffName || 'Staff Member',
+    customerId: newTask.customerId,
+    leadId: newTask.leadId,
+    eventType: newTask.isFollowUp ? 'followup_scheduled' : 'task_created',
+    title: newTask.isFollowUp ? `Follow-up Scheduled: ${newTask.title}` : `Task Created: ${newTask.title}`,
+    description: `Assigned to ${newTask.assignedStaffName}. Due: ${newTask.dueDate?.split('T')[0]}.`,
+    actor: newTask.assignedStaffName || 'Admin Staff',
   });
 
   return newTask;
 }
 
-export async function updateTaskStatus(taskId: string, newStatus: TaskStatus): Promise<boolean> {
-  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, INITIAL_TASKS);
+export async function updateTask(taskId: string, updates: Partial<CrmTask>): Promise<boolean> {
+  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, []);
   const updated = tasks.map((t) =>
     t.id === taskId
-      ? {
-          ...t,
-          status: newStatus,
-          completedAt: newStatus === 'Completed' ? new Date().toISOString() : null,
-          updatedAt: new Date().toISOString(),
-        }
+      ? { ...t, ...updates, updatedAt: new Date().toISOString() }
       : t
   );
   setLocal(LOCAL_TASKS_KEY, updated);
@@ -640,8 +598,16 @@ export async function updateTaskStatus(taskId: string, newStatus: TaskStatus): P
       await supabase
         .from('crm_tasks')
         .update({
-          status: newStatus,
-          completed_at: newStatus === 'Completed' ? new Date().toISOString() : null,
+          title: updates.title,
+          description: updates.description,
+          assigned_staff_name: updates.assignedStaffName,
+          due_date: updates.dueDate,
+          priority: updates.priority,
+          status: updates.status,
+          outcome_notes: updates.outcomeNotes,
+          follow_up_channel: updates.followUpChannel,
+          completed_at: updates.completedAt,
+          completed_by_name: updates.completedByName,
           updated_at: new Date().toISOString(),
         })
         .eq('id', taskId);
@@ -650,50 +616,44 @@ export async function updateTaskStatus(taskId: string, newStatus: TaskStatus): P
     }
   }
 
-  if (newStatus === 'Completed') {
-    const target = tasks.find((t) => t.id === taskId);
+  return true;
+}
+
+export async function updateTaskStatus(
+  taskId: string,
+  newStatus: TaskStatus,
+  outcomeNotes?: string,
+  completedByName: string = 'Admin Staff'
+): Promise<boolean> {
+  const isCompleted = newStatus === 'Completed';
+  const completedAt = isCompleted ? new Date().toISOString() : null;
+
+  await updateTask(taskId, {
+    status: newStatus,
+    completedAt,
+    outcomeNotes: outcomeNotes || null,
+    completedByName: isCompleted ? completedByName : null,
+  });
+
+  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, []);
+  const target = tasks.find((t) => t.id === taskId);
+
+  if (target) {
     await recordActivity({
-      customerId: target?.customerId || undefined,
-      leadId: target?.leadId || undefined,
-      eventType: 'task_completed',
-      title: 'Task Completed',
-      description: `Completed: ${target?.title || 'Follow-up task'}`,
-      actor: target?.assignedStaffName || 'Staff Member',
+      customerId: target.customerId,
+      leadId: target.leadId,
+      eventType: isCompleted ? 'task_completed' : 'task_created',
+      title: isCompleted ? `Completed: ${target.title}` : `Task Status: ${newStatus}`,
+      description: outcomeNotes || `Task marked as "${newStatus}" by ${completedByName}.`,
+      actor: completedByName,
     });
   }
 
   return true;
 }
 
-export async function updateTask(taskId: string, updates: Partial<CrmTask>): Promise<boolean> {
-  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, INITIAL_TASKS);
-  const updated = tasks.map((t) =>
-    t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
-  );
-  setLocal(LOCAL_TASKS_KEY, updated);
-
-  if (isSupabaseConfigured()) {
-    try {
-      const payload: any = { updated_at: new Date().toISOString() };
-      if (updates.title !== undefined) payload.title = updates.title;
-      if (updates.description !== undefined) payload.description = updates.description;
-      if (updates.status !== undefined) payload.status = updates.status;
-      if (updates.priority !== undefined) payload.priority = updates.priority;
-      if (updates.dueDate !== undefined) payload.due_date = updates.dueDate;
-      if (updates.assignedStaffName !== undefined) payload.assigned_staff_name = updates.assignedStaffName;
-      if (updates.isFollowUp !== undefined) payload.is_follow_up = updates.isFollowUp;
-
-      await supabase.from('crm_tasks').update(payload).eq('id', taskId);
-    } catch {
-      // ignore
-    }
-  }
-
-  return true;
-}
-
 export async function deleteTask(taskId: string): Promise<boolean> {
-  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, INITIAL_TASKS);
+  const tasks = getLocal<CrmTask[]>(LOCAL_TASKS_KEY, []);
   setLocal(
     LOCAL_TASKS_KEY,
     tasks.filter((t) => t.id !== taskId)
@@ -711,55 +671,182 @@ export async function deleteTask(taskId: string): Promise<boolean> {
 }
 
 export async function getFollowUpsDue(): Promise<{
-  dueToday: CrmTask[];
   overdue: CrmTask[];
+  dueToday: CrmTask[];
   upcoming: CrmTask[];
 }> {
   const allTasks = await listTasks({ isFollowUp: true });
-  const pendingTasks = allTasks.filter((t) => t.status !== 'Completed' && t.status !== 'Cancelled');
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const endOfToday = startOfToday + 86400000;
+  const pending = allTasks.filter((t) => t.status === 'Pending' || t.status === 'In Progress');
 
-  const dueToday: CrmTask[] = [];
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
   const overdue: CrmTask[] = [];
+  const dueToday: CrmTask[] = [];
   const upcoming: CrmTask[] = [];
 
-  pendingTasks.forEach((t) => {
-    if (!t.dueDate) {
-      upcoming.push(t);
+  pending.forEach((task) => {
+    if (!task.dueDate) {
+      upcoming.push(task);
       return;
     }
-    const dueTime = new Date(t.dueDate).getTime();
-    if (dueTime < startOfToday) {
-      overdue.push(t);
-    } else if (dueTime >= startOfToday && dueTime <= endOfToday) {
-      dueToday.push(t);
+    const dueDay = task.dueDate.split('T')[0];
+    if (dueDay < todayStr) {
+      overdue.push(task);
+    } else if (dueDay === todayStr) {
+      dueToday.push(task);
     } else {
-      upcoming.push(t);
+      upcoming.push(task);
     }
   });
 
-  return { dueToday, overdue, upcoming };
+  return { overdue, dueToday, upcoming };
 }
 
 // ------------------------------------------------------------------------------
-// COMMUNICATIONS & NOTES SERVICE
+// CONVERSATIONS SYSTEM (EMAIL & WHATSAPP INTEGRATION)
+// ------------------------------------------------------------------------------
+
+export async function listConversations(filter?: {
+  customerId?: string;
+  leadId?: string;
+  bookingId?: string;
+  channel?: string;
+}): Promise<CrmConversationRecord[]> {
+  let conversations: CrmConversationRecord[] = [];
+
+  if (isSupabaseConfigured()) {
+    try {
+      let query = supabase
+        .from('crm_conversations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (filter?.customerId) query = query.eq('customer_id', filter.customerId);
+      if (filter?.leadId) query = query.eq('lead_id', filter.leadId);
+      if (filter?.bookingId) query = query.eq('booking_id', filter.bookingId);
+      if (filter?.channel && filter.channel !== 'all') query = query.eq('channel', filter.channel);
+
+      const { data, error } = await query;
+      if (!error && data) {
+        conversations = data.map((d) => ({
+          id: d.id,
+          customerId: d.customer_id,
+          leadId: d.lead_id,
+          bookingId: d.booking_id,
+          channel: d.channel,
+          direction: d.direction,
+          senderIdentifier: d.sender_identifier,
+          recipientIdentifier: d.recipient_identifier,
+          subject: d.subject,
+          messageBody: d.message_body,
+          provider: d.provider as ConversationProvider,
+          providerMessageId: d.provider_message_id,
+          providerStatus: d.provider_status as ConversationProviderStatus,
+          errorDetails: d.error_details,
+          staffId: d.staff_id,
+          staffName: d.staff_name,
+          metadata: d.metadata,
+          createdAt: d.created_at,
+        }));
+        setLocal(LOCAL_CONVERSATIONS_KEY, conversations);
+        return conversations;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  conversations = getLocal<CrmConversationRecord[]>(LOCAL_CONVERSATIONS_KEY, []);
+  return conversations.filter((c) => {
+    if (filter?.customerId && c.customerId !== filter.customerId) return false;
+    if (filter?.leadId && c.leadId !== filter.leadId) return false;
+    if (filter?.bookingId && c.bookingId !== filter.bookingId) return false;
+    if (filter?.channel && filter.channel !== 'all' && c.channel !== filter.channel) return false;
+    return true;
+  });
+}
+
+export async function recordConversation(
+  input: Omit<CrmConversationRecord, 'id' | 'createdAt'>
+): Promise<CrmConversationRecord> {
+  const newRecord: CrmConversationRecord = {
+    ...input,
+    id: `conv-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  const list = getLocal<CrmConversationRecord[]>(LOCAL_CONVERSATIONS_KEY, []);
+  setLocal(LOCAL_CONVERSATIONS_KEY, [newRecord, ...list]);
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('crm_conversations')
+        .insert({
+          customer_id: newRecord.customerId,
+          lead_id: newRecord.leadId,
+          booking_id: newRecord.bookingId,
+          channel: newRecord.channel,
+          direction: newRecord.direction,
+          sender_identifier: newRecord.senderIdentifier,
+          recipient_identifier: newRecord.recipientIdentifier,
+          subject: newRecord.subject,
+          message_body: newRecord.messageBody,
+          provider: newRecord.provider,
+          provider_message_id: newRecord.providerMessageId,
+          provider_status: newRecord.providerStatus,
+          error_details: newRecord.errorDetails,
+          staff_name: newRecord.staffName,
+          staff_id: newRecord.staffId,
+          metadata: newRecord.metadata || {},
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (!error && data) {
+        newRecord.id = data.id;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Also log to communications and activity
+  await recordActivity({
+    customerId: newRecord.customerId,
+    leadId: newRecord.leadId,
+    bookingId: newRecord.bookingId,
+    eventType: 'conversation',
+    title: `${newRecord.channel.toUpperCase()} (${newRecord.direction}): ${newRecord.subject || newRecord.recipientIdentifier}`,
+    description: newRecord.messageBody.substring(0, 150),
+    actor: newRecord.staffName,
+  });
+
+  return newRecord;
+}
+
+// ------------------------------------------------------------------------------
+// COMMUNICATIONS & NOTES (LEGACY & EXTENDED WRAPPERS)
 // ------------------------------------------------------------------------------
 
 export async function listCommunications(filter?: {
   customerId?: string;
   leadId?: string;
 }): Promise<CrmCommunication[]> {
-  let comms = getLocal<CrmCommunication[]>(LOCAL_COMMS_KEY, []);
+  let comms: CrmCommunication[] = [];
 
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('crm_communications')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (filter?.customerId) query = query.eq('customer_id', filter.customerId);
+      if (filter?.leadId) query = query.eq('lead_id', filter.leadId);
+
+      const { data, error } = await query;
       if (!error && data) {
         comms = data.map((d) => ({
           id: d.id,
@@ -767,20 +854,23 @@ export async function listCommunications(filter?: {
           customerName: d.customer_name,
           leadId: d.lead_id,
           bookingId: d.booking_id,
-          channel: d.channel,
-          direction: d.direction,
+          channel: (d.channel as CommChannel) || 'WhatsApp',
+          direction: (d.direction as 'inbound' | 'outbound') || 'outbound',
           summary: d.summary,
           content: d.content,
           staffName: d.staff_name,
+          staffId: d.staff_id,
           createdAt: d.created_at,
         }));
         setLocal(LOCAL_COMMS_KEY, comms);
+        return comms;
       }
     } catch {
       // ignore
     }
   }
 
+  comms = getLocal<CrmCommunication[]>(LOCAL_COMMS_KEY, []);
   return comms.filter((c) => {
     if (filter?.customerId && c.customerId !== filter.customerId) return false;
     if (filter?.leadId && c.leadId !== filter.leadId) return false;
@@ -799,9 +889,10 @@ export async function recordCommunication(
     bookingId: input.bookingId || null,
     channel: input.channel || 'WhatsApp',
     direction: input.direction || 'outbound',
-    summary: input.summary || 'Customer communication log',
+    summary: input.summary || 'Client Contact',
     content: input.content || null,
     staffName: input.staffName || 'Admin Staff',
+    staffId: input.staffId || null,
     createdAt: new Date().toISOString(),
   };
 
@@ -810,29 +901,36 @@ export async function recordCommunication(
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('crm_communications').insert({
-        customer_id: newComm.customerId,
-        customer_name: newComm.customerName,
-        lead_id: newComm.leadId,
-        booking_id: newComm.bookingId,
-        channel: newComm.channel,
-        direction: newComm.direction,
-        summary: newComm.summary,
-        content: newComm.content,
-        staff_name: newComm.staffName,
-      });
+      const { data, error } = await supabase
+        .from('crm_communications')
+        .insert({
+          customer_id: newComm.customerId,
+          customer_name: newComm.customerName,
+          lead_id: newComm.leadId,
+          booking_id: newComm.bookingId,
+          channel: newComm.channel,
+          direction: newComm.direction,
+          summary: newComm.summary,
+          content: newComm.content,
+          staff_name: newComm.staffName,
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (!error && data) {
+        newComm.id = data.id;
+      }
     } catch {
       // ignore
     }
   }
 
-  // Record timeline activity
   await recordActivity({
-    customerId: newComm.customerId || undefined,
-    leadId: newComm.leadId || undefined,
+    customerId: newComm.customerId,
+    leadId: newComm.leadId,
     eventType: 'communication',
-    title: `${newComm.channel} ${newComm.direction === 'inbound' ? 'Received' : 'Sent'}`,
-    description: newComm.summary,
+    title: `${newComm.channel} (${newComm.direction}): ${newComm.summary}`,
+    description: newComm.content || newComm.summary,
     actor: newComm.staffName,
   });
 
@@ -843,15 +941,19 @@ export async function listNotes(filter?: {
   customerId?: string;
   leadId?: string;
 }): Promise<CrmNote[]> {
-  let notes = getLocal<CrmNote[]>(LOCAL_NOTES_KEY, []);
+  let notes: CrmNote[] = [];
 
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('crm_notes')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (filter?.customerId) query = query.eq('customer_id', filter.customerId);
+      if (filter?.leadId) query = query.eq('lead_id', filter.leadId);
+
+      const { data, error } = await query;
       if (!error && data) {
         notes = data.map((d) => ({
           id: d.id,
@@ -860,16 +962,19 @@ export async function listNotes(filter?: {
           bookingId: d.booking_id,
           content: d.content,
           staffName: d.staff_name,
+          staffId: d.staff_id,
           isPinned: Boolean(d.is_pinned),
           createdAt: d.created_at,
         }));
         setLocal(LOCAL_NOTES_KEY, notes);
+        return notes;
       }
     } catch {
       // ignore
     }
   }
 
+  notes = getLocal<CrmNote[]>(LOCAL_NOTES_KEY, []);
   return notes.filter((n) => {
     if (filter?.customerId && n.customerId !== filter.customerId) return false;
     if (filter?.leadId && n.leadId !== filter.leadId) return false;
@@ -877,14 +982,21 @@ export async function listNotes(filter?: {
   });
 }
 
-export async function addStaffNote(input: Partial<CrmNote>): Promise<CrmNote> {
+export async function addStaffNote(input: {
+  customerId?: string;
+  leadId?: string;
+  bookingId?: string;
+  content: string;
+  staffName?: string;
+  isPinned?: boolean;
+}): Promise<CrmNote> {
   const newNote: CrmNote = {
     id: `note-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
     customerId: input.customerId || null,
     leadId: input.leadId || null,
     bookingId: input.bookingId || null,
-    content: input.content || '',
-    staffName: input.staffName || 'Admin Staff',
+    content: input.content,
+    staffName: input.staffName || 'Staff Member',
     isPinned: Boolean(input.isPinned),
     createdAt: new Date().toISOString(),
   };
@@ -894,24 +1006,32 @@ export async function addStaffNote(input: Partial<CrmNote>): Promise<CrmNote> {
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('crm_notes').insert({
-        customer_id: newNote.customerId,
-        lead_id: newNote.leadId,
-        booking_id: newNote.bookingId,
-        content: newNote.content,
-        staff_name: newNote.staffName,
-        is_pinned: newNote.isPinned,
-      });
+      const { data, error } = await supabase
+        .from('crm_notes')
+        .insert({
+          customer_id: newNote.customerId,
+          lead_id: newNote.leadId,
+          booking_id: newNote.bookingId,
+          content: newNote.content,
+          staff_name: newNote.staffName,
+          is_pinned: newNote.isPinned,
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (!error && data) {
+        newNote.id = data.id;
+      }
     } catch {
       // ignore
     }
   }
 
   await recordActivity({
-    customerId: newNote.customerId || undefined,
-    leadId: newNote.leadId || undefined,
+    customerId: newNote.customerId,
+    leadId: newNote.leadId,
     eventType: 'staff_note',
-    title: 'Internal Note Added',
+    title: 'Staff Note Added',
     description: newNote.content,
     actor: newNote.staffName,
   });
@@ -920,50 +1040,58 @@ export async function addStaffNote(input: Partial<CrmNote>): Promise<CrmNote> {
 }
 
 // ------------------------------------------------------------------------------
-// TIMELINE ACTIVITIES SERVICE
+// UNIFIED TIMELINE & AUDIT ACTIVITIES
 // ------------------------------------------------------------------------------
 
-export const logActivity = async (act: Partial<CrmActivity>): Promise<void> => {
-  return recordActivity(act);
-};
-
-export async function recordActivity(act: Partial<CrmActivity>): Promise<void> {
+export async function recordActivity(input: Partial<CrmActivity>): Promise<CrmActivity> {
   const newAct: CrmActivity = {
     id: `act-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
-    customerId: act.customerId || null,
-    leadId: act.leadId || null,
-    bookingId: act.bookingId || null,
-    eventType: act.eventType || 'staff_note',
-    title: act.title || 'CRM Event',
-    description: act.description || null,
-    actor: act.actor || 'System',
-    metadata: act.metadata || {},
+    customerId: input.customerId || null,
+    leadId: input.leadId || null,
+    bookingId: input.bookingId || null,
+    eventType: input.eventType || 'staff_note',
+    title: input.title || 'CRM Event',
+    description: input.description || null,
+    actor: input.actor || 'System',
+    metadata: input.metadata || {},
     createdAt: new Date().toISOString(),
   };
 
-  const activities = getLocal<CrmActivity[]>(LOCAL_ACTIVITIES_KEY, INITIAL_ACTIVITIES);
+  const activities = getLocal<CrmActivity[]>(LOCAL_ACTIVITIES_KEY, []);
   setLocal(LOCAL_ACTIVITIES_KEY, [newAct, ...activities]);
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('crm_activities').insert({
-        customer_id: newAct.customerId,
-        lead_id: newAct.leadId,
-        booking_id: newAct.bookingId,
-        event_type: newAct.eventType,
-        title: newAct.title,
-        description: newAct.description,
-        actor: newAct.actor,
-        metadata: newAct.metadata,
-      });
+      const { data, error } = await supabase
+        .from('crm_activities')
+        .insert({
+          customer_id: newAct.customerId,
+          lead_id: newAct.leadId,
+          booking_id: newAct.bookingId,
+          event_type: newAct.eventType,
+          title: newAct.title,
+          description: newAct.description,
+          actor: newAct.actor,
+          metadata: newAct.metadata,
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (!error && data) {
+        newAct.id = data.id;
+      }
     } catch {
       // ignore
     }
   }
+
+  return newAct;
 }
 
-export async function getGlobalActivityTimeline(limit: number = 50): Promise<CrmActivity[]> {
-  let activities = getLocal<CrmActivity[]>(LOCAL_ACTIVITIES_KEY, INITIAL_ACTIVITIES);
+export const logActivity = recordActivity;
+
+export async function getGlobalActivityTimeline(limit: number = 60): Promise<CrmActivity[]> {
+  let activities: CrmActivity[] = [];
 
   if (isSupabaseConfigured()) {
     try {
@@ -987,37 +1115,20 @@ export async function getGlobalActivityTimeline(limit: number = 50): Promise<Crm
           createdAt: d.created_at,
         }));
         setLocal(LOCAL_ACTIVITIES_KEY, activities);
+        return activities;
       }
     } catch {
       // ignore
     }
   }
 
+  activities = getLocal<CrmActivity[]>(LOCAL_ACTIVITIES_KEY, []);
   return activities.slice(0, limit);
 }
 
 // ------------------------------------------------------------------------------
-// COMPREHENSIVE CUSTOMER PROFILE & DEDUPLICATION
+// CUSTOMER DIRECTORY & ENRICHED 360 PROFILE
 // ------------------------------------------------------------------------------
-
-export async function findExistingCustomer(
-  email?: string,
-  phone?: string
-): Promise<CrmCustomerDetail | null> {
-  if (!email && !phone) return null;
-  const customers = await listCrmCustomers();
-  const cleanEmail = email ? email.toLowerCase().trim() : '';
-  const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
-
-  return (
-    customers.find((c) => {
-      if (cleanEmail && c.email.toLowerCase().trim() === cleanEmail) return true;
-      if (cleanPhone && c.phone && c.phone.replace(/[^0-9]/g, '') === cleanPhone) return true;
-      if (cleanPhone && c.whatsapp && c.whatsapp.replace(/[^0-9]/g, '') === cleanPhone) return true;
-      return false;
-    }) || null
-  );
-}
 
 export async function listCrmCustomers(
   searchQuery?: string,
@@ -1031,7 +1142,61 @@ export async function listCrmCustomers(
 
   const customerMap = new Map<string, CrmCustomerDetail>();
 
-  // 1. Group bookings by customer email or phone
+  // Fetch registered customers from Supabase if configured
+  if (isSupabaseConfigured()) {
+    try {
+      const { data: dbCustomers } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (dbCustomers) {
+        dbCustomers.forEach((c) => {
+          const email = (c.email || '').toLowerCase().trim();
+          if (!email) return;
+
+          customerMap.set(email, {
+            id: c.id,
+            fullName: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Traveler',
+            firstName: c.first_name,
+            lastName: c.last_name,
+            email,
+            phone: c.phone || null,
+            whatsapp: c.whatsapp || null,
+            country: c.country || null,
+            hotel: c.hotel || null,
+            notes: c.notes || null,
+            tags: c.tags || ['Customer'],
+            status: (c.status as any) || 'active',
+            firstBookingDate: c.first_booking_date || null,
+            latestBookingDate: c.latest_booking_date || null,
+            upcomingBookingDate: c.upcoming_booking_date || null,
+            totalBookings: c.total_bookings_count || 0,
+            completedBookings: c.completed_bookings_count || 0,
+            cancelledBookings: c.cancelled_bookings_count || 0,
+            totalRevenue: Number(c.total_revenue) || 0,
+            outstandingAmount: Number(c.outstanding_amount) || 0,
+            lastContactDate: c.last_contact_at || c.created_at,
+            source: c.source || 'Website Booking',
+            createdAt: c.created_at || new Date().toISOString(),
+            role: 'customer',
+            isRegistered: Boolean(c.user_id),
+            bookings: [],
+            inquiries: [],
+            communications: [],
+            staffNotes: [],
+            tasks: [],
+            activities: [],
+            reviews: [],
+          });
+        });
+      }
+    } catch {
+      // continue with bookings aggregation
+    }
+  }
+
+  // Correlate Bookings
   allBookings.forEach((b) => {
     const email = (b.customer?.email || '').toLowerCase().trim();
     if (!email) return;
@@ -1048,15 +1213,19 @@ export async function listCrmCustomers(
       cust = {
         id: `cust-${email}`,
         fullName: `${b.customer.firstName || ''} ${b.customer.lastName || ''}`.trim() || 'Guest Traveler',
+        firstName: b.customer.firstName,
+        lastName: b.customer.lastName,
         email,
         phone: `${b.customer.countryCode || ''} ${b.customer.phoneNumber || ''}`.trim() || null,
         whatsapp: b.customer.whatsappNumber || null,
         country: b.customer.country || null,
-        hotel: b.pickup.hotelName || b.customer.hotelName || null,
+        hotel: b.pickup?.hotelName || b.customer.hotelName || null,
         notes: extra.notes || null,
         tags: extra.tags || ['Customer'],
+        status: 'active',
         firstBookingDate: bookingDate,
         latestBookingDate: bookingDate,
+        upcomingBookingDate: null,
         totalBookings: 0,
         completedBookings: 0,
         cancelledBookings: 0,
@@ -1094,9 +1263,15 @@ export async function listCrmCustomers(
       cust.latestBookingDate = bookingDate;
       cust.lastContactDate = bookingDate;
     }
+    const today = new Date().toISOString().split('T')[0];
+    if (bookingDate >= today && b.status !== 'cancelled') {
+      if (!cust.upcomingBookingDate || bookingDate < cust.upcomingBookingDate) {
+        cust.upcomingBookingDate = bookingDate;
+      }
+    }
   });
 
-  // 2. Correlate with Inquiries to discover potential inquirers who have not booked yet
+  // Correlate Inquiries
   allInquiries.forEach((inq) => {
     const email = (inq.email || '').toLowerCase().trim();
     if (!email) return;
@@ -1111,12 +1286,14 @@ export async function listCrmCustomers(
         email,
         phone: inq.phone || null,
         whatsapp: inq.whatsapp || null,
-        country: null,
+        country: (inq as any).country || null,
         hotel: null,
         notes: extra.notes || inq.admin_notes || null,
         tags: extra.tags || ['Inquiry Lead'],
+        status: 'active',
         firstBookingDate: null,
         latestBookingDate: null,
+        upcomingBookingDate: null,
         totalBookings: 0,
         completedBookings: 0,
         cancelledBookings: 0,
@@ -1141,18 +1318,31 @@ export async function listCrmCustomers(
     cust.inquiries.push(inq);
   });
 
-  // Convert map to list
+  // Dynamic tags attribution & segments
   let customerList = Array.from(customerMap.values()).map((c) => {
-    // Dynamically assign tags
     const dynamicTags = new Set(c.tags);
-    if (c.totalBookings > 2) dynamicTags.add('VIP Repeat');
-    if (c.totalRevenue >= 500) dynamicTags.add('High Value');
-    if (c.outstandingAmount > 0) dynamicTags.add('Outstanding Balance');
+    if (c.totalBookings >= 2) dynamicTags.add('repeat_customer');
+    if (c.totalRevenue >= 500) {
+      dynamicTags.add('high_value');
+      dynamicTags.add('VIP');
+    }
+    if (c.outstandingAmount > 0) dynamicTags.add('outstanding_balance');
+    if (c.upcomingBookingDate) dynamicTags.add('upcoming_trip');
+
+    // Interests based on tour titles
+    const bookedTitles = c.bookings.map((b) => b.tourTitle.toLowerCase()).join(' ');
+    if (bookedTitles.includes('dive') || bookedTitles.includes('scuba')) dynamicTags.add('diving');
+    if (bookedTitles.includes('snorkel') || bookedTitles.includes('giftun') || bookedTitles.includes('dolphin')) dynamicTags.add('snorkeling');
+    if (bookedTitles.includes('safari') || bookedTitles.includes('quad') || bookedTitles.includes('buggy')) dynamicTags.add('safari');
+
     c.tags = Array.from(dynamicTags);
+    if (c.totalRevenue >= 500 || c.totalBookings >= 3) {
+      c.status = 'vip';
+    }
     return c;
   });
 
-  // Filter
+  // Client filtering
   if (searchQuery) {
     const q = searchQuery.toLowerCase().trim();
     customerList = customerList.filter(
@@ -1162,6 +1352,7 @@ export async function listCrmCustomers(
         (c.phone && c.phone.includes(q)) ||
         (c.whatsapp && c.whatsapp.includes(q)) ||
         (c.hotel && c.hotel.toLowerCase().includes(q)) ||
+        (c.country && c.country.toLowerCase().includes(q)) ||
         c.bookings.some((b) => b.bookingReference.toLowerCase().includes(q))
     );
   }
@@ -1182,25 +1373,30 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
   );
   if (!found) return null;
 
-  // Enrich with communications, staff notes, tasks, and activities
-  const [comms, notes, tasks, activities] = await Promise.all([
+  // Enrich with communications, notes, tasks, activities, and leads
+  const [comms, notes, tasks, activities, leads, conversations] = await Promise.all([
     listCommunications({ customerId: found.id }),
     listNotes({ customerId: found.id }),
     listTasks(),
     getGlobalActivityTimeline(100),
+    listLeads(),
+    listConversations({ customerId: found.id }),
   ]);
 
   found.communications = comms;
   found.staffNotes = notes;
+  found.conversations = conversations;
   found.tasks = tasks.filter(
     (t) => t.customerId === found.id || (t.customerName && t.customerName === found.fullName)
   );
+  found.leads = leads.filter(
+    (l) => l.customerId === found.id || l.email.toLowerCase() === found.email.toLowerCase()
+  );
 
-  // Synthesize unified customer activity timeline:
-  // combines account created, inquiries, bookings, payments, staff notes, and communications
+  // Synthesize complete unified chronological timeline
   const customerActivities: CrmActivity[] = [...activities.filter((a) => a.customerId === found.id)];
 
-  // Add booking created & changed events
+  // Bookings events
   found.bookings.forEach((b) => {
     customerActivities.push({
       id: `act-bk-${b.bookingReference}`,
@@ -1208,8 +1404,8 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
       bookingId: b.bookingId || b.bookingReference,
       eventType: 'booking_created',
       title: `Booking Confirmed: ${b.bookingReference}`,
-      description: `${b.tourTitle} for ${b.guests.adults} adult(s). Total: €${b.pricing.totalEur}`,
-      actor: 'System (Online Checkout)',
+      description: `${b.tourTitle} (${b.guests.adults} Adults, €${b.pricing.totalEur}).`,
+      actor: 'Traveler Online',
       createdAt: b.date || b.createdAt,
     });
 
@@ -1220,8 +1416,8 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
         bookingId: b.bookingId || b.bookingReference,
         eventType: 'payment_recorded',
         title: `Payment Received: €${b.pricing.totalEur}`,
-        description: `Full payment cleared via ${b.paymentMethod === 'pay_online' ? 'Credit Card' : 'Pier Cash'}`,
-        actor: 'Finance Desk',
+        description: `Full payment settled via ${b.paymentMethod === 'pay_online' ? 'Online Card' : 'Pier Cash'}.`,
+        actor: 'Accounting',
         createdAt: b.date || b.createdAt,
       });
     }
@@ -1233,27 +1429,42 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
         bookingId: b.bookingId || b.bookingReference,
         eventType: 'cancellation',
         title: `Booking Cancelled: ${b.bookingReference}`,
-        description: b.cancellationReason || 'Cancellation requested by traveler',
-        actor: 'Customer / Operations',
+        description: b.cancellationReason || 'Cancelled by traveler or operations.',
+        actor: 'Customer Support',
         createdAt: (b as any).updatedAt || b.date || b.createdAt,
       });
     }
   });
 
-  // Add inquiries
+  // Inquiries
   found.inquiries.forEach((inq) => {
     customerActivities.push({
       id: `act-inq-${inq.id}`,
       customerId: found.id,
       eventType: 'inquiry_created',
-      title: `Inquiry Submitted: ${inq.subject || 'General Request'}`,
+      title: `Inquiry Received: ${inq.subject || 'Support Ticket'}`,
       description: inq.message,
       actor: found.fullName,
       createdAt: inq.created_at,
     });
   });
 
-  // Sort activities newest first
+  // Leads
+  if (found.leads) {
+    found.leads.forEach((l) => {
+      customerActivities.push({
+        id: `act-lead-${l.id}`,
+        customerId: found.id,
+        leadId: l.id,
+        eventType: 'lead_created',
+        title: `Lead Record: ${l.stage} Stage`,
+        description: `Source: ${l.source}. Interested in: ${l.interestedTourTitle || 'General Tour'}.`,
+        actor: l.assignedStaffName || 'Sales Desk',
+        createdAt: l.createdAt,
+      });
+    });
+  }
+
   found.activities = customerActivities.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
@@ -1261,9 +1472,59 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
   return found;
 }
 
+export async function createCustomer(input: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  whatsapp?: string;
+  country: string;
+  hotel?: string;
+  notes?: string;
+  tags?: string[];
+}): Promise<CrmCustomerDetail> {
+  const email = input.email.toLowerCase().trim();
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .insert({
+          first_name: input.firstName,
+          last_name: input.lastName,
+          email,
+          phone: input.phone,
+          whatsapp: input.whatsapp,
+          country: input.country,
+          hotel: input.hotel,
+          notes: input.notes,
+          tags: input.tags || ['Customer'],
+          source: 'Manual Admin Entry',
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (!error && data) {
+        return (await getCustomerProfile(data.id))!;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Update local extra
+  await updateCustomerMetadata(email, {
+    notes: input.notes,
+    tags: input.tags || ['Customer'],
+    source: 'Manual Admin Entry',
+  });
+
+  return (await getCustomerProfile(email))!;
+}
+
 export async function updateCustomerMetadata(
   email: string,
-  updates: { notes?: string; tags?: string[]; source?: string }
+  updates: { notes?: string; tags?: string[]; source?: string; hotel?: string; country?: string }
 ): Promise<void> {
   const extra = getLocal<Record<string, any>>(LOCAL_CUSTOMERS_EXTRA_KEY, {});
   extra[email.toLowerCase()] = {
@@ -1271,6 +1532,178 @@ export async function updateCustomerMetadata(
     ...updates,
   };
   setLocal(LOCAL_CUSTOMERS_EXTRA_KEY, extra);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('customers')
+        .update({
+          notes: updates.notes,
+          tags: updates.tags,
+          hotel: updates.hotel,
+          country: updates.country,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('email', email.toLowerCase());
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// ------------------------------------------------------------------------------
+// TAGS & SEGMENTS SERVICE
+// ------------------------------------------------------------------------------
+
+export async function listCrmTags(): Promise<CrmTag[]> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase.from('crm_tags').select('*').order('name');
+      if (!error && data && data.length > 0) {
+        return data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description,
+          color: d.color,
+          category: d.category,
+          usageCount: d.usage_count || 0,
+          createdAt: d.created_at,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return getLocal<CrmTag[]>(LOCAL_TAGS_KEY, DEFAULT_TAGS);
+}
+
+export async function createCrmTag(input: {
+  name: string;
+  description?: string;
+  color?: string;
+  category?: 'tier' | 'loyalty' | 'interest' | 'general';
+}): Promise<CrmTag> {
+  const newTag: CrmTag = {
+    id: `tag-${Date.now().toString(36)}`,
+    name: input.name.toLowerCase().replace(/\s+/g, '_'),
+    description: input.description || null,
+    color: input.color || '#2dd4bf',
+    category: input.category || 'general',
+    usageCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  const tags = getLocal<CrmTag[]>(LOCAL_TAGS_KEY, DEFAULT_TAGS);
+  setLocal(LOCAL_TAGS_KEY, [newTag, ...tags]);
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('crm_tags')
+        .insert({
+          name: newTag.name,
+          description: newTag.description,
+          color: newTag.color,
+          category: newTag.category,
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (!error && data) {
+        newTag.id = data.id;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return newTag;
+}
+
+export async function listCrmSegments(): Promise<CrmSegment[]> {
+  const customers = await listCrmCustomers();
+
+  const baseSegments: CrmSegment[] = [
+    {
+      id: 'seg-1',
+      name: 'VIP Repeat Travelers',
+      slug: 'repeat_customers',
+      description: 'Travelers who have completed 2 or more excursions across the Red Sea',
+      badgeLabel: 'Repeat Guest',
+      color: '#fbbf24',
+      icon: 'Crown',
+      ruleType: 'repeat',
+      customerCount: customers.filter((c) => c.totalBookings >= 2).length,
+      isActive: true,
+    },
+    {
+      id: 'seg-2',
+      name: 'High Lifetime Value (€500+)',
+      slug: 'high_value',
+      description: 'Guests with over €500 total spend on yachts, diving, or private safaris',
+      badgeLabel: 'High Value',
+      color: '#a855f7',
+      icon: 'Diamond',
+      ruleType: 'high_value',
+      customerCount: customers.filter((c) => c.totalRevenue >= 500).length,
+      isActive: true,
+    },
+    {
+      id: 'seg-3',
+      name: 'Dormant (No Booking in 12 Months)',
+      slug: 'dormant_12m',
+      description: 'Past customers who have not made a reservation in the last 12 months',
+      badgeLabel: 'Win-Back',
+      color: '#f97316',
+      icon: 'Clock',
+      ruleType: 'dormant_12m',
+      customerCount: customers.filter((c) => {
+        if (!c.latestBookingDate) return false;
+        const twelveMonthsAgo = new Date(Date.now() - 365 * 86400000).toISOString().split('T')[0];
+        return c.latestBookingDate < twelveMonthsAgo;
+      }).length,
+      isActive: true,
+    },
+    {
+      id: 'seg-4',
+      name: 'Upcoming Trips (Active Travelers)',
+      slug: 'upcoming_trips',
+      description: 'Confirmed travelers with excursions scheduled in the future',
+      badgeLabel: 'Upcoming Trip',
+      color: '#34d399',
+      icon: 'Calendar',
+      ruleType: 'upcoming_trip',
+      customerCount: customers.filter((c) => Boolean(c.upcomingBookingDate)).length,
+      isActive: true,
+    },
+    {
+      id: 'seg-5',
+      name: 'Diving & Watersports Enthusiasts',
+      slug: 'diving_enthusiasts',
+      description: 'Guests with diving and snorkeling interest tags',
+      badgeLabel: 'Marine Sports',
+      color: '#06b6d4',
+      icon: 'Anchor',
+      ruleType: 'interest_diving',
+      customerCount: customers.filter((c) => c.tags.includes('diving') || c.tags.includes('snorkeling')).length,
+      isActive: true,
+    },
+    {
+      id: 'seg-6',
+      name: 'Unconverted Inquiry Leads',
+      slug: 'unconverted_leads',
+      description: 'Prospects who submitted inquiries or custom requests without booking yet',
+      badgeLabel: 'Inquiry Prospect',
+      color: '#38bdf8',
+      icon: 'Target',
+      ruleType: 'unconverted_inquiry',
+      customerCount: customers.filter((c) => c.totalBookings === 0 && c.inquiries.length > 0).length,
+      isActive: true,
+    },
+  ];
+
+  return baseSegments;
 }
 
 // ------------------------------------------------------------------------------
@@ -1286,8 +1719,9 @@ export async function convertInquiryToLead(inquiry: any): Promise<CrmLead> {
     source: (inquiry.source as LeadSource) || 'Website',
     interestedTourId: inquiry.tour_id,
     interestedTourTitle: inquiry.admin_notes?.replace('Referenced Tour: ', '') || null,
-    notes: `Converted from Inquiry: ${inquiry.message}`,
+    notes: `Converted from Help Inquiry: ${inquiry.message}`,
     stage: 'Contacted',
+    score: 60,
   });
 
   if (isSupabaseConfigured()) {
@@ -1306,26 +1740,34 @@ export async function convertLeadToCustomer(leadId: string): Promise<string> {
   const lead = leads.find((l) => l.id === leadId);
   if (!lead) throw new Error('Lead not found');
 
-  await updateLeadStage(leadId, 'Booked');
-  await updateCustomerMetadata(lead.email, {
+  await updateLeadStage(leadId, 'Won');
+
+  // Create or update customer record
+  await createCustomer({
+    firstName: lead.name.split(' ')[0] || lead.name,
+    lastName: lead.name.split(' ').slice(1).join(' ') || '',
+    email: lead.email,
+    phone: lead.phone || '',
+    whatsapp: lead.whatsapp || undefined,
+    country: lead.country || 'International',
+    hotel: lead.hotel || undefined,
     notes: lead.notes || undefined,
     tags: ['Converted Lead', 'Active Customer'],
-    source: lead.source,
   });
 
   await recordActivity({
     leadId,
-    eventType: 'stage_changed',
+    eventType: 'lead_converted',
     title: 'Lead Converted to Customer',
-    description: `${lead.name} successfully booked and transitioned to verified customer.`,
-    actor: 'CRM Sales Team',
+    description: `${lead.name} successfully transitioned to customer directory.`,
+    actor: 'Sales Team',
   });
 
   return lead.email;
 }
 
 // ------------------------------------------------------------------------------
-// DASHBOARD KPIS & METRICS
+// DASHBOARD KPIS & METRICS (100% REAL SUPABASE / REPO DATA)
 // ------------------------------------------------------------------------------
 
 export async function getCrmDashboardMetrics(): Promise<CrmDashboardMetrics> {
@@ -1338,25 +1780,14 @@ export async function getCrmDashboardMetrics(): Promise<CrmDashboardMetrics> {
   ]);
 
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
   const oneWeekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
-
-  const bookingsToday = allBookings.filter(
-    (b) => (b.date && b.date.startsWith(todayStr)) || (b.createdAt && b.createdAt.startsWith(todayStr))
-  ).length;
-
-  const bookingsThisWeek = allBookings.filter(
-    (b) => (b.date && b.date >= oneWeekAgo) || (b.createdAt && b.createdAt >= oneWeekAgo)
-  ).length;
 
   const { dueToday, overdue } = await getFollowUpsDue();
 
-  const openInquiries = inquiries.filter(
-    (i) => i.status === 'new' || i.status === 'contacted' || (i.status as any) === 'in_progress'
-  ).length;
+  const newInquiries = inquiries.filter((i) => i.status === 'new').length;
 
   const totalWonLeadsEur = leads
-    .filter((l) => l.stage === 'Booked' || l.stage === 'Completed')
+    .filter((l) => l.stage === 'Won' || l.stage === 'Booked' as any)
     .reduce((sum, l) => sum + (l.estimatedValue || 0), 0);
 
   const totalRevenueEur = allBookings
@@ -1367,25 +1798,32 @@ export async function getCrmDashboardMetrics(): Promise<CrmDashboardMetrics> {
     .filter((b) => b.status !== 'cancelled' && b.paymentStatus !== 'paid')
     .reduce((sum, b) => sum + (b.pricing?.totalEur || 0), 0);
 
-  const closedLeads = leads.filter(
-    (l) => l.stage === 'Booked' || l.stage === 'Completed' || l.stage === 'Lost'
-  ).length;
+  const wonLeadsCount = leads.filter((l) => l.stage === 'Won' || (l.stage as any) === 'Booked').length;
+  const lostLeadsCount = leads.filter((l) => l.stage === 'Lost').length;
+  const closedLeads = wonLeadsCount + lostLeadsCount;
+  const conversionRate = closedLeads > 0 ? Math.round((wonLeadsCount / closedLeads) * 100) : 0;
 
-  const wonLeads = leads.filter((l) => l.stage === 'Booked' || l.stage === 'Completed').length;
-  const conversionRate = closedLeads > 0 ? Math.round((wonLeads / closedLeads) * 100) : 65;
+  const repeatCustomersCount = customers.filter((c) => c.totalBookings >= 2).length;
+  const customerLifetimeValueAvgEur =
+    customers.length > 0 ? Math.round(totalRevenueEur / customers.length) : 0;
 
   return {
+    totalLeadsCount: leads.length,
     newLeadsCount: leads.filter((l) => l.stage === 'New').length,
-    openInquiriesCount: openInquiries,
-    bookingsTodayCount: bookingsToday,
-    bookingsThisWeekCount: bookingsThisWeek,
+    qualifiedLeadsCount: leads.filter((l) => l.stage === 'Qualified').length,
+    wonLeadsCount,
+    lostLeadsCount,
+    conversionRate,
     followUpsDueCount: dueToday.length,
     overdueFollowUpsCount: overdue.length,
+    openTasksCount: tasks.filter((t) => t.status === 'Pending' || t.status === 'In Progress').length,
+    newInquiriesCount: newInquiries,
     newCustomersCount: customers.filter((c) => c.createdAt >= oneWeekAgo).length,
-    conversionRate,
+    repeatCustomersCount,
+    customerLifetimeValueAvgEur,
     totalRevenueEur,
     outstandingPaymentsEur,
-    totalActiveLeads: leads.filter((l) => l.stage !== 'Lost' && l.stage !== 'Completed').length,
+    totalActiveLeads: leads.filter((l) => l.stage !== 'Lost' && l.stage !== 'Won').length,
     totalWonLeadsEur,
   };
 }

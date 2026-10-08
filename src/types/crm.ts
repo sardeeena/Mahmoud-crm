@@ -4,12 +4,27 @@ import { Booking } from './booking';
 export type LeadStage =
   | 'New'
   | 'Contacted'
+  | 'Qualified'
+  | 'Proposal'
+  | 'Follow-up'
+  | 'Won'
+  | 'Lost'
   | 'Interested'
   | 'Quotation Sent'
   | 'Booking Pending'
   | 'Booked'
-  | 'Completed'
-  | 'Lost';
+  | 'Completed';
+
+export interface CrmLeadStageConfig {
+  id: string;
+  name: LeadStage;
+  label: string;
+  color: string;
+  sortOrder: number;
+  isActive: boolean;
+  isWon: boolean;
+  isLost: boolean;
+}
 
 export type LeadSource =
   | 'Website'
@@ -35,16 +50,22 @@ export interface CrmLead {
   source: LeadSource;
   interestedTourId?: string | null;
   interestedTourTitle?: string | null;
+  destination?: string | null;
   travelDate?: string | null;
   numberOfGuests: number;
   estimatedValue: number;
   currency: string;
   stage: LeadStage;
+  status: 'active' | 'converted' | 'lost' | 'archived';
+  score: number;
   notes?: string | null;
+  tags?: string[];
   assignedStaffId?: string | null;
   assignedStaffName?: string | null;
   customerId?: string | null;
   followUpDate?: string | null;
+  lastContactAt?: string | null;
+  contactAttemptsCount?: number;
   lostReason?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -52,6 +73,7 @@ export interface CrmLead {
 
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type TaskStatus = 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
+export type FollowUpChannel = 'Phone' | 'Email' | 'WhatsApp' | 'Note' | 'Other';
 
 export interface CrmTask {
   id: string;
@@ -69,7 +91,10 @@ export interface CrmTask {
   priority: TaskPriority;
   status: TaskStatus;
   isFollowUp: boolean;
+  followUpChannel?: FollowUpChannel;
+  outcomeNotes?: string | null;
   completedAt?: string | null;
+  completedByName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +113,44 @@ export interface CrmCommunication {
   content?: string | null;
   staffName: string;
   staffId?: string | null;
+  createdAt: string;
+}
+
+export type ConversationProvider =
+  | 'resend'
+  | 'sendgrid'
+  | 'meta_whatsapp'
+  | 'twilio'
+  | 'manual'
+  | 'unconfigured';
+
+export type ConversationProviderStatus =
+  | 'queued'
+  | 'sent'
+  | 'delivered'
+  | 'read'
+  | 'failed'
+  | 'logged'
+  | 'provider_not_configured';
+
+export interface CrmConversationRecord {
+  id: string;
+  customerId?: string | null;
+  leadId?: string | null;
+  bookingId?: string | null;
+  channel: 'whatsapp' | 'email' | 'phone' | 'web_chat' | 'sms';
+  direction: 'inbound' | 'outbound';
+  senderIdentifier: string;
+  recipientIdentifier: string;
+  subject?: string | null;
+  messageBody: string;
+  provider: ConversationProvider;
+  providerMessageId?: string | null;
+  providerStatus: ConversationProviderStatus;
+  errorDetails?: string | null;
+  staffId?: string | null;
+  staffName: string;
+  metadata?: Record<string, any>;
   createdAt: string;
 }
 
@@ -113,10 +176,15 @@ export type CrmEventType =
   | 'review_submitted'
   | 'staff_note'
   | 'communication'
+  | 'conversation'
   | 'lead_created'
   | 'stage_changed'
+  | 'lead_assigned'
+  | 'lead_converted'
   | 'task_created'
-  | 'task_completed';
+  | 'task_completed'
+  | 'followup_scheduled'
+  | 'contact_attempt';
 
 export interface CrmActivity {
   id: string;
@@ -127,13 +195,40 @@ export interface CrmActivity {
   title: string;
   description?: string | null;
   actor: string;
+  staffName?: string | null;
   metadata?: Record<string, any>;
   createdAt: string;
+}
+
+export interface CrmTag {
+  id: string;
+  name: string;
+  description?: string | null;
+  color: string;
+  category: 'tier' | 'loyalty' | 'interest' | 'general';
+  usageCount: number;
+  createdAt: string;
+}
+
+export interface CrmSegment {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  badgeLabel: string;
+  color: string;
+  icon: string;
+  ruleType: 'repeat' | 'high_value' | 'dormant_12m' | 'upcoming_trip' | 'interest_diving' | 'unconverted_inquiry' | 'custom';
+  filterCriteria?: Record<string, any>;
+  customerCount?: number;
+  isActive: boolean;
 }
 
 export interface CrmCustomerDetail {
   id: string;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone?: string | null;
   whatsapp?: string | null;
@@ -141,8 +236,10 @@ export interface CrmCustomerDetail {
   hotel?: string | null;
   notes?: string | null;
   tags: string[];
+  status: 'active' | 'vip' | 'inactive' | 'archived';
   firstBookingDate?: string | null;
   latestBookingDate?: string | null;
+  upcomingBookingDate?: string | null;
   totalBookings: number;
   completedBookings: number;
   cancelledBookings: number;
@@ -154,8 +251,12 @@ export interface CrmCustomerDetail {
   role: UserRole;
   isRegistered: boolean;
   avatarUrl?: string | null;
+  preferredCurrency?: string;
   bookings: Booking[];
   inquiries: any[];
+  leads?: CrmLead[];
+  payments?: any[];
+  conversations?: CrmConversationRecord[];
   communications: CrmCommunication[];
   staffNotes: CrmNote[];
   tasks: CrmTask[];
@@ -164,14 +265,19 @@ export interface CrmCustomerDetail {
 }
 
 export interface CrmDashboardMetrics {
+  totalLeadsCount: number;
   newLeadsCount: number;
-  openInquiriesCount: number;
-  bookingsTodayCount: number;
-  bookingsThisWeekCount: number;
+  qualifiedLeadsCount: number;
+  wonLeadsCount: number;
+  lostLeadsCount: number;
+  conversionRate: number; // percentage
   followUpsDueCount: number;
   overdueFollowUpsCount: number;
+  openTasksCount: number;
+  newInquiriesCount: number;
   newCustomersCount: number;
-  conversionRate: number; // percentage
+  repeatCustomersCount: number;
+  customerLifetimeValueAvgEur: number;
   totalRevenueEur: number;
   outstandingPaymentsEur: number;
   totalActiveLeads: number;

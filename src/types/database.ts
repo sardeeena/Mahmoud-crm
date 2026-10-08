@@ -339,7 +339,7 @@ export interface DbBookingPassenger {
 export interface DbVessel {
   id: string;
   name: string;
-  vessel_type: 'motor_yacht' | 'speedboat' | 'catamaran' | 'glass_bottom' | 'semi_submarine' | 'safari_jeep';
+  vessel_type: 'motor_yacht' | 'speedboat' | 'catamaran' | 'glass_bottom' | 'semi_submarine' | 'safari_jeep' | string;
   registration_number: string | null;
   port_marina: string;
   passenger_capacity: number;
@@ -348,6 +348,10 @@ export interface DbVessel {
   safety_inspection_expiry: string | null;
   amenities: string[];
   is_active: boolean;
+  status?: 'active' | 'in_service' | 'maintenance' | 'dry_dock' | 'inactive' | string;
+  maintenance_notes?: string | null;
+  next_maintenance?: string | null;
+  crew?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -355,13 +359,26 @@ export interface DbVessel {
 export interface DbGuide {
   id: string;
   full_name: string;
-  role: 'captain' | 'dive_master' | 'snorkel_guide' | 'safari_lead' | 'tour_guide';
+  role:
+    | 'captain'
+    | 'dive_master'
+    | 'snorkel_guide'
+    | 'safari_lead'
+    | 'tour_guide'
+    | 'guide'
+    | 'driver'
+    | 'crew'
+    | 'photographer'
+    | 'other'
+    | string;
   languages: string[];
   phone: string | null;
   email: string | null;
   license_number: string | null;
   rating: number;
   is_active: boolean;
+  availability_status?: 'available' | 'on_duty' | 'day_off' | 'leave' | 'unavailable' | string;
+  notes?: string | null;
   created_at: string;
 }
 
