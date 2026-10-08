@@ -1410,21 +1410,21 @@ CREATE POLICY "Public can insert booking"
 -- Authenticated guests can view their own linked bookings
 CREATE POLICY "Users can view linked bookings"
     ON public.bookings FOR SELECT
+    TO authenticated
     USING (
         user_id = (SELECT auth.uid())
         OR customer_id IN (SELECT id FROM public.customers WHERE user_id = (SELECT auth.uid()))
         OR public.is_admin()
     );
 
--- Anyone can look up a booking if they possess the unique booking reference
-CREATE POLICY "Public lookup booking by reference"
-    ON public.bookings FOR SELECT
-    USING (booking_reference IS NOT NULL);
-
--- Customers can submit a cancellation request on their confirmed/pending booking
-CREATE POLICY "Public update booking cancellation"
+-- Allow authenticated users to request cancellation on their own bookings
+CREATE POLICY "Users can request booking cancellation"
     ON public.bookings FOR UPDATE
-    USING (status IN ('confirmed', 'pending'))
+    TO authenticated
+    USING (
+        (user_id = (SELECT auth.uid()) OR customer_id IN (SELECT id FROM public.customers WHERE user_id = (SELECT auth.uid())))
+        AND status IN ('confirmed', 'pending')
+    )
     WITH CHECK (status = 'cancellation_requested');
 
 -- Administrators have full management over bookings
