@@ -1,16 +1,36 @@
-export type MessageDeliveryStatus = 'Queued' | 'Sent' | 'Delivered' | 'Failed';
+export type MessageDeliveryStatus =
+  | 'queued'
+  | 'sent'
+  | 'delivered'
+  | 'failed'
+  | 'opened'
+  | 'Queued'
+  | 'Sent'
+  | 'Delivered'
+  | 'Failed'
+  | 'Opened';
 
 export type CommunicationChannel = 'Email' | 'WhatsApp';
 
 export type TemplateKey =
+  | 'booking_confirmation'
+  | 'booking_update'
+  | 'payment_confirmation'
+  | 'payment_reminder'
+  | 'cancellation'
+  | 'refund'
+  | 'pickup_reminder'
+  | 'tour_reminder'
+  | 'inquiry_response'
+  | 'follow_up'
+  | 'welcome'
+  | 'review_request'
+  // Legacy aliases for backward compatibility:
   | 'booking_received'
   | 'booking_confirmed'
   | 'payment_received'
-  | 'payment_reminder'
-  | 'pickup_reminder'
   | 'booking_cancelled'
   | 'booking_completed'
-  | 'review_request'
   | 'customer_followup';
 
 export interface CommunicationTemplate {
@@ -30,10 +50,12 @@ export interface CommunicationMessage {
   channel: CommunicationChannel;
   customerId?: string | null;
   customerName: string;
-  recipientAddress: string; // Email or WhatsApp international phone number
+  recipientAddress: string; // Email or WhatsApp international phone number (+E.164)
   leadId?: string | null;
   bookingId?: string | null;
   bookingReference?: string | null;
+  inquiryId?: string | null;
+  taskId?: string | null;
   templateKey?: string | null;
   subject?: string | null;
   content: string;
@@ -43,6 +65,7 @@ export interface CommunicationMessage {
   failureReason?: string | null;
   sentAt?: string | null;
   deliveredAt?: string | null;
+  openedAt?: string | null;
   staffName: string;
   staffId?: string | null;
   createdAt: string;
@@ -51,11 +74,18 @@ export interface CommunicationMessage {
 export type NotificationCategory =
   | 'new_booking'
   | 'new_inquiry'
-  | 'payment_pending'
+  | 'new_payment'
+  | 'payment_overdue'
+  | 'new_lead'
+  | 'followup_due'
+  | 'task_overdue'
+  | 'departure_unassigned'
+  | 'pickup_pending'
+  | 'document_expiring'
   | 'cancellation'
   | 'new_review'
-  | 'followup_due'
-  | 'operational_issue';
+  | 'operational_issue'
+  | 'payment_pending';
 
 export interface StaffNotification {
   id: string;
@@ -64,7 +94,7 @@ export interface StaffNotification {
   title: string;
   message: string;
   severity: 'info' | 'warning' | 'critical' | 'success';
-  entityType?: 'booking' | 'inquiry' | 'customer' | 'departure' | 'review' | 'task';
+  entityType?: 'booking' | 'inquiry' | 'customer' | 'departure' | 'review' | 'task' | 'payment' | 'document';
   entityId?: string;
   linkTab?: string;
   isRead: boolean;
@@ -96,10 +126,36 @@ export interface MessageContextVariables {
   tour_name?: string;
   tour_date?: string;
   pickup_time?: string;
+  amount?: string;
+  balance_due?: string;
   hotel?: string;
   total?: string;
   balance?: string;
   departure_time?: string;
   guests_count?: string;
   payment_status?: string;
+  refund_amount?: string;
+  inquiry_subject?: string;
+}
+
+export type AutomationEventType =
+  | 'booking.created'
+  | 'booking.updated'
+  | 'payment.received'
+  | 'payment.failed'
+  | 'booking.cancelled'
+  | 'departure.tomorrow'
+  | 'followup.due';
+
+export interface AutomationEvent {
+  id: string;
+  eventName: AutomationEventType;
+  payload: Record<string, any>;
+  entityType?: string;
+  entityId?: string;
+  processed: boolean;
+  processedAt?: string | null;
+  actionsTriggered?: string[];
+  errorMessage?: string | null;
+  createdAt: string;
 }

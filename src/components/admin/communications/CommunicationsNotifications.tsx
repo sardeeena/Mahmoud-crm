@@ -18,6 +18,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Clock,
+  Car,
+  FileCheck,
 } from 'lucide-react';
 import {
   listStaffNotifications,
@@ -34,12 +36,19 @@ interface CommunicationsNotificationsProps {
 
 const CATEGORY_LABELS: Record<NotificationCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
   new_booking: { label: 'New Booking', icon: Calendar },
-  new_inquiry: { label: 'Help Inquiry', icon: MessageSquare },
-  payment_pending: { label: 'Pier Balance Due', icon: CreditCard },
+  new_inquiry: { label: 'New Inquiry', icon: MessageSquare },
+  new_payment: { label: 'New Payment', icon: CreditCard },
+  payment_overdue: { label: 'Payment Overdue', icon: AlertTriangle },
+  new_lead: { label: 'New Lead', icon: Users },
+  followup_due: { label: 'Follow-up Due', icon: Clock },
+  task_overdue: { label: 'Task Overdue', icon: AlertCircle },
+  departure_unassigned: { label: 'Departure Unassigned', icon: Compass },
+  pickup_pending: { label: 'Pickup Pending', icon: Car },
+  document_expiring: { label: 'Document Expiring', icon: FileCheck },
   cancellation: { label: 'Cancellation', icon: AlertTriangle },
   new_review: { label: 'Traveler Review', icon: Star },
-  followup_due: { label: 'Lead Follow-up', icon: Users },
   operational_issue: { label: 'Harbor Warning', icon: ShieldAlert },
+  payment_pending: { label: 'Pier Balance Due', icon: CreditCard },
 };
 
 export const CommunicationsNotifications: React.FC<CommunicationsNotificationsProps> = ({ onNavigateTab }) => {
@@ -144,7 +153,7 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
               )}
             </h1>
             <p className="text-xs text-stone-400">
-              Operational event stream with strict deduplication engine preventing alert spam
+              Operational event stream with strict deduplication engine preventing alert spam across all 10 operational categories
             </p>
           </div>
         </div>
@@ -154,7 +163,7 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
             type="button"
             onClick={handleScanNow}
             disabled={scanning}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium rounded-lg border border-stone-700 transition-colors"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium rounded-lg border border-stone-700 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin text-teal-400' : ''}`} />
             <span>{scanning ? 'Scanning...' : 'Scan Events'}</span>
@@ -164,7 +173,7 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
             <button
               type="button"
               onClick={handleMarkAllRead}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium rounded-lg border border-stone-700 transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium rounded-lg border border-stone-700 transition-colors cursor-pointer"
             >
               <Check className="w-3.5 h-3.5 text-teal-400" />
               <span>Mark All Read</span>
@@ -184,13 +193,13 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
         <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 shadow">
           <span className="text-[11px] font-medium text-stone-400">Critical Warnings</span>
           <div className="text-2xl font-bold text-rose-400 mt-1">{criticalCount}</div>
-          <span className="text-[10px] text-stone-500 mt-0.5 block">Harbor &amp; Coast Guard</span>
+          <span className="text-[10px] text-stone-500 mt-0.5 block">Harbor &amp; Unassigned</span>
         </div>
 
         <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 shadow">
           <span className="text-[11px] font-medium text-stone-400">Warnings / Due</span>
           <div className="text-2xl font-bold text-amber-400 mt-1">{warningCount}</div>
-          <span className="text-[10px] text-stone-500 mt-0.5 block">Follow-ups &amp; Balances</span>
+          <span className="text-[10px] text-stone-500 mt-0.5 block">Follow-ups, Pickups &amp; Balances</span>
         </div>
 
         <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 shadow">
@@ -211,7 +220,7 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
             <button
               type="button"
               onClick={() => setOnlyUnread(false)}
-              className={`px-2.5 py-1 rounded font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
                 !onlyUnread ? 'bg-stone-800 text-white' : 'text-stone-400 hover:text-white'
               }`}
             >
@@ -220,7 +229,7 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
             <button
               type="button"
               onClick={() => setOnlyUnread(true)}
-              className={`px-2.5 py-1 rounded font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
                 onlyUnread ? 'bg-teal-600 text-white' : 'text-stone-400 hover:text-white'
               }`}
             >
@@ -228,7 +237,7 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
             </button>
           </div>
 
-          {/* Category Dropdown */}
+          {/* Category Dropdown (All 10 + Standard categories) */}
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -236,11 +245,17 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
           >
             <option value="all">All Event Categories</option>
             <option value="new_booking">New Bookings</option>
-            <option value="new_inquiry">Help Inquiries</option>
-            <option value="payment_pending">Payment / Pier Balances</option>
+            <option value="new_inquiry">New Inquiries</option>
+            <option value="new_payment">New Payments</option>
+            <option value="payment_overdue">Payment Overdue</option>
+            <option value="new_lead">New CRM Leads</option>
+            <option value="followup_due">Follow-ups Due</option>
+            <option value="task_overdue">Tasks Overdue</option>
+            <option value="departure_unassigned">Departures Unassigned</option>
+            <option value="pickup_pending">Pickups Pending</option>
+            <option value="document_expiring">Documents Expiring</option>
             <option value="cancellation">Cancellations</option>
             <option value="new_review">Traveler Reviews</option>
-            <option value="followup_due">Follow-ups Due</option>
             <option value="operational_issue">Harbor / Operational Warnings</option>
           </select>
 
@@ -258,111 +273,108 @@ export const CommunicationsNotifications: React.FC<CommunicationsNotificationsPr
           </select>
         </div>
 
-        <div className="text-[11px] text-stone-400">
-          Showing {filteredNotifications.length} notifications
+        <div className="flex items-center text-stone-400 text-[11px]">
+          Showing {filteredNotifications.length} of {notifications.length} alerts
         </div>
       </div>
 
       {/* Notifications Stream */}
-      <div className="space-y-3">
-        {filteredNotifications.length === 0 ? (
+      <div className="space-y-2.5">
+        {loading ? (
+          <div className="py-12 text-center text-stone-500 text-xs">
+            Scanning internal notification streams...
+          </div>
+        ) : filteredNotifications.length === 0 ? (
           <div className="bg-stone-900 border border-stone-800 rounded-xl p-12 text-center text-stone-500 text-xs">
-            <CheckCircle2 className="w-8 h-8 text-stone-600 mx-auto mb-2" />
-            <p className="font-semibold text-stone-400">No notifications found</p>
-            <p className="text-stone-500 mt-1">All events have been acknowledged or no events match current filters.</p>
+            <CheckCircle2 className="w-8 h-8 text-teal-500/40 mx-auto mb-2" />
+            <p className="font-medium text-stone-400">All caught up!</p>
+            <p className="text-[11px] mt-1 text-stone-500">
+              No staff alerts matching the current filter. New events are automatically monitored.
+            </p>
           </div>
         ) : (
-          filteredNotifications.map((notif) => {
-            const catMeta = CATEGORY_LABELS[notif.category] || { label: notif.category, icon: Bell };
-            const IconComponent = catMeta.icon;
+          filteredNotifications.map((n) => {
+            const cat = CATEGORY_LABELS[n.category] || { label: n.category, icon: Bell };
+            const IconComponent = cat.icon;
 
-            const isCritical = notif.severity === 'critical';
-            const isWarning = notif.severity === 'warning';
-            const isSuccess = notif.severity === 'success';
+            const isCritical = n.severity === 'critical';
+            const isWarning = n.severity === 'warning';
+            const isSuccess = n.severity === 'success';
 
             return (
               <div
-                key={notif.id}
-                onClick={() => handleNavigateToEntity(notif)}
+                key={n.id}
+                onClick={() => handleNavigateToEntity(n)}
                 className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                  !notif.isRead
-                    ? 'bg-stone-900 border-teal-500/40 shadow-md'
-                    : 'bg-stone-950/70 hover:bg-stone-900/60 border-stone-800 hover:border-stone-700 opacity-80'
+                  n.isRead
+                    ? 'bg-stone-900/60 border-stone-800/80 hover:border-stone-700'
+                    : isCritical
+                    ? 'bg-rose-950/20 border-rose-500/30 hover:border-rose-500/50 shadow-xs'
+                    : isWarning
+                    ? 'bg-amber-950/20 border-amber-500/30 hover:border-amber-500/50 shadow-xs'
+                    : isSuccess
+                    ? 'bg-emerald-950/20 border-emerald-500/30 hover:border-emerald-500/50'
+                    : 'bg-stone-900 border-stone-700/80 hover:border-teal-500/40 shadow-xs'
                 }`}
               >
                 <div className="flex items-start space-x-3.5">
-                  {/* Category / Severity Icon */}
                   <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
                       isCritical
-                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                         : isWarning
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         : isSuccess
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                        : 'bg-teal-500/10 text-teal-400 border-teal-500/30'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
                     }`}
                   >
                     <IconComponent className="w-4 h-4" />
                   </div>
 
                   <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-white">
-                        {notif.title}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-bold text-white">{n.title}</span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium uppercase tracking-wider bg-stone-950 border border-stone-800 text-stone-400">
+                        {cat.label}
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-stone-800 border border-stone-700 text-stone-300">
-                        {catMeta.label}
-                      </span>
-                      {!notif.isRead && (
+                      {!n.isRead && (
                         <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
                       )}
                     </div>
-
-                    <p className="text-xs text-stone-300 leading-relaxed">
-                      {notif.message}
-                    </p>
-
-                    <div className="flex items-center space-x-3 text-[10px] text-stone-500 pt-0.5">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(notif.createdAt).toLocaleDateString()} at{' '}
-                        {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className="font-mono text-stone-600">Key: {notif.dedupKey}</span>
+                    <p className="text-xs text-stone-300 leading-relaxed max-w-2xl">{n.message}</p>
+                    <div className="flex items-center space-x-3 text-[10px] text-stone-500 font-mono pt-0.5">
+                      <span>{new Date(n.createdAt).toLocaleString()}</span>
+                      {n.linkTab && (
+                        <span className="text-teal-400 font-sans hover:underline flex items-center gap-0.5">
+                          <span>Action in {n.linkTab.replace(/_/g, ' ')}</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Right Action buttons */}
-                <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
-                  {notif.linkTab && (
+                <div className="flex items-center space-x-2 self-end sm:self-center shrink-0">
+                  {!n.isRead && (
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNavigateToEntity(notif);
-                      }}
-                      className="flex items-center space-x-1 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-teal-300 hover:text-white rounded-lg text-xs font-medium border border-stone-700 transition-colors"
-                    >
-                      <span>Jump to View</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  )}
-
-                  {!notif.isRead ? (
-                    <button
-                      type="button"
-                      onClick={(e) => handleMarkAsRead(notif.id, e)}
-                      className="px-2.5 py-1.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/30 rounded-lg text-xs font-medium transition-colors"
-                      title="Mark as Read"
+                      onClick={(e) => handleMarkAsRead(n.id, e)}
+                      title="Mark as read"
+                      className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-[11px] font-medium border border-stone-700 transition-colors cursor-pointer"
                     >
                       Mark Read
                     </button>
-                  ) : (
-                    <span className="text-[10px] text-stone-500 flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Read
-                    </span>
+                  )}
+                  {n.linkTab && (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateToEntity(n)}
+                      className="px-3 py-1 rounded bg-[#0A6C74] hover:bg-[#08545a] text-white text-[11px] font-semibold shadow transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Open</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
                   )}
                 </div>
               </div>

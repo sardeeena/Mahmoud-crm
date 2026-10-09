@@ -2998,4 +2998,38 @@ DROP POLICY IF EXISTS "Admins can manage payment providers" ON public.payment_pr
 CREATE POLICY "Admins can manage payment providers" ON public.payment_providers
     FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+-- ==============================================================================
+-- AUTOMATION EVENTS (EVENT-DRIVEN ARCHITECTURE)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.automation_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_name TEXT NOT NULL CHECK (event_name IN (
+        'booking.created',
+        'booking.updated',
+        'payment.received',
+        'payment.failed',
+        'booking.cancelled',
+        'departure.tomorrow',
+        'followup.due'
+    )),
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    entity_type TEXT,
+    entity_id TEXT,
+    processed BOOLEAN NOT NULL DEFAULT FALSE,
+    processed_at TIMESTAMPTZ,
+    actions_triggered JSONB DEFAULT '[]'::jsonb,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auto_events_name ON public.automation_events(event_name);
+CREATE INDEX IF NOT EXISTS idx_auto_events_processed ON public.automation_events(processed, created_at);
+
+ALTER TABLE public.automation_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Staff can manage automation events" ON public.automation_events;
+CREATE POLICY "Staff can manage automation events" ON public.automation_events
+    FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+
 
