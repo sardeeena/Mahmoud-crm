@@ -46,6 +46,7 @@ export type AdminTab =
   | 'dash_ops'
   | 'dash_customers'
   | 'dash_finance'
+  | 'dash_builder'
   | 'tours'
   | 'tour_new'
   | 'tour_edit'
@@ -136,6 +137,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         { id: 'dash_ops', label: '3. Operations Dashboard' },
         { id: 'dash_customers', label: '4. Customer Dashboard' },
         { id: 'dash_finance', label: '5. Finance Dashboard' },
+        { id: 'dash_builder', label: '6. Report Builder' },
       ],
     },
     {

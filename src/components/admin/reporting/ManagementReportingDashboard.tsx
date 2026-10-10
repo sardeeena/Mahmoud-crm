@@ -41,6 +41,7 @@ import { SalesDashboardView } from './SalesDashboardView';
 import { OperationsDashboardView } from './OperationsDashboardView';
 import { CustomerDashboardView } from './CustomerDashboardView';
 import { FinanceDashboardView } from './FinanceDashboardView';
+import { ReportBuilderView } from './ReportBuilderView';
 import { useToast } from '../../../contexts/ToastContext';
 import { AdminTab } from '../AdminLayout';
 
@@ -78,6 +79,12 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
   );
 
   const loadData = useCallback(async () => {
+    if (activeView === 'builder') {
+      setLoading(false);
+      setIsRefreshing(false);
+      return;
+    }
+
     setLoading(true);
     try {
       if (activeView === 'executive') {
@@ -121,23 +128,28 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
     if (activeView === 'executive' && executiveData) {
       const headers = ['Metric', 'Value', 'Unit / Currency'];
       const rows = [
-        ['Total Revenue', executiveData.revenueEur, 'EUR'],
-        ['Confirmed Bookings', executiveData.bookingsCount, 'Count'],
-        ['Total Passengers', executiveData.passengersCount, 'Count'],
+        ['Total Gross Revenue', executiveData.totalRevenueEur, 'EUR'],
+        ['Collected Revenue', executiveData.collectedRevenueEur, 'EUR'],
+        ['Outstanding Revenue', executiveData.outstandingRevenueEur, 'EUR'],
+        ['Total Bookings Placed', executiveData.bookingsCount, 'Count'],
+        ['Confirmed Bookings', executiveData.confirmedBookingsCount, 'Count'],
+        ['Cancellations', executiveData.cancellationsCount, 'Count'],
+        ['Total Customers', executiveData.totalCustomersCount, 'Count'],
+        ['New Customers', executiveData.newCustomersCount, 'Count'],
+        ['Repeat Customers', executiveData.repeatCustomersCount, 'Count'],
+        ['Sales Leads', executiveData.leadsCount, 'Count'],
+        ['Conversion Rate', `${executiveData.conversionRate}%`, 'Percentage'],
+        ['Cancellation Rate', `${executiveData.cancellationRate}%`, 'Percentage'],
+        ['Average Booking Value', executiveData.averageBookingValueEur, 'EUR'],
+        ['Passengers Carried', executiveData.passengersCount, 'Count'],
         ['Adults', executiveData.adultsCount, 'Count'],
         ['Children', executiveData.childrenCount, 'Count'],
         ['Infants', executiveData.infantsCount, 'Count'],
-        ['New Customers', executiveData.newCustomersCount, 'Count'],
-        ['Repeat Customers', executiveData.repeatCustomersCount, 'Count'],
-        ['Conversion Rate', `${executiveData.conversionRate}%`, 'Percentage'],
-        ['Cancellation Rate', `${executiveData.cancellationRate}%`, 'Percentage'],
-        ['Outstanding Balances', executiveData.outstandingBalancesEur, 'EUR'],
-        ['Average Booking Value', executiveData.averageBookingValueEur, 'EUR'],
       ];
       exportReportToCsv(title, headers, rows);
     } else if (activeView === 'sales' && salesData) {
       const headers = ['Tour / Excursion Name', 'Bookings Count', 'Revenue (EUR)', 'Share (%)'];
-      const rows = salesData.bookingsByTour.map((t) => [
+      const rows = salesData.bestSellingTours.map((t) => [
         t.name,
         t.count,
         t.revenueEur,
@@ -187,18 +199,19 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
     if (activeView === 'executive' && executiveData) {
       const headers = ['Metric', 'Value', 'Unit'];
       const rows = [
-        ['Total Revenue', `€${executiveData.revenueEur.toFixed(2)}`, 'EUR'],
-        ['Confirmed Bookings', executiveData.bookingsCount, 'Count'],
+        ['Total Gross Revenue', `€${executiveData.totalRevenueEur.toFixed(2)}`, 'EUR'],
+        ['Collected Revenue', `€${executiveData.collectedRevenueEur.toFixed(2)}`, 'EUR'],
+        ['Outstanding Balances', `€${executiveData.outstandingRevenueEur.toFixed(2)}`, 'EUR'],
+        ['Total Bookings Placed', executiveData.bookingsCount, 'Count'],
+        ['Confirmed Bookings', executiveData.confirmedBookingsCount, 'Count'],
         ['Total Passengers', executiveData.passengersCount, 'Count'],
         ['New Customers', executiveData.newCustomersCount, 'Count'],
         ['Repeat Customers', executiveData.repeatCustomersCount, 'Count'],
         ['Conversion Rate', `${executiveData.conversionRate}%`, '%'],
         ['Cancellation Rate', `${executiveData.cancellationRate}%`, '%'],
-        ['Outstanding Pier Balances', `€${executiveData.outstandingBalancesEur.toFixed(2)}`, 'EUR'],
       ];
       exportReportToExcel(title, headers, rows);
     } else {
-      // Default to standard spreadsheet export
       handleExportCsv();
     }
   };
@@ -213,6 +226,7 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
     { id: 'operations', label: '3. Operations Dashboard', icon: Anchor },
     { id: 'customers', label: '4. Customer Dashboard', icon: Users },
     { id: 'finance', label: '5. Finance Dashboard', icon: CreditCard },
+    { id: 'builder', label: '6. Report Builder', icon: Filter },
   ];
 
   return (
@@ -226,7 +240,7 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
             </div>
             <div>
               <h1 className="text-xl lg:text-2xl font-bold font-display text-white tracking-tight print:text-black">
-                Management Reporting System
+                Management Reporting &amp; Business Intelligence
               </h1>
               <p className="text-xs text-stone-400 mt-0.5 print:text-stone-700">
                 Audited real-time intelligence querying live Supabase databases · Red Sea Voyages S.A.E.
@@ -237,36 +251,42 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
 
         {/* Action Buttons: Export & Refresh */}
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold border border-stone-700 transition-colors"
-            title="Refresh database metrics"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-teal-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
+          {activeView !== 'builder' && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold border border-stone-700 transition-colors"
+              title="Refresh database metrics"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-teal-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold border border-stone-700 transition-colors"
-            title="Download CSV"
-          >
-            <Download className="w-3.5 h-3.5 text-stone-400" />
-            <span>Export CSV</span>
-          </button>
+          {activeView !== 'builder' && (
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold border border-stone-700 transition-colors"
+              title="Download CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-stone-400" />
+              <span>Export CSV</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold border border-stone-700 transition-colors"
-            title="Download Excel Workbook"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Excel</span>
-          </button>
+          {activeView !== 'builder' && (
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center space-x-1.5 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold border border-stone-700 transition-colors"
+              title="Download Excel Workbook"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Excel</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -275,12 +295,12 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
             title="Print Report"
           >
             <Printer className="w-3.5 h-3.5 text-sky-400" />
-            <span>Print</span>
+            <span>Print PDF</span>
           </button>
         </div>
       </div>
 
-      {/* View Switcher Tabs (5 Separate Views) */}
+      {/* View Switcher Tabs (6 Views including Report Builder) */}
       <div className="flex items-center space-x-1 overflow-x-auto pb-1 bg-stone-950 p-1.5 rounded-xl border border-stone-800 text-xs print:hidden">
         {viewTabs.map((tab) => {
           const Icon = tab.icon;
@@ -303,116 +323,114 @@ export const ManagementReportingDashboard: React.FC<ManagementReportingDashboard
         })}
       </div>
 
-      {/* Date Range Selector Bar */}
-      <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs print:border-none print:shadow-none print:bg-transparent print:p-0">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-stone-400 font-medium mr-1 flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-teal-400" />
-            Date Range:
-          </span>
-          {(
-            [
-              { id: 'today', label: 'Today' },
-              { id: 'yesterday', label: 'Yesterday' },
-              { id: 'this_week', label: 'This Week' },
-              { id: 'this_month', label: 'This Month' },
-              { id: 'last_month', label: 'Last Month' },
-              { id: 'this_year', label: 'This Year' },
-              { id: 'custom', label: 'Custom' },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setDateRange(item.id)}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
-                dateRange === item.id
-                  ? 'bg-stone-700 text-white shadow'
-                  : 'bg-stone-950 text-stone-400 hover:text-white border border-stone-800'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Date Pickers */}
-        {dateRange === 'custom' && (
-          <div className="flex items-center space-x-2 bg-stone-950 px-3 py-1.5 rounded-lg border border-stone-800 print:hidden">
-            <span className="text-[11px] text-stone-400">From:</span>
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="bg-stone-900 text-white text-xs px-2 py-1 rounded border border-stone-700 focus:outline-none focus:border-teal-500"
-            />
-            <span className="text-[11px] text-stone-400">To:</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="bg-stone-900 text-white text-xs px-2 py-1 rounded border border-stone-700 focus:outline-none focus:border-teal-500"
-            />
+      {/* Date Filter Bar (Shown for dashboards) */}
+      {activeView !== 'builder' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-stone-900/90 border border-stone-800 p-3.5 rounded-xl text-xs print:hidden">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-teal-400" />
+            <span className="font-semibold text-stone-300">Reporting Interval:</span>
+            <span className="text-stone-400 font-mono">{currentInterval.label}</span>
           </div>
-        )}
 
-        {/* Current Active Interval Badge */}
-        <div className="text-[11px] text-stone-400 font-medium">
-          Interval: <span className="text-teal-400 font-mono font-bold">{currentInterval.label}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                { id: 'today', label: 'Today' },
+                { id: 'yesterday', label: 'Yesterday' },
+                { id: 'this_week', label: 'This Week' },
+                { id: 'this_month', label: 'This Month' },
+                { id: 'last_month', label: 'Last Month' },
+                { id: 'this_year', label: 'This Year' },
+                { id: 'custom', label: 'Custom' },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setDateRange(opt.id)}
+                className={`px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                  dateRange === opt.id
+                    ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+
+            {dateRange === 'custom' && (
+              <div className="flex items-center space-x-1.5 ml-2 border-l border-stone-800 pl-3">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="bg-stone-950 border border-stone-800 rounded px-2 py-1 text-white font-mono text-xs focus:outline-none focus:border-teal-500"
+                />
+                <span className="text-stone-500">to</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="bg-stone-950 border border-stone-800 rounded px-2 py-1 text-white font-mono text-xs focus:outline-none focus:border-teal-500"
+                />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Loading Skeleton */}
+      {/* Main Content Render */}
       {loading ? (
-        <div className="bg-stone-900 border border-stone-800 rounded-xl p-16 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-teal-400 animate-spin mx-auto" />
-          <p className="text-sm font-semibold text-white">Aggregating Real Supabase Data...</p>
-          <p className="text-xs text-stone-500">Querying reservations, passengers, fleet, and financial ledgers</p>
+        <div className="bg-stone-900 border border-stone-800 rounded-xl p-16 text-center shadow-lg">
+          <RefreshCw className="w-8 h-8 text-teal-400 animate-spin mx-auto mb-3" />
+          <h3 className="text-sm font-semibold text-white">Aggregating Database Records</h3>
+          <p className="text-xs text-stone-400 mt-1">Executing mathematical operations across live bookings &amp; financial ledgers...</p>
         </div>
       ) : (
         <>
-          {/* View 1: Executive Dashboard */}
           {activeView === 'executive' && executiveData && (
             <ExecutiveDashboardView
               metrics={executiveData}
               interval={currentInterval}
-              onNavigateTab={(tabId, param) => onNavigateTab(tabId as AdminTab, param)}
+              onNavigateTab={(tab) => onNavigateTab(tab as AdminTab)}
             />
           )}
 
-          {/* View 2: Sales Dashboard */}
           {activeView === 'sales' && salesData && (
             <SalesDashboardView
               metrics={salesData}
               interval={currentInterval}
-              onNavigateTab={(tabId, param) => onNavigateTab(tabId as AdminTab, param)}
+              onNavigateTab={(tab) => onNavigateTab(tab as AdminTab)}
             />
           )}
 
-          {/* View 3: Operations Dashboard */}
           {activeView === 'operations' && operationsData && (
             <OperationsDashboardView
               metrics={operationsData}
               interval={currentInterval}
-              onNavigateTab={(tabId, param) => onNavigateTab(tabId as AdminTab, param)}
+              onNavigateTab={(tab) => onNavigateTab(tab as AdminTab)}
             />
           )}
 
-          {/* View 4: Customer Dashboard */}
           {activeView === 'customers' && customerData && (
             <CustomerDashboardView
               metrics={customerData}
               interval={currentInterval}
-              onNavigateTab={(tabId, param) => onNavigateTab(tabId as AdminTab, param)}
+              onNavigateTab={(tab) => onNavigateTab(tab as AdminTab)}
             />
           )}
 
-          {/* View 5: Finance Dashboard */}
           {activeView === 'finance' && financeData && (
             <FinanceDashboardView
               metrics={financeData}
               interval={currentInterval}
-              onNavigateTab={(tabId, param) => onNavigateTab(tabId as AdminTab, param)}
+              onNavigateTab={(tab) => onNavigateTab(tab as AdminTab)}
+            />
+          )}
+
+          {activeView === 'builder' && (
+            <ReportBuilderView
+              onNavigateTab={(tab) => onNavigateTab(tab as AdminTab)}
             />
           )}
         </>

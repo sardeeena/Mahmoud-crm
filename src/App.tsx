@@ -500,6 +500,8 @@ function MainApp() {
         activeAdminTab = 'dash_customers';
       } else if (adminSubRoute.sub === 'finance' || adminSubRoute.sub === 'fin') {
         activeAdminTab = 'dash_finance';
+      } else if (adminSubRoute.sub === 'builder' || adminSubRoute.sub === 'report_builder') {
+        activeAdminTab = 'dash_builder';
       } else {
         activeAdminTab = 'dashboard';
       }
@@ -639,6 +641,7 @@ function MainApp() {
         'dash_ops',
         'dash_customers',
         'dash_finance',
+        'dash_builder',
       ].includes(adminSubRoute.main)
     ) {
       activeAdminTab = adminSubRoute.main as AdminTab;
@@ -687,6 +690,14 @@ function MainApp() {
             onNavigateTab={handleAdminSelectTab}
             onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
             initialViewMode="finance"
+          />
+        )}
+
+        {activeAdminTab === 'dash_builder' && (
+          <AdminDashboard
+            onNavigateTab={handleAdminSelectTab}
+            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            initialViewMode="builder"
           />
         )}
 

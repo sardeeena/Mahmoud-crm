@@ -19,23 +19,30 @@ export type DashboardViewMode =
   | 'sales'
   | 'operations'
   | 'customers'
-  | 'finance';
+  | 'finance'
+  | 'builder';
 
 // 1. Executive Dashboard Metrics
 export interface ExecutiveMetrics {
-  revenueEur: number;
+  totalRevenueEur: number;
+  revenueEur: number; // alias
+  collectedRevenueEur: number;
+  outstandingRevenueEur: number;
+  outstandingBalancesEur: number; // alias
   bookingsCount: number;
+  confirmedBookingsCount: number;
+  cancellationsCount: number;
   passengersCount: number;
   adultsCount: number;
   childrenCount: number;
   infantsCount: number;
+  totalCustomersCount: number;
   newCustomersCount: number;
   repeatCustomersCount: number;
+  leadsCount: number;
   conversionRate: number; // percentage (0-100)
   cancellationRate: number; // percentage (0-100)
-  outstandingBalancesEur: number;
   averageBookingValueEur: number;
-  // Comparison vs prior period of equal length
   priorPeriodComparison?: {
     priorRevenueEur: number;
     revenueGrowthPct: number;
@@ -53,13 +60,36 @@ export interface BreakdownItem {
   percentage: number;
 }
 
-export interface SalesMetrics {
-  totalRevenueEur: number;
-  totalBookingsCount: number;
-  averageBookingValueEur: number;
+export interface StaffPerformanceItem {
+  staffId: string;
+  staffName: string;
+  role: string;
+  leadsHandled: number;
+  dealsWon: number;
+  bookingsCount: number;
+  revenueEur: number;
+  conversionRate: number; // 0-100%
+}
+
+export interface LeadSourcePerformance {
+  source: string;
+  count: number;
+  convertedCount: number;
   conversionRate: number;
-  bookingsByTour: BreakdownItem[];
-  bookingsByDestination: BreakdownItem[];
+  revenueEur: number;
+}
+
+export interface SalesMetrics {
+  leadsCount: number;
+  leadSources: LeadSourcePerformance[];
+  conversionRate: number;
+  totalBookingsCount: number;
+  totalRevenueEur: number;
+  averageBookingValueEur: number;
+  bestSellingTours: BreakdownItem[];
+  bestDestinations: BreakdownItem[];
+  bookingsByTour: BreakdownItem[]; // alias for compatibility
+  bookingsByDestination: BreakdownItem[]; // alias for compatibility
   revenueByTour: BreakdownItem[];
   revenueByDestination: BreakdownItem[];
   bookingsBySource: Array<{
@@ -68,6 +98,7 @@ export interface SalesMetrics {
     revenueEur: number;
     percentage: number;
   }>;
+  staffPerformance: StaffPerformanceItem[];
 }
 
 // 3. Customers Dashboard Metrics
@@ -84,12 +115,32 @@ export interface TopCustomerItem {
   status: 'VIP' | 'Regular' | 'New';
 }
 
+export interface InactiveCustomerItem {
+  id: string;
+  name: string;
+  email: string;
+  daysSinceLastBooking: number;
+  lastBookingDate: string;
+  totalSpentEur: number;
+}
+
+export interface PopularTourInterestItem {
+  tourTitle: string;
+  inquiriesCount: number;
+  bookingsCount: number;
+  totalGuests: number;
+  sharePct: number;
+}
+
 export interface CustomerMetrics {
   totalCustomersCount: number;
   newCustomersCount: number;
   repeatCustomersCount: number;
   repeatRatePct: number;
   customerLifetimeValueEur: number;
+  customerRetentionRatePct: number;
+  inactiveCustomersCount: number;
+  inactiveCustomers: InactiveCustomerItem[];
   countriesDistribution: Array<{
     country: string;
     count: number;
@@ -101,6 +152,7 @@ export interface CustomerMetrics {
     count: number;
     percentage: number;
   }>;
+  popularTourInterests: PopularTourInterestItem[];
   topCustomers: TopCustomerItem[];
 }
 
@@ -113,6 +165,22 @@ export interface VesselUtilizationItem {
   tripsCount: number;
   passengersCarried: number;
   utilizationPct: number;
+}
+
+export interface GuideAssignmentItem {
+  guideId: string;
+  guideName: string;
+  assignedCount: number;
+  hoursLogged: number;
+}
+
+export interface OperationalIssueItem {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  category: string;
+  title: string;
+  description: string;
+  timestamp: string;
 }
 
 export interface OperationsMetrics {
@@ -134,6 +202,14 @@ export interface OperationsMetrics {
     percentage: number;
   }>;
   vesselUtilization: VesselUtilizationItem[];
+  guideAssignments: {
+    totalAssignments: number;
+    assignedTours: number;
+    unassignedTours: number;
+    activeGuidesCount: number;
+    guides: GuideAssignmentItem[];
+  };
+  operationalIssues: OperationalIssueItem[];
 }
 
 // 5. Finance Dashboard Metrics
@@ -144,17 +220,66 @@ export interface PaymentMethodBreakdown {
   percentage: number;
 }
 
+export interface MonthlyRevenueItem {
+  month: string; // "Jan 2026"
+  grossEur: number;
+  paidEur: number;
+  refundsEur: number;
+  netEur: number;
+  bookingsCount: number;
+}
+
 export interface FinanceMetrics {
-  revenueEur: number; // Contracted Gross Total
-  paidEur: number; // Actually Collected in Cash / Online
+  grossRevenueEur: number; // Contracted Gross Total
+  revenueEur: number; // alias
+  collectedPaymentsEur: number; // Actually Collected
+  paidEur: number; // alias
   outstandingEur: number; // Pending / Pier Balances
   refundsEur: number; // Processed Refunds
-  discountsEur: number; // Coupon / Promo Deductions
-  collectionRatePct: number; // Paid / (Revenue - Discounts)
+  netRevenueEur: number; // Gross - Refunds (or Paid - Refunds)
+  discountsEur: number; // Promotional Discounts
+  collectionRatePct: number; // % Collected of Net Due
   paymentMethods: PaymentMethodBreakdown[];
+  monthlyRevenue: MonthlyRevenueItem[];
   currencyBreakdown: Array<{
     currency: string;
     amount: number;
     convertedEur: number;
   }>;
+}
+
+// 6. Report Builder Types
+export interface ReportBuilderFilters {
+  startDate?: string;
+  endDate?: string;
+  tourId: string;
+  destination: string;
+  customerQuery: string;
+  staffName: string;
+  bookingStatus: string;
+  paymentStatus: string;
+  leadSource: string;
+}
+
+export interface ReportBuilderRow {
+  bookingId: string;
+  bookingReference: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  tourTitle: string;
+  destination: string;
+  bookingDate: string;
+  travelDate?: string;
+  totalGuests: number;
+  subtotal: number;
+  discount: number;
+  total: number;
+  currency: string;
+  bookingStatus: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  leadSource: string;
+  staffName: string;
+  createdAt: string;
 }

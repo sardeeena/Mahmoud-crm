@@ -8,6 +8,9 @@ import {
   CreditCard,
   Percent,
   TrendingUp,
+  ArrowUpRight,
+  ShieldCheck,
+  Calendar,
 } from 'lucide-react';
 import { FinanceMetrics, DateRangeInterval } from '../../../types/reporting';
 
@@ -24,30 +27,30 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({
 }) => {
   return (
     <div className="space-y-6">
-      {/* 5 Core Financial Entities KPI Grid */}
+      {/* 5 Core Financial Entities KPI Grid (Gross, Payments, Outstanding, Refunds, Net Revenue) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Gross Revenue */}
         <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow">
           <div className="flex items-center justify-between text-xs text-stone-400">
-            <span>Contracted Revenue</span>
+            <span>Gross Revenue</span>
             <DollarSign className="w-4 h-4 text-teal-400" />
           </div>
           <div className="text-xl lg:text-2xl font-bold text-white mt-2 font-mono">
-            €{metrics.revenueEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            €{metrics.grossRevenueEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <span className="text-[10px] text-stone-500 mt-1 block">Gross booked totals</span>
+          <span className="text-[10px] text-stone-500 mt-1 block">Contracted gross bookings</span>
         </div>
 
-        {/* Total Paid */}
+        {/* Collected Payments */}
         <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow">
           <div className="flex items-center justify-between text-xs text-stone-400">
-            <span>Collected / Paid</span>
+            <span>Payments Collected</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-xl lg:text-2xl font-bold text-emerald-400 mt-2 font-mono">
-            €{metrics.paidEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            €{metrics.collectedPaymentsEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <span className="text-[10px] text-stone-500 mt-1 block">Realized payments</span>
+          <span className="text-[10px] text-stone-500 mt-1 block">Verified payment transactions</span>
         </div>
 
         {/* Outstanding */}
@@ -59,7 +62,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({
           <div className="text-xl lg:text-2xl font-bold text-amber-400 mt-2 font-mono">
             €{metrics.outstandingEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <span className="text-[10px] text-stone-500 mt-1 block">Pier payment due</span>
+          <span className="text-[10px] text-stone-500 mt-1 block">Pier pay-at-pickup balance</span>
         </div>
 
         {/* Refunds */}
@@ -71,19 +74,65 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({
           <div className="text-xl lg:text-2xl font-bold text-rose-400 mt-2 font-mono">
             €{metrics.refundsEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <span className="text-[10px] text-stone-500 mt-1 block">Reversed transactions</span>
+          <span className="text-[10px] text-stone-500 mt-1 block">Processed refund records</span>
         </div>
 
-        {/* Discounts */}
+        {/* Net Revenue */}
         <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow">
           <div className="flex items-center justify-between text-xs text-stone-400">
-            <span>Coupons &amp; Discounts</span>
-            <Tag className="w-4 h-4 text-purple-400" />
+            <span>Net Realized Revenue</span>
+            <TrendingUp className="w-4 h-4 text-sky-400" />
           </div>
-          <div className="text-xl lg:text-2xl font-bold text-purple-400 mt-2 font-mono">
-            €{metrics.discountsEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className="text-xl lg:text-2xl font-bold text-sky-400 mt-2 font-mono">
+            €{metrics.netRevenueEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <span className="text-[10px] text-stone-500 mt-1 block">Promotional reductions</span>
+          <span className="text-[10px] text-stone-500 mt-1 block">Gross minus approved refunds</span>
+        </div>
+      </div>
+
+      {/* Monthly Revenue Breakdown (12 Months Rolling Trend) */}
+      <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow-lg space-y-4">
+        <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-teal-400" />
+            <h3 className="text-sm font-bold text-white">Monthly Revenue Breakdown &amp; Performance Trend</h3>
+          </div>
+          <span className="text-[11px] text-stone-400 font-mono">Annualized FY 2026</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-stone-300">
+            <thead className="bg-stone-950 text-stone-400 uppercase text-[10px] font-semibold border-b border-stone-800">
+              <tr>
+                <th className="py-2.5 px-3">Month</th>
+                <th className="py-2.5 px-3 text-center">Bookings Count</th>
+                <th className="py-2.5 px-3 text-right">Gross Contracted</th>
+                <th className="py-2.5 px-3 text-right">Payments Collected</th>
+                <th className="py-2.5 px-3 text-right">Refunds Processed</th>
+                <th className="py-2.5 px-3 text-right">Net Revenue</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-800/60 font-medium">
+              {metrics.monthlyRevenue.map((m) => (
+                <tr key={m.month} className="hover:bg-stone-800/40 transition-colors">
+                  <td className="py-2.5 px-3 font-semibold text-white">{m.month}</td>
+                  <td className="py-2.5 px-3 text-center text-stone-300">{m.bookingsCount}</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-white">
+                    €{m.grossEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono text-emerald-400">
+                    €{m.paidEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono text-rose-400">
+                    €{m.refundsEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono text-sky-400 font-bold">
+                    €{m.netEur.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -136,7 +185,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({
           <div className="flex items-center justify-between border-b border-stone-800 pb-3">
             <div className="flex items-center space-x-2">
               <TrendingUp className="w-4 h-4 text-teal-400" />
-              <h3 className="text-sm font-bold text-white">Collection Health &amp; Currency Integrity</h3>
+              <h3 className="text-sm font-bold text-white">Collection Health &amp; Currency Breakdown</h3>
             </div>
             <span className="text-xs font-mono text-teal-400">{metrics.collectionRatePct}% Collected</span>
           </div>
