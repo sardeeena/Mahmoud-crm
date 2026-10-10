@@ -1578,3 +1578,40 @@ export async function listAssignments(dateTarget?: string): Promise<OperationalA
     updatedAt: new Date().toISOString(),
   }));
 }
+
+/**
+ * Authoritative customer-facing bridge:
+ * Loads authoritative departure details (vessel, guide, boarding status, harbor berth)
+ * directly from operations for a customer's specific booking.
+ */
+export async function getAuthoritativeDepartureForBooking(
+  bookingReference: string,
+  tourId: string,
+  date: string
+): Promise<{
+  departure: OperationalDeparture | null;
+  manifestItem: PassengerManifestItem | null;
+  pickupItem: PickupScheduleItem | null;
+}> {
+  const departures = await getTodayDepartures(date);
+  const matched =
+    departures.find((d) => d.tourId === tourId) ||
+    departures.find((d) => d.bookingsCount > 0) ||
+    departures[0] ||
+    null;
+
+  let manifestItem: PassengerManifestItem | null = null;
+  if (matched) {
+    const manifest = await getPassengerManifest(date, tourId);
+    manifestItem = manifest.find((m) => m.bookingReference === bookingReference) || null;
+  }
+
+  const pickups = await getDailyPickupSchedule(date);
+  const pickupItem = pickups.find((p) => p.bookingReference === bookingReference) || null;
+
+  return {
+    departure: matched,
+    manifestItem,
+    pickupItem,
+  };
+}

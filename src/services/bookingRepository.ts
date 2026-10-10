@@ -9,6 +9,9 @@ import {
 } from './supabaseClient';
 import { DbBooking } from '../types/database';
 import { bookingRateLimiter } from '../lib/security';
+import { findOrCreateAuthoritativeCustomer } from './platformConsistency';
+import { recordActivity } from './crmService';
+import { publishAutomationEvent } from './communicationService';
 
 export interface IBookingRepository {
   createBooking(booking: Booking): Promise<Booking>;
@@ -200,153 +203,109 @@ class SupabaseBookingRepository implements IBookingRepository {
       const { data: authData } = await supabase.auth.getUser();
       const currentUserId = authData?.user?.id || null;
 
-      // 4. Intelligent customer deduplication & association
-      const customerEmail = booking.customer.email.toLowerCase().trim();
-      const customerPhone = `${booking.customer.countryCode} ${booking.customer.phoneNumber}`.trim();
-      let customerId: string | null = null;
-
-      try {
-        // Check for existing customer by email
-        const { data: existingCustomer } = await supabase
-          .from('customers')
-          .select('id, user_id, phone, hotel')
-          .eq('email', customerEmail)
-          .maybeSingle();
-
-        if (existingCustomer?.id) {
-          customerId = existingCustomer.id;
-          // Update missing phone, hotel, or user_id association if newly authenticated
-          const updates: any = {};
-          if (!existingCustomer.user_id && currentUserId) updates.user_id = currentUserId;
-          if (booking.customer.hotelName || booking.pickup.hotelName) {
-            updates.hotel = booking.customer.hotelName || booking.pickup.hotelName;
-          }
-          if (customerPhone && !existingCustomer.phone) {
-            updates.phone = customerPhone;
-          }
-          if (Object.keys(updates).length > 0) {
-            await supabase.from('customers').update(updates).eq('id', customerId);
-          }
-        } else {
-          // If no email match, check by phone
-          const { data: existingByPhone } = await supabase
-            .from('customers')
-            .select('id')
-            .eq('phone', customerPhone)
-            .maybeSingle();
-
-          if (existingByPhone?.id) {
-            customerId = existingByPhone.id;
-          } else {
-            // Create new customer record
-            const { data: customerRecord, error: custError } = await supabase
-              .from('customers')
-              .insert({
-                user_id: currentUserId,
-                first_name: booking.customer.firstName.trim(),
-                last_name: booking.customer.lastName.trim(),
-                email: customerEmail,
-                phone: customerPhone,
-                whatsapp: booking.customer.whatsappNumber ? booking.customer.whatsappNumber.trim() : null,
-                country: booking.customer.country,
-                hotel: booking.customer.hotelName || booking.pickup.hotelName || null,
-              })
-              .select('id')
-              .maybeSingle();
-
-            if (custError) {
-              console.warn('Customer record notice:', custError);
-            }
-            customerId = customerRecord?.id || null;
-          }
-        }
-      } catch (custLookupErr) {
-        console.warn('Customer deduplication lookup error:', custLookupErr);
-      }
-
-      // 5. Insert main booking record with authoritative total
-      const { data: dbBooking, error: bookError } = await supabase
-        .from('bookings')
-        .insert({
-          booking_reference: booking.bookingReference,
-          user_id: currentUserId,
-          tour_id: realTourId,
-          customer_id: customerId,
-          booking_date: booking.date,
-          status: booking.status || 'confirmed',
-          payment_status: booking.paymentStatus || 'pending',
-          payment_method: booking.paymentMethod || 'pay_at_pickup',
-          adult_count: adults,
-          child_count: children,
-          infant_count: booking.guests.infants || 0,
-          pickup_hotel_name: booking.pickup.hotelName || null,
-          pickup_room_number: booking.pickup.roomNumber || null,
-          subtotal: adultSubtotal + childSubtotal + pickupSubtotal,
-          extras_total: extrasSubtotal,
-          discount,
-          total: authoritativeTotal,
-          currency: 'EUR',
-          special_requests: booking.customer.specialRequests || null,
-        })
-        .select('id, booking_reference')
-        .single();
-
-      if (bookError) {
-        throw new Error(formatSupabaseError(bookError));
-      }
-
-      const createdBookingId = dbBooking.id;
-
-      // 6. Insert passenger manifest records into booking_passengers table
-      const passengerRows: any[] = [];
-      // Lead passenger
-      passengerRows.push({
-        booking_id: createdBookingId,
-        full_name: `${booking.customer.firstName} ${booking.customer.lastName}`.trim(),
-        nationality: booking.customer.country || 'International',
-        passenger_type: 'adult',
-        is_lead_passenger: true,
+      // 4. Intelligent customer deduplication & association using authoritative engine
+      const authoritativeCustomer = await findOrCreateAuthoritativeCustomer({
+        email: booking.customer.email,
+        firstName: booking.customer.firstName,
+        lastName: booking.customer.lastName,
+        phone: `${booking.customer.countryCode || ''} ${booking.customer.phoneNumber || ''}`.trim(),
+        whatsapp: booking.customer.whatsappNumber,
+        country: booking.customer.country,
+        hotel: booking.customer.hotelName || booking.pickup.hotelName,
+        userId: currentUserId,
+        bookingAmountEur: authoritativeTotal,
+        bookingDate: booking.date,
       });
 
-      // Additional adult passengers
-      for (let i = 2; i <= adults; i++) {
+      const customerId = authoritativeCustomer.id;
+      booking.customerId = customerId;
+
+      // 5. Insert main booking record with authoritative total & rollback protection
+      let createdBookingId: string | null = null;
+      let capacityWasReserved = false;
+
+      try {
+        const { data: dbBooking, error: bookError } = await supabase
+          .from('bookings')
+          .insert({
+            booking_reference: booking.bookingReference,
+            user_id: currentUserId,
+            tour_id: realTourId,
+            customer_id: customerId,
+            booking_date: booking.date,
+            status: booking.status || 'confirmed',
+            payment_status: booking.paymentStatus || 'pending',
+            payment_method: booking.paymentMethod || 'pay_at_pickup',
+            adult_count: adults,
+            child_count: children,
+            infant_count: booking.guests.infants || 0,
+            pickup_hotel_name: booking.pickup.hotelName || null,
+            pickup_room_number: booking.pickup.roomNumber || null,
+            subtotal: adultSubtotal + childSubtotal + pickupSubtotal,
+            extras_total: extrasSubtotal,
+            discount,
+            total: authoritativeTotal,
+            currency: 'EUR',
+            special_requests: booking.customer.specialRequests || null,
+          })
+          .select('id, booking_reference')
+          .single();
+
+        if (bookError) {
+          throw new Error(formatSupabaseError(bookError));
+        }
+
+        createdBookingId = dbBooking.id;
+
+        // 6. Insert passenger manifest records into booking_passengers table
+        const passengerRows: any[] = [];
+        // Lead passenger
         passengerRows.push({
           booking_id: createdBookingId,
-          full_name: `Adult Guest ${i} (${booking.customer.lastName})`,
+          full_name: `${booking.customer.firstName} ${booking.customer.lastName}`.trim(),
           nationality: booking.customer.country || 'International',
           passenger_type: 'adult',
-          is_lead_passenger: false,
+          is_lead_passenger: true,
         });
-      }
 
-      // Child passengers
-      for (let i = 1; i <= children; i++) {
-        passengerRows.push({
-          booking_id: createdBookingId,
-          full_name: `Child Guest ${i} (${booking.customer.lastName})`,
-          nationality: booking.customer.country || 'International',
-          passenger_type: 'child',
-          is_lead_passenger: false,
-        });
-      }
+        // Additional adult passengers
+        for (let i = 2; i <= adults; i++) {
+          passengerRows.push({
+            booking_id: createdBookingId,
+            full_name: `Adult Guest ${i} (${booking.customer.lastName})`,
+            nationality: booking.customer.country || 'International',
+            passenger_type: 'adult',
+            is_lead_passenger: false,
+          });
+        }
 
-      // Infant passengers
-      for (let i = 1; i <= (booking.guests.infants || 0); i++) {
-        passengerRows.push({
-          booking_id: createdBookingId,
-          full_name: `Infant Guest ${i} (${booking.customer.lastName})`,
-          nationality: booking.customer.country || 'International',
-          passenger_type: 'infant',
-          is_lead_passenger: false,
-        });
-      }
+        // Child passengers
+        for (let i = 1; i <= children; i++) {
+          passengerRows.push({
+            booking_id: createdBookingId,
+            full_name: `Child Guest ${i} (${booking.customer.lastName})`,
+            nationality: booking.customer.country || 'International',
+            passenger_type: 'child',
+            is_lead_passenger: false,
+          });
+        }
 
-      if (passengerRows.length > 0) {
-        await supabase.from('booking_passengers').insert(passengerRows);
-      }
+        // Infant passengers
+        for (let i = 1; i <= (booking.guests.infants || 0); i++) {
+          passengerRows.push({
+            booking_id: createdBookingId,
+            full_name: `Infant Guest ${i} (${booking.customer.lastName})`,
+            nationality: booking.customer.country || 'International',
+            passenger_type: 'infant',
+            is_lead_passenger: false,
+          });
+        }
 
-      // 7. Update tour_availability capacity in database
-      try {
+        if (passengerRows.length > 0) {
+          await supabase.from('booking_passengers').insert(passengerRows);
+        }
+
+        // 7. Update tour_availability capacity in database
         if (bookingDateStr) {
           const { data: currentAvail } = await supabase
             .from('tour_availability')
@@ -366,29 +325,123 @@ class SupabaseBookingRepository implements IBookingRepository {
                 updated_at: new Date().toISOString(),
               })
               .eq('id', currentAvail.id);
+            capacityWasReserved = true;
           }
         }
-      } catch (availUpdateErr) {
-        console.warn('Notice updating booked capacity:', availUpdateErr);
-      }
 
-      // 7. Insert extras breakdown if any
-      if (booking.extras && booking.extras.length > 0) {
-        const extrasRows = booking.extras.map((ex) => ({
-          booking_id: createdBookingId,
-          name: ex.name,
-          quantity: ex.quantity || 1,
-          unit_price: ex.priceEur,
-          total_price: ex.amountEur,
-          pricing_type: ex.pricingType,
-        }));
-        await supabase.from('booking_extras').insert(extrasRows);
+        // 8. Insert extras breakdown if any
+        if (booking.extras && booking.extras.length > 0) {
+          const extrasRows = booking.extras.map((ex) => ({
+            booking_id: createdBookingId,
+            name: ex.name,
+            quantity: ex.quantity || 1,
+            unit_price: ex.priceEur,
+            total_price: ex.amountEur,
+            pricing_type: ex.pricingType,
+          }));
+          await supabase.from('booking_extras').insert(extrasRows);
+        }
+      } catch (partialFailErr: any) {
+        // ERROR RECOVERY ROLLBACK: Clean up partial database state to prevent orphans
+        console.error('Partial booking failure - rolling back database transaction:', partialFailErr);
+        if (createdBookingId) {
+          try {
+            await supabase.from('booking_passengers').delete().eq('booking_id', createdBookingId);
+            await supabase.from('booking_extras').delete().eq('booking_id', createdBookingId);
+            await supabase.from('bookings').delete().eq('id', createdBookingId);
+            if (capacityWasReserved && bookingDateStr) {
+              const { data: rollbackAvail } = await supabase
+                .from('tour_availability')
+                .select('*')
+                .eq('tour_id', realTourId)
+                .eq('date', bookingDateStr)
+                .maybeSingle();
+              if (rollbackAvail) {
+                await supabase
+                  .from('tour_availability')
+                  .update({
+                    booked_count: Math.max(0, (rollbackAvail.booked_count || 0) - totalPartySize),
+                    status: 'available',
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', rollbackAvail.id);
+              }
+            }
+          } catch (cleanupErr) {
+            console.warn('Rollback cleanup notice:', cleanupErr);
+          }
+        }
+        throw partialFailErr;
       }
 
       // Update booking object with database verified values
-      booking.bookingId = createdBookingId;
+      booking.bookingId = createdBookingId || undefined;
       booking.pricing.totalEur = authoritativeTotal;
       booking.pricing.formattedTotal = `€${authoritativeTotal.toFixed(2)}`;
+
+      // 9. BOOKING → CRM TIMELINE INTEGRATION
+      try {
+        await recordActivity({
+          customerId,
+          bookingId: createdBookingId || booking.bookingReference,
+          eventType: 'booking_created',
+          title: `Booking Confirmed: ${booking.bookingReference}`,
+          description: `${booking.tourTitle} (${adults} Adults, ${children} Children, €${authoritativeTotal.toFixed(2)}).`,
+          actor: 'Traveler Online',
+          metadata: {
+            bookingReference: booking.bookingReference,
+            totalPartySize,
+            totalEur: authoritativeTotal,
+            bookingDate: booking.date,
+          },
+        });
+      } catch (actErr) {
+        console.warn('CRM activity record notice:', actErr);
+      }
+
+      // 10. INTERNAL STAFF NOTIFICATION
+      try {
+        const notifsRaw = localStorage.getItem('rse_staff_notifications') || '[]';
+        const notifs = JSON.parse(notifsRaw);
+        notifs.unshift({
+          id: `notif-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+          category: 'new_booking',
+          dedupKey: `new_booking_${booking.bookingReference}`,
+          title: `New Booking: ${booking.bookingReference}`,
+          message: `${booking.customer.firstName} ${booking.customer.lastName} booked ${booking.tourTitle} for ${booking.date} (€${authoritativeTotal.toFixed(2)}).`,
+          severity: 'success',
+          entityType: 'booking',
+          entityId: booking.bookingReference,
+          linkTab: 'bookings',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        });
+        localStorage.setItem('rse_staff_notifications', JSON.stringify(notifs.slice(0, 100)));
+      } catch {}
+
+      // 11. AUTOMATION & COMMUNICATIONS EVENT
+      try {
+        await publishAutomationEvent(
+          'booking.created',
+          {
+            bookingReference: booking.bookingReference,
+            bookingId: createdBookingId || booking.bookingReference,
+            customerId,
+            customerName: `${booking.customer.firstName} ${booking.customer.lastName}`.trim(),
+            customerEmail: booking.customer.email,
+            customerPhone: `${booking.customer.countryCode || ''} ${booking.customer.phoneNumber || ''}`.trim(),
+            tourTitle: booking.tourTitle,
+            tourDate: booking.date,
+            pickupTime: (booking as any).pickupTime || '08:30',
+            totalEur: authoritativeTotal,
+            balanceDue: booking.paymentStatus === 'paid' ? 0 : authoritativeTotal,
+          },
+          'booking',
+          createdBookingId || booking.bookingReference
+        );
+      } catch (autoErr) {
+        console.warn('Automation dispatch notice:', autoErr);
+      }
 
       return booking;
     } catch (err: any) {
@@ -508,6 +561,39 @@ class SupabaseBookingRepository implements IBookingRepository {
       }
     }
 
+    // CRM Activity Timeline
+    try {
+      await recordActivity({
+        customerId: booking.customerId,
+        bookingId: booking.bookingId || booking.bookingReference,
+        eventType: 'booking_updated',
+        title: `Booking Updated: ${booking.bookingReference}`,
+        description: `Status: ${booking.status}. Payment status: ${booking.paymentStatus}. Hotel: ${booking.pickup.hotelName || 'Direct Arrival'}.`,
+        actor: 'Staff Dispatch',
+        metadata: {
+          bookingReference: booking.bookingReference,
+          status: booking.status,
+          paymentStatus: booking.paymentStatus,
+        },
+      });
+    } catch {}
+
+    // Automation Event
+    try {
+      await publishAutomationEvent(
+        'booking.updated',
+        {
+          bookingReference: booking.bookingReference,
+          status: booking.status,
+          paymentStatus: booking.paymentStatus,
+          date: booking.date,
+          tourTitle: booking.tourTitle,
+        },
+        'booking',
+        booking.bookingId || booking.bookingReference
+      );
+    } catch {}
+
     return booking;
   }
 
@@ -542,10 +628,88 @@ class SupabaseBookingRepository implements IBookingRepository {
             updated_at: new Date().toISOString(),
           })
           .eq('booking_reference', bookingReference);
+
+        // Revert capacity in tour_availability
+        if (existing.tourId && existing.date) {
+          const dStr = existing.date.split('T')[0];
+          const partySize = (existing.guests?.adults || 1) + (existing.guests?.children || 0) + (existing.guests?.infants || 0);
+          const { data: curAvail } = await supabase
+            .from('tour_availability')
+            .select('*')
+            .eq('tour_id', existing.tourId)
+            .eq('date', dStr)
+            .maybeSingle();
+
+          if (curAvail) {
+            const newCount = Math.max(0, (curAvail.booked_count || 0) - partySize);
+            await supabase
+              .from('tour_availability')
+              .update({
+                booked_count: newCount,
+                status: 'available',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', curAvail.id);
+          }
+        }
       } catch (err) {
         console.warn('Cancel booking in Supabase notice:', err);
       }
     }
+
+    // CRM Activity Timeline
+    try {
+      await recordActivity({
+        customerId: existing.customerId,
+        bookingId: existing.bookingId || existing.bookingReference,
+        eventType: 'cancellation',
+        title: `Cancellation: ${bookingReference}`,
+        description: reason || 'Customer requested reservation cancellation.',
+        actor: 'Customer Support',
+        metadata: {
+          bookingReference,
+          reason,
+          tourTitle: existing.tourTitle,
+        },
+      });
+    } catch {}
+
+    // Internal Staff Notification
+    try {
+      const notifsRaw = localStorage.getItem('rse_staff_notifications') || '[]';
+      const notifs = JSON.parse(notifsRaw);
+      notifs.unshift({
+        id: `notif-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+        category: 'new_booking',
+        dedupKey: `cancel_${bookingReference}`,
+        title: `Cancellation: ${bookingReference}`,
+        message: `Booking ${bookingReference} (${existing.tourTitle}) requested cancellation: ${reason}`,
+        severity: 'warning',
+        entityType: 'booking',
+        entityId: bookingReference,
+        linkTab: 'bookings',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      });
+      localStorage.setItem('rse_staff_notifications', JSON.stringify(notifs.slice(0, 100)));
+    } catch {}
+
+    // Automation Event
+    try {
+      await publishAutomationEvent(
+        'booking.cancelled',
+        {
+          bookingReference,
+          reason,
+          tourTitle: existing.tourTitle,
+          tourDate: existing.date,
+          customerName: `${existing.customer.firstName} ${existing.customer.lastName}`,
+          customerEmail: existing.customer.email,
+        },
+        'booking',
+        existing.bookingId || bookingReference
+      );
+    } catch {}
 
     return this.updateBooking(updated);
   }

@@ -1,8 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Environment variables for Vite
-const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const envAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Environment variables for Vite and Node.js testing
+const envUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) || (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) || undefined;
+const envAnonKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) || (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) || undefined;
 
 // Allow manual override from Admin Settings in browser storage for instant testing
 const getStoredUrl = () => {

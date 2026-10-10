@@ -1328,3 +1328,111 @@ export async function markAutomationEventProcessed(
     } catch {}
   }
 }
+
+// ------------------------------------------------------------------------------
+// 7. BUILT-IN AUTOMATION HANDLERS & EXPLICIT DISPATCHERS
+// ------------------------------------------------------------------------------
+
+export async function dispatchCommunicationByTemplate(
+  templateKey: TemplateKey,
+  bookingReference: string,
+  extraVariables: Partial<MessageContextVariables> = {}
+): Promise<void> {
+  const allBookings = await bookingRepository.listBookings();
+  const booking = allBookings.find((b) => b.bookingReference === bookingReference);
+  if (!booking) return;
+
+  const templates = await listTemplates();
+  const tmpl = templates.find((t) => t.templateKey === templateKey);
+  if (!tmpl || !tmpl.isActive) return;
+
+  const variables: MessageContextVariables = {
+    customer_name: `${booking.customer.firstName} ${booking.customer.lastName}`.trim(),
+    booking_reference: booking.bookingReference,
+    tour_name: booking.tourTitle,
+    tour_date: booking.date,
+    pickup_time: (booking as any).pickupTime || '08:30 AM',
+    amount: booking.pricing?.totalEur || 0,
+    balance_due: booking.paymentStatus === 'paid' ? 0 : (booking.pricing?.totalEur || 0),
+    ...extraVariables,
+  };
+
+  const renderedSubject = tmpl.subject ? renderTemplateVariables(tmpl.subject, variables) : `Notice regarding ${booking.bookingReference}`;
+  const renderedContent = renderTemplateVariables(tmpl.bodyText, variables);
+
+  // Email dispatch
+  if (tmpl.channel === 'Email' || tmpl.channel === 'Both') {
+    await sendEmailMessage({
+      recipientEmail: booking.customer.email,
+      customerName: variables.customer_name,
+      customerId: booking.customerId,
+      bookingId: booking.bookingId || booking.bookingReference,
+      bookingReference: booking.bookingReference,
+      templateKey: tmpl.templateKey,
+      subject: renderedSubject,
+      content: renderedContent,
+    });
+  }
+
+  // WhatsApp dispatch
+  if (tmpl.channel === 'WhatsApp' || tmpl.channel === 'Both') {
+    const phone = booking.customer.whatsappNumber || `${booking.customer.countryCode || ''} ${booking.customer.phoneNumber || ''}`.trim();
+    if (phone) {
+      await sendWhatsAppMessage({
+        recipientPhone: phone,
+        customerName: variables.customer_name,
+        customerId: booking.customerId,
+        bookingId: booking.bookingId || booking.bookingReference,
+        bookingReference: booking.bookingReference,
+        templateKey: tmpl.templateKey,
+        content: renderedContent,
+      });
+    }
+  }
+}
+
+// Built-in automated event listeners
+subscribeToAutomationEvent('booking.created', async (ev) => {
+  if (ev.payload?.bookingReference) {
+    await dispatchCommunicationByTemplate('booking_confirmation', ev.payload.bookingReference);
+  }
+});
+
+subscribeToAutomationEvent('booking.updated', async (ev) => {
+  if (ev.payload?.bookingReference) {
+    await dispatchCommunicationByTemplate('booking_update', ev.payload.bookingReference);
+  }
+});
+
+subscribeToAutomationEvent('payment.received', async (ev) => {
+  if (ev.payload?.bookingReference) {
+    await dispatchCommunicationByTemplate('payment_confirmation', ev.payload.bookingReference, {
+      amount: ev.payload.amount,
+      balance_due: 0,
+    });
+  }
+});
+
+subscribeToAutomationEvent('booking.cancelled', async (ev) => {
+  if (ev.payload?.bookingReference) {
+    await dispatchCommunicationByTemplate('cancellation', ev.payload.bookingReference);
+  }
+});
+
+subscribeToAutomationEvent('departure.tomorrow', async (ev) => {
+  if (ev.payload?.bookingReference) {
+    await dispatchCommunicationByTemplate('tour_reminder', ev.payload.bookingReference);
+  }
+});
+
+subscribeToAutomationEvent('pickup.reminder' as any, async (ev) => {
+  if (ev.payload?.bookingReference) {
+    await dispatchCommunicationByTemplate('pickup_reminder', ev.payload.bookingReference);
+  }
+});
+
+subscribeToAutomationEvent('review.request' as any, async (ev) => {
+  if (ev.payload?.bookingReference) {
+    await dispatchCommunicationByTemplate('review_request', ev.payload.bookingReference);
+  }
+});

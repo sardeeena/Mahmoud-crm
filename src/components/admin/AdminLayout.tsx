@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
+import { PlatformIntegrationModal } from './PlatformIntegrationModal';
 
 export type AdminTab =
   | 'dashboard'
@@ -113,6 +114,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const { user, signOut } = useAuth();
   const supabaseConnected = isSupabaseConfigured();
   const [schemaMissing, setSchemaMissingState] = React.useState(isSchemaMissing());
+  const [isIntegrationModalOpen, setIsIntegrationModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     return subscribeSchemaMissing((missing) => {
@@ -367,6 +369,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               </span>
             </div>
 
+            <button
+              type="button"
+              onClick={() => setIsIntegrationModalOpen(true)}
+              className="w-full flex items-center justify-center space-x-1.5 py-1.5 px-2 bg-[#0A6C74]/20 hover:bg-[#0A6C74]/30 text-[#2dd4bf] border border-[#0A6C74]/40 rounded text-[11px] font-semibold transition-colors cursor-pointer"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Integration Simulation Suite</span>
+            </button>
+
             <div className="grid grid-cols-2 gap-1 pt-1">
               <button
                 type="button"
@@ -398,6 +409,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </div>
         </main>
       </div>
+
+      {/* Platform Integration Simulation Suite Modal */}
+      <PlatformIntegrationModal
+        isOpen={isIntegrationModalOpen}
+        onClose={() => setIsIntegrationModalOpen(false)}
+      />
     </div>
   );
 };

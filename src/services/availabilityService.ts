@@ -85,10 +85,10 @@ export function getTourAvailability(
           };
         }
 
-        // Count actual reservations from local bookings store
+        // Count actual reservations from authoritative bookings cache
         let actualBooked = 0;
         try {
-          const rawBookings = localStorage.getItem('redsea_local_bookings');
+          const rawBookings = localStorage.getItem('rse_bookings_cache') || localStorage.getItem('redsea_local_bookings');
           if (rawBookings) {
             const bookings = JSON.parse(rawBookings);
             actualBooked = bookings
@@ -108,7 +108,7 @@ export function getTourAvailability(
           // ignore
         }
 
-        const capacity = slot.maxCapacity || tour.maxGuests || 24;
+        const capacity = slot.maxCapacity || tour.maxGuests || 35;
         const totalBooked = Math.min(capacity, Math.max(actualBooked, slot.bookedCount || 0));
         const remaining = Math.max(0, capacity - totalBooked);
         const isSoldOut = remaining <= 0 || slot.status === 'sold_out';
@@ -131,10 +131,10 @@ export function getTourAvailability(
     // fallback to dynamic calculation
   }
 
-  // 2. Count actual bookings even without explicit slot override
+  // 2. Count actual bookings from authoritative bookings store
   let actualBooked = 0;
   try {
-    const rawBookings = localStorage.getItem('redsea_local_bookings');
+    const rawBookings = localStorage.getItem('rse_bookings_cache') || localStorage.getItem('redsea_local_bookings');
     if (rawBookings) {
       const bookings = JSON.parse(rawBookings);
       actualBooked = bookings
@@ -154,19 +154,8 @@ export function getTourAvailability(
     // ignore
   }
 
-  // Calculate deterministic capacity for this tour & date schedule
-  const seedString = `${tour.id}-${selectedDate}`;
-  let hash = 0;
-  for (let i = 0; i < seedString.length; i++) {
-    hash = (hash << 5) - hash + seedString.charCodeAt(i);
-    hash |= 0;
-  }
-  const positiveHash = Math.abs(hash);
-
-  const capacity = tour.maxGuests || 20;
-  const bookedPercent = 0.25 + (positiveHash % 40) / 100;
-  const simulatedBooked = Math.round(capacity * bookedPercent);
-  const totalBooked = Math.min(capacity, simulatedBooked + actualBooked);
+  const capacity = tour.maxGuests || 35;
+  const totalBooked = Math.min(capacity, actualBooked);
   const remaining = Math.max(0, capacity - totalBooked);
 
   return {

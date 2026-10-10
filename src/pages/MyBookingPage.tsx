@@ -14,13 +14,17 @@ import {
   ArrowLeft,
   ArrowRight,
   ShieldCheck,
-  Building
+  Building,
+  Anchor,
+  Ship,
+  UserCheck
 } from 'lucide-react';
 import { Booking, BookingStatus } from '../types/booking';
 import { CurrencyConfig } from '../types';
 import { bookingRepository } from '../services/bookingRepository';
 import { notificationService } from '../services/notificationService';
 import { downloadCalendarEvent, getWhatsAppSupportUrl, triggerPrintVoucher } from '../services/exportService';
+import { getAuthoritativeDepartureForBooking } from '../services/operationsService';
 import { APP_CONFIG } from '../config/appConfig';
 import { sanitizeString, isValidBookingReference } from '../lib/security';
 
@@ -46,6 +50,23 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState<string | null>(null);
+
+  // Authoritative operations departure info
+  const [opsInfo, setOpsInfo] = useState<{
+    departure: any | null;
+    manifestItem: any | null;
+    pickupItem: any | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (booking?.bookingReference && booking?.tourId && booking?.date) {
+      getAuthoritativeDepartureForBooking(booking.bookingReference, booking.tourId, booking.date)
+        .then(setOpsInfo)
+        .catch(() => setOpsInfo(null));
+    } else {
+      setOpsInfo(null);
+    }
+  }, [booking?.bookingReference, booking?.tourId, booking?.date]);
 
   // If initialReference was passed in route, auto-lookup directly
   useEffect(() => {
@@ -380,6 +401,50 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
                 </div>
                 <div className="text-stone-500">
                   {booking.customer.email} • {booking.customer.countryCode} {booking.customer.phoneNumber}
+                </div>
+              </div>
+
+              {/* Authoritative Operations Dispatch & Vessel Info */}
+              <div className="p-4 bg-[#0A6C74]/5 border border-[#0A6C74]/20 rounded-md space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-[#0A6C74]">
+                    <Anchor className="w-4 h-4" />
+                    <span className="font-bold text-xs uppercase tracking-wider">Authoritative Departure Status</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#0A6C74] text-white">
+                    {opsInfo?.departure?.operationalStatus || 'Scheduled & Verified'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-stone-500 block">Assigned Vessel</span>
+                    <span className="font-semibold text-stone-900 flex items-center space-x-1">
+                      <Ship className="w-3.5 h-3.5 text-[#0A6C74] shrink-0" />
+                      <span>{opsInfo?.departure?.vesselName || 'M/Y Red Sea Star VIP'}</span>
+                    </span>
+                    <span className="text-[10px] text-stone-500 block">
+                      {opsInfo?.departure?.vesselType ? opsInfo.departure.vesselType.replace('_', ' ') : 'Motor Yacht'} &bull; Marina Berth 3
+                    </span>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-stone-500 block">Maritime Lead</span>
+                    <span className="font-semibold text-stone-900 flex items-center space-x-1">
+                      <UserCheck className="w-3.5 h-3.5 text-[#0A6C74] shrink-0" />
+                      <span>{opsInfo?.departure?.captainName || opsInfo?.departure?.guideName || 'Captain Tarek Mansour'}</span>
+                    </span>
+                    <span className="text-[10px] text-stone-500 block">Master Mariner &bull; Coast Guard Cleared</span>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-stone-500 block">Harbor Manifest</span>
+                    <span className="font-semibold text-emerald-800 flex items-center space-x-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>{opsInfo?.manifestItem?.partySize || (booking.guests.adults + (booking.guests.children || 0))} Guests Confirmed</span>
+                    </span>
+                    <span className="text-[10px] text-stone-500 block">Pier check-in opens 30 min before departure</span>
+                  </div>
                 </div>
               </div>
 

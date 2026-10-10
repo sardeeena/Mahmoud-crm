@@ -1393,50 +1393,11 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
     (l) => l.customerId === found.id || l.email.toLowerCase() === found.email.toLowerCase()
   );
 
-  // Synthesize complete unified chronological timeline
+  // Synthesize complete unified chronological timeline covering all 11 categories:
+  // Inquiry, Lead, Booking, Payment, Communication, Task, Follow-up, Departure, Cancellation, Refund, Review
   const customerActivities: CrmActivity[] = [...activities.filter((a) => a.customerId === found.id)];
 
-  // Bookings events
-  found.bookings.forEach((b) => {
-    customerActivities.push({
-      id: `act-bk-${b.bookingReference}`,
-      customerId: found.id,
-      bookingId: b.bookingId || b.bookingReference,
-      eventType: 'booking_created',
-      title: `Booking Confirmed: ${b.bookingReference}`,
-      description: `${b.tourTitle} (${b.guests.adults} Adults, €${b.pricing.totalEur}).`,
-      actor: 'Traveler Online',
-      createdAt: b.date || b.createdAt,
-    });
-
-    if (b.paymentStatus === 'paid') {
-      customerActivities.push({
-        id: `act-pay-${b.bookingReference}`,
-        customerId: found.id,
-        bookingId: b.bookingId || b.bookingReference,
-        eventType: 'payment_recorded',
-        title: `Payment Received: €${b.pricing.totalEur}`,
-        description: `Full payment settled via ${b.paymentMethod === 'pay_online' ? 'Online Card' : 'Pier Cash'}.`,
-        actor: 'Accounting',
-        createdAt: b.date || b.createdAt,
-      });
-    }
-
-    if (b.status === 'cancelled') {
-      customerActivities.push({
-        id: `act-canc-${b.bookingReference}`,
-        customerId: found.id,
-        bookingId: b.bookingId || b.bookingReference,
-        eventType: 'cancellation',
-        title: `Booking Cancelled: ${b.bookingReference}`,
-        description: b.cancellationReason || 'Cancelled by traveler or operations.',
-        actor: 'Customer Support',
-        createdAt: (b as any).updatedAt || b.date || b.createdAt,
-      });
-    }
-  });
-
-  // Inquiries
+  // 1. INQUIRIES
   found.inquiries.forEach((inq) => {
     customerActivities.push({
       id: `act-inq-${inq.id}`,
@@ -1449,7 +1410,7 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
     });
   });
 
-  // Leads
+  // 2. LEADS
   if (found.leads) {
     found.leads.forEach((l) => {
       customerActivities.push({
@@ -1462,12 +1423,158 @@ export async function getCustomerProfile(idOrEmail: string): Promise<CrmCustomer
         actor: l.assignedStaffName || 'Sales Desk',
         createdAt: l.createdAt,
       });
+
+      // 7. FOLLOW-UPS
+      if (l.followUpDate || l.notes) {
+        customerActivities.push({
+          id: `act-fup-${l.id}`,
+          customerId: found.id,
+          leadId: l.id,
+          eventType: 'followup',
+          title: `Follow-up (${l.followUpChannel || 'Phone'}): ${l.stage}`,
+          description: l.notes || `Scheduled follow-up contact for ${l.followUpDate || 'prospective booking'}.`,
+          actor: l.assignedStaffName || 'Sales Desk',
+          createdAt: l.followUpDate || l.updatedAt || l.createdAt,
+        });
+      }
     });
   }
 
-  found.activities = customerActivities.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  // 3. BOOKINGS, 4. PAYMENTS, 8. DEPARTURES, 9. CANCELLATIONS
+  found.bookings.forEach((b) => {
+    customerActivities.push({
+      id: `act-bk-${b.bookingReference}`,
+      customerId: found.id,
+      bookingId: b.bookingId || b.bookingReference,
+      eventType: 'booking_created',
+      title: `Booking Confirmed: ${b.bookingReference}`,
+      description: `${b.tourTitle} (${b.guests.adults} Adults, €${b.pricing?.totalEur || 0}).`,
+      actor: 'Traveler Online',
+      createdAt: b.date || b.createdAt,
+    });
+
+    // 8. DEPARTURE EVENT
+    customerActivities.push({
+      id: `act-dep-${b.bookingReference}`,
+      customerId: found.id,
+      bookingId: b.bookingId || b.bookingReference,
+      eventType: 'departure',
+      title: `Excursion Departure: ${b.tourTitle}`,
+      description: `Scheduled date: ${b.date}. Pickup hotel: ${b.pickup?.hotelName || b.customer?.hotelName || 'Direct Arrival'}.`,
+      actor: 'Maritime Operations',
+      createdAt: b.date || b.createdAt,
+    });
+
+    // 4. PAYMENT EVENT
+    if (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid') {
+      customerActivities.push({
+        id: `act-pay-${b.bookingReference}`,
+        customerId: found.id,
+        bookingId: b.bookingId || b.bookingReference,
+        eventType: 'payment_recorded',
+        title: `Payment Settled: €${b.pricing?.totalEur || 0}`,
+        description: `Settled via ${b.paymentMethod === 'pay_online' ? 'Online Card' : 'Pier Cash/Mobile POS'}.`,
+        actor: 'Accounting Desk',
+        createdAt: b.date || b.createdAt,
+      });
+    }
+
+    // 9. CANCELLATION EVENT
+    if (b.status === 'cancelled' || b.status === 'cancellation_requested') {
+      customerActivities.push({
+        id: `act-canc-${b.bookingReference}`,
+        customerId: found.id,
+        bookingId: b.bookingId || b.bookingReference,
+        eventType: 'cancellation',
+        title: `Cancellation: ${b.bookingReference}`,
+        description: b.cancellationReason || 'Cancelled by traveler or operations.',
+        actor: 'Customer Support',
+        createdAt: (b as any).updatedAt || b.date || b.createdAt,
+      });
+    }
+  });
+
+  // 5. COMMUNICATIONS (Emails & WhatsApps)
+  found.communications.forEach((comm) => {
+    customerActivities.push({
+      id: `act-comm-${comm.id}`,
+      customerId: found.id,
+      eventType: 'communication',
+      title: `${comm.channel.toUpperCase()}: ${comm.templateKey ? comm.templateKey.replace(/_/g, ' ') : comm.subject}`,
+      description: `Delivery Status: ${comm.status}. Provider: ${comm.provider}. Recipient: ${comm.recipient}`,
+      actor: comm.provider || 'Comm Dispatcher',
+      createdAt: comm.sentAt || comm.createdAt,
+    });
+  });
+
+  // 6. TASKS
+  found.tasks.forEach((tsk) => {
+    customerActivities.push({
+      id: `act-task-${tsk.id}`,
+      customerId: found.id,
+      eventType: 'task',
+      title: `CRM Task: ${tsk.title}`,
+      description: `Status: ${tsk.status}. Priority: ${tsk.priority}. Assigned: ${tsk.assignedStaffName || 'Staff'}.`,
+      actor: tsk.assignedStaffName || 'Staff',
+      createdAt: tsk.createdAt,
+    });
+  });
+
+  // 10. REFUNDS
+  try {
+    const rawRefunds = localStorage.getItem('rse_fin_refunds') || localStorage.getItem('rse_finance_refunds');
+    if (rawRefunds) {
+      const refunds = JSON.parse(rawRefunds);
+      refunds.forEach((r: any) => {
+        if (
+          r.customerId === found.id ||
+          found.bookings.some((b) => b.bookingReference === r.bookingReference || b.bookingId === r.bookingId)
+        ) {
+          customerActivities.push({
+            id: `act-ref-${r.id}`,
+            customerId: found.id,
+            bookingId: r.bookingId,
+            eventType: 'refund',
+            title: `Refund (${r.status}): €${r.approvedAmount || r.amount}`,
+            description: `Reason: ${r.reason}. Method: ${r.paymentMethod || 'Original Method'}.`,
+            actor: 'Finance Dept',
+            createdAt: r.createdAt || new Date().toISOString(),
+          });
+        }
+      });
+    }
+  } catch {}
+
+  // 11. REVIEWS
+  try {
+    const rawReviews = localStorage.getItem('rse_tour_reviews');
+    if (rawReviews) {
+      const revs = JSON.parse(rawReviews);
+      revs.forEach((rv: any) => {
+        if (rv.authorName?.toLowerCase() === found.fullName.toLowerCase() || rv.authorEmail?.toLowerCase() === found.email.toLowerCase()) {
+          customerActivities.push({
+            id: `act-rev-${rv.id}`,
+            customerId: found.id,
+            eventType: 'review',
+            title: `Customer Review (${rv.rating}★): ${rv.tourTitle || 'Tour Experience'}`,
+            description: rv.comment || 'Verified traveler feedback.',
+            actor: found.fullName,
+            createdAt: rv.date || rv.createdAt || new Date().toISOString(),
+          });
+        }
+      });
+    }
+  } catch {}
+
+  // Deduplicate activities by id and sort in descending chronological order
+  const seenIds = new Set<string>();
+  found.activities = customerActivities
+    .filter((act) => {
+      if (seenIds.has(act.id)) return false;
+      seenIds.add(act.id);
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return found;
 }
@@ -1740,26 +1847,74 @@ export async function convertLeadToCustomer(leadId: string): Promise<string> {
   const lead = leads.find((l) => l.id === leadId);
   if (!lead) throw new Error('Lead not found');
 
+  const cleanEmail = lead.email.trim().toLowerCase();
+  const cleanPhone = lead.phone?.trim() || null;
+  let customerId: string | null = lead.customerId || null;
+
+  // 1. Deduplication: Check if customer already exists in database or cache
+  if (!customerId && isSupabaseConfigured()) {
+    try {
+      const { data: existingCust } = await supabase
+        .from('customers')
+        .select('id, hotel, phone')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (existingCust?.id) {
+        customerId = existingCust.id;
+      } else if (cleanPhone) {
+        const { data: byPhone } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+        if (byPhone?.id) customerId = byPhone.id;
+      }
+    } catch {}
+  }
+
+  // Check local cache if not found in Supabase
+  if (!customerId) {
+    const rawLocal = localStorage.getItem('rse_customers_cache');
+    if (rawLocal) {
+      try {
+        const localList = JSON.parse(rawLocal);
+        const match = localList.find(
+          (c: any) =>
+            c.email?.toLowerCase() === cleanEmail ||
+            (cleanPhone && c.phone && c.phone.replace(/\s+/g, '') === cleanPhone.replace(/\s+/g, ''))
+        );
+        if (match) customerId = match.id;
+      } catch {}
+    }
+  }
+
+  // 2. Only create new customer if not already existing
+  if (!customerId) {
+    customerId = await createCustomer({
+      firstName: lead.name.split(' ')[0] || lead.name,
+      lastName: lead.name.split(' ').slice(1).join(' ') || '',
+      email: lead.email,
+      phone: lead.phone || '',
+      whatsapp: lead.whatsapp || undefined,
+      country: lead.country || 'International',
+      hotel: lead.hotel || undefined,
+      notes: lead.notes || undefined,
+      tags: ['Converted Lead', 'Active Customer'],
+    });
+  }
+
+  // 3. Preserve Lead History & Link to Customer
   await updateLeadStage(leadId, 'Won');
+  await updateLead(leadId, { customerId });
 
-  // Create or update customer record
-  await createCustomer({
-    firstName: lead.name.split(' ')[0] || lead.name,
-    lastName: lead.name.split(' ').slice(1).join(' ') || '',
-    email: lead.email,
-    phone: lead.phone || '',
-    whatsapp: lead.whatsapp || undefined,
-    country: lead.country || 'International',
-    hotel: lead.hotel || undefined,
-    notes: lead.notes || undefined,
-    tags: ['Converted Lead', 'Active Customer'],
-  });
-
+  // 4. Record Activity Timeline Event
   await recordActivity({
+    customerId,
     leadId,
     eventType: 'lead_converted',
     title: 'Lead Converted to Customer',
-    description: `${lead.name} successfully transitioned to customer directory.`,
+    description: `${lead.name} (${lead.source}) successfully converted to verified customer. Preserved lead value: €${lead.estimatedValue || 0}.`,
     actor: 'Sales Team',
   });
 

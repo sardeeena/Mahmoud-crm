@@ -1,6 +1,8 @@
 import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
 import { DbInquiry } from '../types/database';
 import { sanitizeString, isValidEmail, inquiryRateLimiter } from '../lib/security';
+import { createLead, recordActivity } from './crmService';
+import { publishAutomationEvent } from './communicationService';
 
 export interface CreateInquiryInput {
   customer_name: string;
@@ -94,11 +96,117 @@ export async function createCustomerInquiry(
     updated_at: now,
   };
 
-  // 1. Save to local fallback cache immediately
+  // 1. Identify existing customer where possible
+  let identifiedCustomerId: string | null = null;
+  if (isSupabaseConfigured()) {
+    try {
+      const { data: cust } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+      if (cust) {
+        identifiedCustomerId = cust.id;
+      }
+    } catch {}
+  }
+  if (!identifiedCustomerId) {
+    try {
+      const rawCusts = localStorage.getItem('rse_customers_cache');
+      if (rawCusts) {
+        const custs = JSON.parse(rawCusts);
+        const match = custs.find((c: any) => c.email?.toLowerCase() === cleanEmail);
+        if (match) identifiedCustomerId = match.id;
+      }
+    } catch {}
+  }
+
+  // 2. Automatically create CRM Lead for this inquiry
+  let createdLeadId: string | null = null;
+  try {
+    const lead = await createLead({
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone || undefined,
+      whatsapp: cleanWhatsapp || undefined,
+      source: input.source === 'whatsapp' ? 'WhatsApp' : input.source === 'phone' ? 'Phone' : 'Website',
+      interestedTourId: input.tour_id || undefined,
+      interestedTourTitle: input.tour_title || undefined,
+      notes: `Help Inquiry: ${cleanSubject} — ${cleanMessage}`,
+      stage: 'New',
+      customerId: identifiedCustomerId || undefined,
+      estimatedValue: 120,
+    });
+    if (lead) {
+      createdLeadId = lead.id;
+    }
+  } catch (leadErr) {
+    console.warn('Lead creation for inquiry notice:', leadErr);
+  }
+
+  // 3. Create CRM Timeline Activity Event
+  try {
+    await recordActivity({
+      customerId: identifiedCustomerId || undefined,
+      leadId: createdLeadId || undefined,
+      eventType: 'inquiry_created',
+      title: `Inquiry Received: ${cleanSubject}`,
+      description: cleanMessage,
+      actor: cleanName,
+      metadata: {
+        inquiryId: generatedId,
+        source: input.source || 'web',
+        email: cleanEmail,
+      },
+    });
+  } catch (actErr) {
+    console.warn('CRM activity for inquiry notice:', actErr);
+  }
+
+  // 4. Create Internal Staff Notification
+  try {
+    const notifsRaw = localStorage.getItem('rse_staff_notifications') || '[]';
+    const notifs = JSON.parse(notifsRaw);
+    notifs.unshift({
+      id: `notif-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+      category: 'new_inquiry',
+      dedupKey: `new_inquiry_${generatedId}`,
+      title: `New Inquiry: ${cleanName}`,
+      message: `${cleanName} inquired: "${cleanSubject}". Email: ${cleanEmail}`,
+      severity: 'info',
+      entityType: 'inquiry',
+      entityId: generatedId,
+      linkTab: 'inquiries',
+      isRead: false,
+      createdAt: now,
+    });
+    localStorage.setItem('rse_staff_notifications', JSON.stringify(notifs.slice(0, 100)));
+  } catch {}
+
+  // 5. Trigger Automation Event
+  try {
+    await publishAutomationEvent(
+      'inquiry.received' as any,
+      {
+        inquiryId: generatedId,
+        leadId: createdLeadId,
+        customerId: identifiedCustomerId,
+        name: cleanName,
+        email: cleanEmail,
+        subject: cleanSubject,
+        message: cleanMessage,
+        tourId: input.tour_id,
+      },
+      'inquiry',
+      generatedId
+    );
+  } catch {}
+
+  // 6. Save to local fallback cache immediately
   const localList = getStoredInquiries();
   saveStoredInquiries([newInquiry, ...localList]);
 
-  // 2. Persist to Supabase if configured
+  // 7. Persist to Supabase if configured
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase

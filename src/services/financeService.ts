@@ -15,6 +15,8 @@ import {
 } from '../types/finance';
 import { bookingRepository } from './bookingRepository';
 import { Booking } from '../types/booking';
+import { recordActivity } from './crmService';
+import { publishAutomationEvent } from './communicationService';
 
 const LOCAL_PAYMENTS_KEY = 'rse_fin_payments';
 const LOCAL_INVOICES_KEY = 'rse_fin_invoices';
@@ -406,6 +408,67 @@ export async function recordPayment(paymentData: {
       // ignore
     }
   }
+
+  // CRM Activity Timeline Event
+  try {
+    await recordActivity({
+      customerId: newPayment.customerId || undefined,
+      bookingId: newPayment.bookingId || newPayment.bookingReference,
+      eventType: 'payment_recorded',
+      title: `Payment Received: €${newPayment.amount.toFixed(2)}`,
+      description: `Payment settled via ${newPayment.paymentMethod} (Provider: ${newPayment.provider}). Reference: ${newPayment.transactionReference}.`,
+      actor: newPayment.recordedBy || 'Finance Desk',
+      metadata: {
+        paymentId: newPayment.id,
+        amount: newPayment.amount,
+        currency: newPayment.currency,
+        bookingReference: newPayment.bookingReference,
+        transactionReference: newPayment.transactionReference,
+      },
+    });
+  } catch {}
+
+  // Staff Notification
+  try {
+    const notifsRaw = localStorage.getItem('rse_staff_notifications') || '[]';
+    const notifs = JSON.parse(notifsRaw);
+    notifs.unshift({
+      id: `notif-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+      category: 'new_payment',
+      dedupKey: `new_payment_${newPayment.id}`,
+      title: `New Payment: €${newPayment.amount.toFixed(2)} (${newPayment.currency || 'EUR'})`,
+      message: `Received ${newPayment.paymentMethod} from ${newPayment.customerName} for ${newPayment.bookingReference || 'Direct Payment'}.`,
+      severity: 'success',
+      entityType: 'payment',
+      entityId: newPayment.id,
+      linkTab: 'fin_payments',
+      isRead: false,
+      createdAt: newPayment.paymentDate || new Date().toISOString(),
+    });
+    localStorage.setItem('rse_staff_notifications', JSON.stringify(notifs.slice(0, 100)));
+  } catch {}
+
+  // Automation & Communications Event: payment.received
+  try {
+    await publishAutomationEvent(
+      'payment.received',
+      {
+        paymentId: newPayment.id,
+        bookingReference: newPayment.bookingReference,
+        bookingId: newPayment.bookingId,
+        customerId: newPayment.customerId,
+        customerName: newPayment.customerName,
+        customerEmail: newPayment.customerEmail,
+        amount: newPayment.amount,
+        currency: newPayment.currency,
+        paymentMethod: newPayment.paymentMethod,
+        transactionReference: newPayment.transactionReference,
+        provider: newPayment.provider,
+      },
+      'payment',
+      newPayment.id
+    );
+  } catch {}
 
   return newPayment;
 }
