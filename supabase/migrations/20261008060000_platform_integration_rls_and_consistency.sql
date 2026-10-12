@@ -66,6 +66,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP POLICY IF EXISTS "Customers isolation policy" ON public.customers;
 DROP POLICY IF EXISTS "Public can create customer record" ON public.customers;
 DROP POLICY IF EXISTS "Users can view own customer record" ON public.customers;
+DROP POLICY IF EXISTS "Users can update own customer record" ON public.customers;
 DROP POLICY IF EXISTS "Staff can manage all customers" ON public.customers;
 
 CREATE POLICY "Users can view own customer record" ON public.customers
