@@ -88,7 +88,7 @@ To connect the real relational database:
 ### 2. Run the Schema Migration (Complete Relational Schema, Triggers & RLS)
 1. In your Supabase Dashboard, click **SQL Editor** on the left menu.
 2. Click **New query**.
-3. Open the file `/supabase/schema.sql` from this codebase (contains the full consolidated schema covering catalog, bookings, CMS, CRM, Operations, Finance, Communications, and Media Assets).
+3. Open the file `/complete_schema.sql` from this codebase (contains the canonical consolidated schema covering all 54 tables: catalog, bookings, CMS, CRM, Operations, Finance, Communications, and Media Assets, plus secure RPCs and storage policies).
 4. Copy the entire contents, paste it into the Supabase SQL Editor, and click **Run**.
 5. You should see: `Success. No rows returned.`
 

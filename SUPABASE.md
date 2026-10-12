@@ -29,7 +29,7 @@ Follow these quick steps to connect your Supabase database to the website:
 1. **Create Project**: Go to [supabase.com](https://supabase.com), create a new project (select a region close to your primary visitors, e.g., Frankfurt `eu-central-1` or London `eu-west-2`).
 2. **Copy Keys**: In **Project Settings > API**, copy the **Project URL** and **anon public key**.
 3. **Set Environment**: Put them in your `.env` file or enter them directly in the website under `/admin` > **Settings**.
-4. **Execute Schema**: Copy `/supabase/migrations/20260922000000_phase4_schema.sql` and run it in the Supabase **SQL Editor**.
+4. **Execute Schema**: Copy `/complete_schema.sql` (the canonical, authoritative schema covering all 54 tables, RPCs, and RLS policies) and run it in the Supabase **SQL Editor**.
 5. **Execute Seed**: Copy `/supabase/seed.sql` and run it in the **SQL Editor** to populate verified Red Sea excursions, categories, pickup points, and fleet vessels.
 6. **Promote Admin**: In the SQL Editor, run:
    ```sql
@@ -124,25 +124,35 @@ The application includes an in-browser key manager located in the Admin CMS:
 
 ## 📜 Step 3: Run the Complete Schema Migration
 
-The migration file is located at:
+The authoritative canonical schema file is located at:
 ```
-/supabase/migrations/20260922000000_phase4_schema.sql
+/complete_schema.sql
 ```
 
 1. Open your **Supabase Dashboard** > click **SQL Editor** in the left sidebar.
 2. Click **New Query**.
-3. Copy the entire contents of `20260922000000_phase4_schema.sql` and paste it into the editor.
+3. Copy the entire contents of `/complete_schema.sql` and paste it into the editor.
 4. Click **Run** (or press `Ctrl+Enter` / `Cmd+Enter`).
 5. **Expected Output**: `Success. No rows returned.`
 
 ### What this migration creates:
 - **Extensions**: `uuid-ossp` and `pgcrypto`.
-- **33 Relational Tables**: Full schema with cascading foreign keys, default UUIDs, and automated timestamps.
-- **50+ Performance Indexes**: Indexed on foreign keys, slugs, emails, and RLS columns.
+- **54 Relational Tables**: Full schema covering Public Catalog, CMS, Bookings, Manifests, Operations, Fleet, Guides, Finance, CRM, Communications, and Media Assets.
+- **100+ Performance Indexes**: Indexed on foreign keys, slugs, emails, composite analytics filters, and RLS columns.
 - **Triggers**:
-  - `handle_updated_at`: Automatically stamps `updated_at` on updates.
+  - `handle_updated_at`: Automatically stamps `updated_at` on updates across all mutating tables.
   - `on_auth_user_created`: Automatically creates a `public.profiles` row when a user signs up.
+  - `on_auth_user_confirmed`: Synchronizes email verification state.
   - `protect_profile_role`: Prevents non-admin users from escalating their own privileges.
+- **RPC Functions**:
+  - `lookup_booking_secure`: High-security traveler booking voucher verification.
+  - `request_booking_cancellation_secure`: Secure cancellation workflow with 24-hour refund window check.
+  - `create_booking_atomic`: Concurrency-locked (`FOR UPDATE`) atomic checkout and capacity decrement.
+  - `get_tour_availability_schedule`: Authoritative calendar departure availability.
+  - `recalculate_customer_stats`: Automatic CRM lifetime customer metric rollup.
+  - `get_executive_bi_metrics` & `query_custom_bi_report`: Server-side BI aggregation engines.
+- **Storage Buckets & Policies**: `tour-media`, `avatars`, and private `vouchers`.
+- **Row Level Security**: 112 strict, non-recursive RLS policies enforcing tenant isolation.
 - **Security Functions**:
   - `public.is_admin()`: High-performance, non-recursive, security definer role checker.
   - `public.set_admin_role_by_email(email)`: One-command helper to promote admin accounts safely.
