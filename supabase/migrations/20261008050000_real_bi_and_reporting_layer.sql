@@ -28,7 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_refunds_reporting_date
     ON public.refund_records (created_at, status);
 
 CREATE INDEX IF NOT EXISTS idx_assignments_reporting_date 
-    ON public.operations_assignments (date, status);
+    ON public.operational_assignments (date, status);
 
 
 -- 2. SERVER-SIDE RPC: EXECUTIVE BI METRICS

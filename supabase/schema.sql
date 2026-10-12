@@ -3056,7 +3056,7 @@ CREATE INDEX IF NOT EXISTS idx_refunds_reporting_date
     ON public.refund_records (created_at, status);
 
 CREATE INDEX IF NOT EXISTS idx_assignments_reporting_date 
-    ON public.operations_assignments (date, status);
+    ON public.operational_assignments (date, status);
 
 CREATE OR REPLACE FUNCTION public.get_executive_bi_metrics(
     p_start_date DATE,

@@ -1275,6 +1275,9 @@ CREATE INDEX IF NOT EXISTS idx_crm_conversations_channel ON public.crm_conversat
 -- Operations & Dispatch Indexes
 CREATE INDEX IF NOT EXISTS idx_op_assign_date ON public.operational_assignments(date);
 CREATE INDEX IF NOT EXISTS idx_op_assign_tour ON public.operational_assignments(tour_id);
+CREATE INDEX IF NOT EXISTS idx_op_assign_vessel ON public.operational_assignments(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_op_assign_guide ON public.operational_assignments(guide_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_reporting_date ON public.operational_assignments(date, status);
 CREATE INDEX IF NOT EXISTS idx_departures_date ON public.departures(date);
 CREATE INDEX IF NOT EXISTS idx_departures_tour ON public.departures(tour_id);
 CREATE INDEX IF NOT EXISTS idx_departures_status ON public.departures(status);
@@ -1295,6 +1298,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_reporting_date ON public.payment_transac
 CREATE INDEX IF NOT EXISTS idx_refunds_booking ON public.refund_records(booking_id);
 CREATE INDEX IF NOT EXISTS idx_refunds_status ON public.refund_records(status);
 CREATE INDEX IF NOT EXISTS idx_refunds_booking_ref ON public.refund_records(booking_reference);
+CREATE INDEX IF NOT EXISTS idx_refunds_reporting_date ON public.refund_records(created_at, status);
 CREATE INDEX IF NOT EXISTS idx_invoices_number ON public.invoices(invoice_number);
 CREATE INDEX IF NOT EXISTS idx_invoices_booking ON public.invoices(booking_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_customer ON public.invoices(customer_id);

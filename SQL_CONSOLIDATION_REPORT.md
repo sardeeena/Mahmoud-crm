@@ -107,7 +107,19 @@ Multiple forward migrations altered tables that were initially created in earlie
 9. **`public.staff_notifications`**:
    - Expanded category check constraint to support all 14 business notification categories (`'new_booking'`, `'new_inquiry'`, `'new_payment'`, `'payment_overdue'`, `'new_lead'`, `'followup_due'`, `'task_overdue'`, `'departure_unassigned'`, `'pickup_pending'`, `'document_expiring'`, `'cancellation'`, `'new_review'`, `'operational_issue'`, `'payment_pending'`).
 
-**All 54 tables in `complete_schema.sql` now contain their full final set of columns and constraints directly in their initial `CREATE TABLE` declarations.**
+### 3.4 Table Discrepancy Resolution: `operational_assignments` vs `operations_assignments`
+- **Origin in Migration 20261006010000:** The canonical table for tour dispatch and daily operations was defined as `public.operational_assignments`.
+- **Application Services:** `src/services/operationsService.ts` queries and mutates `supabase.from('operational_assignments')`.
+- **Typo in Downstream Migration 20261008050000:** In `20261008050000_real_bi_and_reporting_layer.sql` (line 30), a composite reporting index was declared as:
+  ```sql
+  CREATE INDEX IF NOT EXISTS idx_assignments_reporting_date 
+      ON public.operations_assignments (date, status);
+  ```
+  This referenced `operations_assignments` (with an "s"), which does not exist, causing the Supabase Preview workflow to fail with `ERROR: relation "public.operations_assignments" does not exist (SQLSTATE 42P01)`.
+- **Resolution:**
+  - Corrected `supabase/migrations/20261008050000_real_bi_and_reporting_layer.sql` to reference `public.operational_assignments`.
+  - Corrected `supabase/schema.sql` to reference `public.operational_assignments`.
+  - Added `idx_assignments_reporting_date` on `public.operational_assignments (date, status)` to `complete_schema.sql`.
 
 ---
 
