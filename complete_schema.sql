@@ -101,7 +101,7 @@ AS $$
 DECLARE
     assigned_role text := 'guest';
 BEGIN
-    IF NEW.email = 'admin@redsea.com' THEN
+    IF NEW.email IN ('admin@awesomeadventure.tours', 'admin@redsea.com') THEN
         assigned_role := 'admin';
     ELSIF NEW.raw_user_meta_data->>'role' IN ('admin', 'manager', 'staff') THEN
         assigned_role := NEW.raw_user_meta_data->>'role';

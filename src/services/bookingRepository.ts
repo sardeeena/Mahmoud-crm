@@ -375,7 +375,7 @@ class SupabaseBookingRepository implements IBookingRepository {
       }
 
       // Update booking object with database verified values
-      booking.bookingId = createdBookingId || undefined;
+      booking.bookingId = createdBookingId || booking.bookingId;
       booking.pricing.totalEur = authoritativeTotal;
       booking.pricing.formattedTotal = `€${authoritativeTotal.toFixed(2)}`;
 

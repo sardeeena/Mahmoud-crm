@@ -11,7 +11,7 @@ export interface DateRangeInterval {
   range: ReportDateRangeType;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
-  label: string;
+  label?: string;
 }
 
 export type DashboardViewMode =
@@ -30,7 +30,9 @@ export interface ExecutiveMetrics {
   outstandingRevenueEur: number;
   outstandingBalancesEur: number; // alias
   bookingsCount: number;
+  totalBookings?: number; // alias
   confirmedBookingsCount: number;
+  confirmedBookings?: number; // alias
   cancellationsCount: number;
   passengersCount: number;
   adultsCount: number;

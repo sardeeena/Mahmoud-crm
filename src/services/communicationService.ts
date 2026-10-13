@@ -1364,7 +1364,7 @@ export async function dispatchCommunicationByTemplate(
   if (tmpl.channel === 'Email' || tmpl.channel === 'Both') {
     await sendEmailMessage({
       recipientEmail: booking.customer.email,
-      customerName: variables.customer_name,
+      customerName: variables.customer_name || 'Customer',
       customerId: booking.customerId,
       bookingId: booking.bookingId || booking.bookingReference,
       bookingReference: booking.bookingReference,
@@ -1380,7 +1380,7 @@ export async function dispatchCommunicationByTemplate(
     if (phone) {
       await sendWhatsAppMessage({
         recipientPhone: phone,
-        customerName: variables.customer_name,
+        customerName: variables.customer_name || 'Customer',
         customerId: booking.customerId,
         bookingId: booking.bookingId || booking.bookingReference,
         bookingReference: booking.bookingReference,

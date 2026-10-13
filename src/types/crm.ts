@@ -64,6 +64,7 @@ export interface CrmLead {
   assignedStaffName?: string | null;
   customerId?: string | null;
   followUpDate?: string | null;
+  followUpChannel?: FollowUpChannel | null;
   lastContactAt?: string | null;
   contactAttemptsCount?: number;
   lostReason?: string | null;
@@ -113,6 +114,12 @@ export interface CrmCommunication {
   content?: string | null;
   staffName: string;
   staffId?: string | null;
+  templateKey?: string | null;
+  subject?: string | null;
+  status?: string | null;
+  provider?: string | null;
+  recipient?: string | null;
+  sentAt?: string | null;
   createdAt: string;
 }
 
@@ -170,6 +177,7 @@ export type CrmEventType =
   | 'account_created'
   | 'inquiry_created'
   | 'booking_created'
+  | 'booking_updated'
   | 'payment_recorded'
   | 'booking_changed'
   | 'cancellation'
@@ -184,7 +192,12 @@ export type CrmEventType =
   | 'task_created'
   | 'task_completed'
   | 'followup_scheduled'
-  | 'contact_attempt';
+  | 'contact_attempt'
+  | 'followup'
+  | 'departure'
+  | 'task'
+  | 'refund'
+  | 'review';
 
 export interface CrmActivity {
   id: string;
@@ -244,6 +257,7 @@ export interface CrmCustomerDetail {
   completedBookings: number;
   cancelledBookings: number;
   totalRevenue: number;
+  totalSpentEur?: number;
   outstandingAmount: number;
   lastContactDate?: string | null;
   source: string;

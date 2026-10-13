@@ -126,15 +126,15 @@ export interface MessageContextVariables {
   tour_name?: string;
   tour_date?: string;
   pickup_time?: string;
-  amount?: string;
-  balance_due?: string;
+  amount?: string | number;
+  balance_due?: string | number;
   hotel?: string;
-  total?: string;
-  balance?: string;
+  total?: string | number;
+  balance?: string | number;
   departure_time?: string;
-  guests_count?: string;
+  guests_count?: string | number;
   payment_status?: string;
-  refund_amount?: string;
+  refund_amount?: string | number;
   inquiry_subject?: string;
 }
 

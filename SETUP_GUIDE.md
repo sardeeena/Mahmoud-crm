@@ -102,20 +102,29 @@ To connect the real relational database:
 
 ## 👑 Step 5: Create and Promote an Admin Account
 
-To access the administrative dashboard at `/admin`:
+To access the administrative dashboard at `/admin`, provision the official administrator account (`admin@awesomeadventure.tours`) using the secure server-side setup script or the SQL seed:
 
-1. Open your website in the browser (`http://localhost:3000` or your deployed URL).
-2. Click **Sign In** in the top navigation, or go to `/register`.
-3. Create an account with your personal or company email (e.g. `diamond.entertainment70@gmail.com`).
-4. Now, go to the **Supabase Dashboard > SQL Editor** and execute:
-   ```sql
-   SELECT public.set_admin_role_by_email('diamond.entertainment70@gmail.com');
-   ```
-5. Supabase will return:
-   ```
-   Success: Account diamond.entertainment70@gmail.com (User ID: ...) is now an active administrator.
-   ```
-6. Return to your website and click **Admin CMS** in the footer or visit `/admin`. You will have full administrative access.
+### Method A: Automated Server-Side Admin Setup (Recommended)
+This uses the official Supabase Auth Admin API and avoids storing plaintext passwords anywhere in the repository:
+
+```bash
+SUPABASE_SERVICE_ROLE_KEY="<your-supabase-service-role-key>" \
+ADMIN_PASSWORD="<your-secure-admin-password>" \
+npx tsx scripts/setup-admin.ts
+```
+
+What this does:
+1. Connects securely to the Supabase Auth Admin API using the private `service_role` key.
+2. Creates or verifies the user `admin@awesomeadventure.tours` in `auth.users` with email confirmed.
+3. Automatically sets or validates the user metadata `role: 'admin'`.
+4. Provisions or repairs the matching `public.profiles` record with `role = 'admin'` and `is_email_verified = TRUE`.
+5. Safe to rerun repeatedly at any time.
+
+### Method B: Database SQL Verification (`admin_seed.sql`)
+Once the Auth user has been created in your Supabase project (either via the script above or via Dashboard > Authentication > Users > Add User):
+1. In the Supabase Dashboard, open **SQL Editor**.
+2. Run `/admin_seed.sql` (or `/supabase/admin_seed.sql`).
+3. This verifies the `auth.users` entry and upserts the canonical `public.profiles` record with the authoritative `admin` role without touching internal auth tables or passwords.
 
 ---
 

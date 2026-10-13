@@ -1891,7 +1891,7 @@ export async function convertLeadToCustomer(leadId: string): Promise<string> {
 
   // 2. Only create new customer if not already existing
   if (!customerId) {
-    customerId = await createCustomer({
+    const createdCust = await createCustomer({
       firstName: lead.name.split(' ')[0] || lead.name,
       lastName: lead.name.split(' ').slice(1).join(' ') || '',
       email: lead.email,
@@ -1902,6 +1902,7 @@ export async function convertLeadToCustomer(leadId: string): Promise<string> {
       notes: lead.notes || undefined,
       tags: ['Converted Lead', 'Active Customer'],
     });
+    customerId = createdCust.id;
   }
 
   // 3. Preserve Lead History & Link to Customer

@@ -86,6 +86,7 @@ export function calculateAuthoritativePrice({
       unitPriceEur: unitPrice,
       quantity: qty,
       totalPriceEur: amountEur,
+      amountEur: amountEur,
     });
   });
 
@@ -421,7 +422,7 @@ export async function findOrCreateAuthoritativeCustomer(params: {
   if (currentTotalSpent >= 1000 && !tags.includes('VIP')) tags.push('VIP');
 
   const identity: AuthoritativeCustomerIdentity = {
-    id: customerId,
+    id: customerId!,
     email: cleanEmail,
     fullName,
     firstName: cleanFirst,

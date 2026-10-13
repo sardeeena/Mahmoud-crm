@@ -52,15 +52,20 @@ export interface BookingPricing {
     extraId: string;
     name: string;
     amountEur: number;
+    unitPriceEur?: number;
+    totalPriceEur?: number;
     pricingType: 'per_person' | 'per_booking';
     quantity: number;
   }>;
   discountEur: number;
-  subtotalEur: number;
+  subtotalEur?: number;
   totalEur: number;
   // Formatted representations in active currency
   formattedTotal: string;
-  formattedSubtotal: string;
+  formattedSubtotal?: string;
+  adultsCount?: number;
+  childrenCount?: number;
+  infantsCount?: number;
 }
 
 export type PaymentMethod = 'pay_at_pickup' | 'pay_online';
@@ -85,14 +90,17 @@ export interface Booking {
   tourDestination: string;
   tourDuration: string;
   date: string;
+  departureTime?: string;
+  customerId?: string;
   guests: GuestCounts;
   pickup: {
-    locationId: string;
+    locationId?: string;
     locationName: string;
     area: string;
     feeEur: number;
     hotelName?: string;
     roomNumber?: string;
+    pickupTime?: string;
   };
   extras: Array<{
     extraId: string;

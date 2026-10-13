@@ -192,8 +192,8 @@ export async function runPlatformIntegrationSimulation(
 
     await recordLeadContactAttempt(
       createdLead.id,
-      'Called guest on WhatsApp. Shared VIP yacht brochure and confirmed schedule.',
-      'WhatsApp'
+      'WhatsApp',
+      'Called guest on WhatsApp. Shared VIP yacht brochure and confirmed schedule.'
     );
     await updateLeadStage(createdLead.id, 'Proposal');
 
@@ -223,6 +223,7 @@ export async function runPlatformIntegrationSimulation(
       .reduce((sum, b) => sum + (b.guests?.adults || 1) + (b.guests?.children || 0), 0);
 
     const newBookingPayload: Booking = {
+      bookingId: ref,
       bookingReference: ref,
       tourId: testTour.id,
       tourTitle: testTour.title,
@@ -232,6 +233,7 @@ export async function runPlatformIntegrationSimulation(
       tourDuration: testTour.duration || '7 Hours',
       date: targetDateStr,
       departureTime: '08:30 AM',
+      extras: [],
       guests: { adults: 2, children: 0, infants: 0 },
       customer: {
         firstName: testCustomerName.split(' ')[0],
@@ -274,6 +276,7 @@ export async function runPlatformIntegrationSimulation(
       bookingStatus: 'confirmed',
       status: 'confirmed',
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     createdBooking = await bookingRepository.createBooking(newBookingPayload);
@@ -499,10 +502,11 @@ export async function runPlatformIntegrationSimulation(
   // STEP 15: Reports Update
   // --------------------------------------------------------------------------
   await executeStep(15, 'BI Reports Update', 'Real revenue and bookings populated in BI layer', async () => {
-    const execMetrics = await fetchExecutiveReport({ range: 'this_month', startDate: '', endDate: '' });
-    const finMetrics = await fetchFinanceReport({ range: 'this_month', startDate: '', endDate: '' });
+    const execMetrics = await fetchExecutiveReport({ range: 'this_month', startDate: '', endDate: '', label: 'This Month' });
+    const finMetrics = await fetchFinanceReport({ range: 'this_month', startDate: '', endDate: '', label: 'This Month' });
 
-    if (execMetrics.totalBookings < 1 || finMetrics.grossRevenueEur <= 0) {
+    const totalBookingsVal = execMetrics.totalBookings ?? execMetrics.bookingsCount;
+    if (totalBookingsVal < 1 || finMetrics.grossRevenueEur <= 0) {
       throw new Error('BI reports did not reflect authoritative transactions.');
     }
 
@@ -510,8 +514,8 @@ export async function runPlatformIntegrationSimulation(
       details: {
         totalRevenueEur: execMetrics.totalRevenueEur,
         collectedRevenueEur: execMetrics.collectedRevenueEur,
-        totalBookings: execMetrics.totalBookings,
-        confirmedBookings: execMetrics.confirmedBookings,
+        totalBookings: totalBookingsVal,
+        confirmedBookings: execMetrics.confirmedBookings ?? execMetrics.confirmedBookingsCount,
         grossRevenueEur: finMetrics.grossRevenueEur,
       },
     };
