@@ -90,6 +90,10 @@ async function main() {
         {
           password: adminPassword,
           email_confirm: true,
+          app_metadata: {
+            ...existingUser.app_metadata,
+            role: 'admin',
+          },
           user_metadata: {
             ...existingUser.user_metadata,
             role: 'admin',
@@ -108,6 +112,9 @@ async function main() {
         email: adminEmail,
         password: adminPassword,
         email_confirm: true,
+        app_metadata: {
+          role: 'admin',
+        },
         user_metadata: {
           role: 'admin',
           full_name: 'Awesome Adventure Administrator',

@@ -98,15 +98,10 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-DECLARE
-    assigned_role text := 'guest';
 BEGIN
-    IF NEW.email IN ('admin@awesomeadventure.tours', 'admin@redsea.com') THEN
-        assigned_role := 'admin';
-    ELSIF NEW.raw_user_meta_data->>'role' IN ('admin', 'manager', 'staff') THEN
-        assigned_role := NEW.raw_user_meta_data->>'role';
-    END IF;
-
+    -- SECURITY HARDENING: Ordinary signups ALWAYS receive exclusively the default 'customer' role.
+    -- No email address or client-submitted metadata can grant admin or staff permissions.
+    -- Administrative accounts must be provisioned via Supabase Auth Admin API (scripts/setup-admin.ts).
     INSERT INTO public.profiles (
         id,
         email,
@@ -128,7 +123,7 @@ BEGIN
         ),
         NEW.raw_user_meta_data->>'avatar_url',
         NEW.raw_user_meta_data->>'phone',
-        assigned_role,
+        'customer',
         (NEW.email_confirmed_at IS NOT NULL),
         NOW(),
         NOW()
@@ -211,7 +206,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     full_name TEXT NOT NULL,
     avatar_url TEXT,
     phone TEXT,
-    role TEXT NOT NULL DEFAULT 'guest' CHECK (role IN ('guest', 'client', 'staff', 'manager', 'admin', 'superadmin')),
+    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'staff', 'manager', 'admin', 'superadmin', 'guest', 'client')),
     is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

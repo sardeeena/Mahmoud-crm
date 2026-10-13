@@ -109,8 +109,8 @@ export async function signInUser(
           };
         }
 
-        // Check or update role in profiles table
-        let userRole: UserRole = (data.user.user_metadata?.role as UserRole) || 'customer';
+        // Check or update role in profiles table (app_metadata or default customer)
+        let userRole: UserRole = (data.user.app_metadata?.role as UserRole) || 'customer';
         let profileFullName = data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Voyager';
         let profilePhone = data.user.user_metadata?.phone;
         let profileCountry = data.user.user_metadata?.country;
@@ -140,7 +140,7 @@ export async function signInUser(
               id: data.user.id,
               email: cleanEmail,
               full_name: profileFullName,
-              role: userRole,
+              role: (data.user.app_metadata?.role as UserRole) || 'customer',
               phone: profilePhone || null,
               country: profileCountry || null,
               is_confirmed: true,
@@ -675,7 +675,7 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
             id: user.id,
             email: user.email || '',
             full_name: profileFullName,
-            role: (user.app_metadata?.role as UserRole) || (user.user_metadata?.role as UserRole) || 'customer',
+            role: (user.app_metadata?.role as UserRole) || 'customer',
             phone: profilePhone || null,
             country: profileCountry || null,
             is_confirmed: true,
@@ -692,8 +692,8 @@ export async function getCurrentAdminUser(): Promise<AppUser | null> {
         }
       } catch (profErr) {
         console.warn('Direct live profiles table query notice:', profErr);
-        // Fallback to JWT metadata if profile query fails temporarily
-        userRole = (user.app_metadata?.role as UserRole) || (user.user_metadata?.role as UserRole) || 'customer';
+        // Fallback to server-signed app_metadata (never client-editable user_metadata)
+        userRole = (user.app_metadata?.role as UserRole) || 'customer';
       }
 
       // Administrators are never blocked by missing confirmation flags
@@ -766,8 +766,9 @@ export async function verifyAdminAccess(): Promise<boolean> {
       .maybeSingle();
 
     if (profileError || !profile) {
-      const metaRole = (user.app_metadata?.role || user.user_metadata?.role) as string | undefined;
-      return metaRole === 'admin' || metaRole === 'manager' || metaRole === 'staff';
+      // Only server-signed app_metadata can be trusted; user_metadata is client-editable
+      const appRole = user.app_metadata?.role as string | undefined;
+      return appRole === 'admin' || appRole === 'manager' || appRole === 'staff';
     }
 
     return profile.role === 'admin' || profile.role === 'manager' || profile.role === 'staff';

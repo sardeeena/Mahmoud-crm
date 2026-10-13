@@ -182,11 +182,17 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
 
     const { data, error } = await query;
 
-    if (error || !data || data.length === 0) {
-      if (error && isSchemaMissingError(error)) {
+    if (error) {
+      if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
+        return getFilteredLocal();
       }
-      return getFilteredLocal();
+      console.error('Failed to query published tours:', formatSupabaseError(error));
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
     }
 
     let tours = data.map((row: any) => {
@@ -265,12 +271,18 @@ export async function getTourBySlug(slug: string, allowDraft: boolean = false): 
 
     const { data, error } = await query.maybeSingle();
 
-    if (error || !data) {
-      if (error && isSchemaMissingError(error)) {
+    if (error) {
+      if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
+        const fallback = localTours.find((t) => t.slug === slug);
+        return fallback || null;
       }
-      const fallback = localTours.find((t) => t.slug === slug);
-      return fallback || null;
+      console.error(`Failed to fetch tour by slug "${slug}":`, formatSupabaseError(error));
+      return null;
+    }
+
+    if (!data) {
+      return null;
     }
 
     const destName = data.destinations?.name;
@@ -1114,18 +1126,19 @@ export async function getDestinations(): Promise<DbDestination[]> {
     if (error) {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
+        return getLocalDestinationsList();
       }
-      return getLocalDestinationsList();
+      console.error('Failed to query destinations from Supabase:', formatSupabaseError(error));
+      return [];
     }
-    if (!data || data.length === 0) {
-      return getLocalDestinationsList();
-    }
-    return data as DbDestination[];
+    return (data || []) as DbDestination[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
+      return getLocalDestinationsList();
     }
-    return getLocalDestinationsList();
+    console.error('Destinations query exception:', err);
+    return [];
   }
 }
 
@@ -1160,18 +1173,19 @@ export async function getCategories(): Promise<DbCategory[]> {
     if (error) {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
+        return getLocalCategoriesList();
       }
-      return getLocalCategoriesList();
+      console.error('Failed to query categories from Supabase:', formatSupabaseError(error));
+      return [];
     }
-    if (!data || data.length === 0) {
-      return getLocalCategoriesList();
-    }
-    return data as DbCategory[];
+    return (data || []) as DbCategory[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
+      return getLocalCategoriesList();
     }
-    return getLocalCategoriesList();
+    console.error('Categories query exception:', err);
+    return [];
   }
 }
 
@@ -1258,16 +1272,19 @@ export async function getPickupLocations(): Promise<DbPickupLocation[]> {
     if (error) {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
+        return DEFAULT_PICKUP_LOCATIONS;
       }
-      return DEFAULT_PICKUP_LOCATIONS;
+      console.error('Failed to query pickup locations from Supabase:', formatSupabaseError(error));
+      return [];
     }
-    if (!data || data.length === 0) return DEFAULT_PICKUP_LOCATIONS;
-    return data as DbPickupLocation[];
+    return (data || []) as DbPickupLocation[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
+      return DEFAULT_PICKUP_LOCATIONS;
     }
-    return DEFAULT_PICKUP_LOCATIONS;
+    console.error('Pickup locations query exception:', err);
+    return [];
   }
 }
 
@@ -1337,15 +1354,18 @@ export async function getTourExtras(): Promise<DbTourExtra[]> {
     if (error) {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
+        return DEFAULT_TOUR_EXTRAS;
       }
-      return DEFAULT_TOUR_EXTRAS;
+      console.error('Failed to query tour extras from Supabase:', formatSupabaseError(error));
+      return [];
     }
-    if (!data || data.length === 0) return DEFAULT_TOUR_EXTRAS;
-    return data as DbTourExtra[];
+    return (data || []) as DbTourExtra[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
+      return DEFAULT_TOUR_EXTRAS;
     }
-    return DEFAULT_TOUR_EXTRAS;
+    console.error('Tour extras query exception:', err);
+    return [];
   }
 }

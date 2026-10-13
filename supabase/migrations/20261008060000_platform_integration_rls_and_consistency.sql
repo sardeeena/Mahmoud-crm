@@ -60,6 +60,47 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Hardened handle_new_user: Ordinary signups ALWAYS receive exclusively 'customer' role
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    INSERT INTO public.profiles (
+        id,
+        email,
+        full_name,
+        role,
+        is_email_verified,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(
+            NEW.raw_user_meta_data->>'full_name',
+            TRIM(CONCAT(NEW.raw_user_meta_data->>'first_name', ' ', NEW.raw_user_meta_data->>'last_name')),
+            SPLIT_PART(NEW.email, '@', 1)
+        ),
+        'customer',
+        (NEW.email_confirmed_at IS NOT NULL),
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET
+        email = EXCLUDED.email,
+        full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), public.profiles.full_name),
+        is_email_verified = (NEW.email_confirmed_at IS NOT NULL),
+        updated_at = NOW();
+
+    RETURN NEW;
+END;
+$$;
+
 -- ------------------------------------------------------------------------------
 -- A. CUSTOMERS TABLE POLICIES
 -- ------------------------------------------------------------------------------
