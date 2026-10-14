@@ -112,7 +112,7 @@ function MainApp() {
   const [currentCurrency, setCurrentCurrency] = useState<CurrencyConfig>(CURRENCY_CONFIGS.EUR);
 
   // Live published tours loaded dynamically from Supabase
-  const [liveTours, setLiveTours] = useState<Tour[]>(ALL_TOURS);
+  const [liveTours, setLiveTours] = useState<Tour[]>([]);
   const [loadingTours, setLoadingTours] = useState<boolean>(true);
 
   // Drawer / Modal states
@@ -147,11 +147,10 @@ function MainApp() {
     setLoadingTours(true);
     try {
       const data = await getPublishedTours();
-      if (data && data.length > 0) {
-        setLiveTours(data);
-      }
+      setLiveTours(data || []);
     } catch (err) {
       console.warn('Failed to load published tours from Supabase:', err);
+      setLiveTours([]);
     } finally {
       setLoadingTours(false);
     }

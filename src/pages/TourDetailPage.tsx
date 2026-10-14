@@ -13,7 +13,7 @@ import {
   Scale
 } from 'lucide-react';
 import { Tour, CurrencyConfig } from '../types';
-import { ALL_TOURS, formatPrice } from '../data/toursData';
+import { formatPrice } from '../data/toursData';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { TourGallery } from '../components/tours/TourGallery';
 import { TourBookingPanel } from '../components/tours/TourBookingPanel';
@@ -51,7 +51,7 @@ interface TourDetailPageProps {
 export const TourDetailPage: React.FC<TourDetailPageProps> = ({
   tour,
   currency,
-  allTours = ALL_TOURS,
+  allTours = [],
   onNavigateHome,
   onNavigateExcursions,
   onViewTour,

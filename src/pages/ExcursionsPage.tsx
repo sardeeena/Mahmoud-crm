@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tour, CurrencyConfig } from '../types';
-import { ALL_TOURS } from '../data/toursData';
 import { TourSearch } from '../components/tours/TourSearch';
 import { TourFilters, FilterState, INITIAL_FILTERS } from '../components/tours/TourFilters';
 import { TourSort, SortOption } from '../components/tours/TourSort';
@@ -60,7 +59,7 @@ interface ExcursionsPageProps {
 
 export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
   currency,
-  tours = ALL_TOURS,
+  tours = [],
   isLoading = false,
   initialDestination,
   initialCategory,
