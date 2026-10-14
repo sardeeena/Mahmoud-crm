@@ -405,7 +405,9 @@ export async function findOrCreateAuthoritativeCustomer(params: {
       customerId = localMatch.id;
     } else {
       isNew = true;
-      customerId = `cust-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      customerId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : 'c0000000-0000-4000-8000-' + Math.random().toString(16).substring(2, 14).padStart(12, '0');
     }
   }
 

@@ -231,7 +231,7 @@ class SupabaseBookingRepository implements IBookingRepository {
             booking_reference: booking.bookingReference,
             user_id: currentUserId,
             tour_id: realTourId,
-            customer_id: customerId,
+            customer_id: (customerId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) ? customerId : null,
             booking_date: booking.date,
             status: booking.status || 'confirmed',
             payment_status: booking.paymentStatus || 'pending',
