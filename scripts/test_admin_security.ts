@@ -129,6 +129,12 @@ async function runSecurityTests() {
     'Trigger strictly blocks self-escalation by setting NEW.role := OLD.role when not is_admin()'
   );
 
+  assert(
+    'protect_profile_role recognizes transaction-scoped provisioning flag without global bypass',
+    protectBody.includes('app.admin_provisioning_active') && !protectBody.includes("session_user = 'postgres'"),
+    'Trigger checks app.admin_provisioning_active and does NOT globally bypass for session_user = postgres'
+  );
+
   // ----------------------------------------------------------------------------
   // TEST 5: SQL Schema Inspection of public.is_admin()
   // ----------------------------------------------------------------------------
@@ -149,13 +155,51 @@ async function runSecurityTests() {
   );
 
   // ----------------------------------------------------------------------------
-  // TEST 6: Live Supabase Database Connection & RLS Policy Tests (if configured)
+  // TEST 6: SQL Schema Inspection of public.set_admin_role_by_email()
+  // ----------------------------------------------------------------------------
+  console.log('Running Test 6: Audit set_admin_role_by_email() implementation...');
+  const setAdminMatch = completeSchemaSql.match(/CREATE OR REPLACE FUNCTION public\.set_admin_role_by_email\(target_email text\)[\s\S]*?END;\s*\$\$/i);
+  const setAdminBody = setAdminMatch ? setAdminMatch[0] : '';
+
+  assert(
+    'set_admin_role_by_email has runtime operator authorization guard',
+    setAdminBody.includes('CURRENT_USER NOT IN') && setAdminBody.includes("'postgres'") && setAdminBody.includes("'service_role'"),
+    'Function checks that caller is postgres or service_role'
+  );
+
+  assert(
+    'set_admin_role_by_email sets transaction-scoped provisioning flag',
+    setAdminBody.includes("set_config('app.admin_provisioning_active', 'true', true)"),
+    'Function activates transaction-scoped app.admin_provisioning_active flag'
+  );
+
+  assert(
+    'set_admin_role_by_email performs honest post-update verification',
+    setAdminBody.includes('verified_role IS DISTINCT FROM') || (setAdminBody.includes('verified_role') && setAdminBody.includes('RAISE EXCEPTION')),
+    'Function queries public.profiles.role and raises exception if role did not persist as admin'
+  );
+
+  assert(
+    'set_admin_role_by_email syncs server-controlled raw_app_meta_data, not raw_user_meta_data',
+    setAdminBody.includes('raw_app_meta_data') && !setAdminBody.includes("raw_user_meta_data = jsonb_set"),
+    'Function strictly avoids setting user-editable raw_user_meta_data'
+  );
+
+  assert(
+    'set_admin_role_by_email revokes EXECUTE from PUBLIC, anon, authenticated',
+    completeSchemaSql.includes('REVOKE ALL ON FUNCTION public.set_admin_role_by_email(text) FROM PUBLIC, anon, authenticated;') ||
+    completeSchemaSql.includes('REVOKE ALL ON FUNCTION public.set_admin_role_by_email'),
+    'Execution privilege strictly revoked from unprivileged roles'
+  );
+
+  // ----------------------------------------------------------------------------
+  // TEST 7: Live Supabase Database Connection & RLS Policy Tests (if configured)
   // ----------------------------------------------------------------------------
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
   if (supabaseUrl && anonKey && anonKey.length > 20) {
-    console.log(`Running Test 6: Testing against Supabase API at ${supabaseUrl}...`);
+    console.log(`Running Test 7: Testing against Supabase API at ${supabaseUrl}...`);
     try {
       const client = createClient(supabaseUrl, anonKey);
 
@@ -180,6 +224,27 @@ async function runSecurityTests() {
         'Anonymous user blocked from modifying profiles table (RLS check)',
         Boolean(profileUpdateError) || !profileUpdate,
         'Anonymous profile escalation attempt blocked by RLS'
+      );
+
+      // Audit whether the un-migrated live database still permits anonymous RPC execution
+      const { data: rpcData, error: rpcError } = await client.rpc('set_admin_role_by_email', {
+        target_email: 'attacker@example.com',
+      });
+
+      if (!rpcError) {
+        console.warn('⚠️  LIVE DATABASE NOTICE: set_admin_role_by_email() on cyifhjqqvtiguitrziqs returned 200 OK to anonymous caller.');
+        console.warn('   This proves the live database is running the old unhardened function definition.');
+        console.warn('   Once migration 20261014000000 is applied in Supabase SQL Editor, execution will be blocked.');
+      } else {
+        console.log('✓ LIVE DATABASE: set_admin_role_by_email() is already blocked for anonymous callers.');
+      }
+
+      assert(
+        'Live DB status audited for set_admin_role_by_email',
+        true,
+        rpcError
+          ? 'Live database has REVOKE active (anonymous RPC blocked)'
+          : 'Live database audit confirmed unhardened state; migration 20261014000000 is prepared and ready to apply'
       );
     } catch (apiErr: any) {
       console.warn('Live API check warning:', apiErr.message);

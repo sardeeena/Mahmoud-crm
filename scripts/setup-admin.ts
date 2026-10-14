@@ -136,27 +136,34 @@ async function main() {
       .upsert({
         id: userId,
         email: adminEmail,
-        full_name: 'Awesome Adventure Administrator',
+        full_name: existingUser?.user_metadata?.full_name || 'Administrator',
         role: 'admin',
-        is_email_verified: true,
+        is_confirmed: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
 
     if (profileError) {
-      console.warn(`Warning: Could not upsert profile directly: ${profileError.message}`);
-      console.log('Checking if profile was created by database trigger...');
-      const { data: profileCheck } = await adminClient
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (profileCheck) {
-        console.log(`✓ Profile found: Role is "${profileCheck.role}"`);
-      }
-    } else {
-      console.log('✓ Public profile verified with canonical "admin" role.');
+      throw new Error(`Failed to upsert public.profiles record: ${profileError.message}`);
     }
+
+    // 3. Explicit verification: Query public.profiles directly to verify the persisted role
+    const { data: verifiedProfile, error: verifyError } = await adminClient
+      .from('profiles')
+      .select('id, email, role, is_confirmed')
+      .eq('id', userId)
+      .single();
+
+    if (verifyError || !verifiedProfile) {
+      throw new Error(`Verification query failed for profile ${userId}: ${verifyError?.message || 'Profile not found'}`);
+    }
+
+    if (verifiedProfile.role !== 'admin') {
+      throw new Error(
+        `Admin provisioning failed honest verification: public.profiles.role is "${verifiedProfile.role}" instead of "admin". Trigger or policy intervention prevented promotion.`
+      );
+    }
+
+    console.log(`✓ Public profile strictly verified: id=${verifiedProfile.id}, role="${verifiedProfile.role}"`);
 
     console.log('\n================================================================');
     console.log('✅ Admin account setup completed successfully!');

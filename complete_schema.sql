@@ -81,9 +81,29 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth, pg_temp
 AS $$
+DECLARE
+    active_nonce text;
+    active_target text;
+    is_trusted_operator_provisioning boolean := false;
 BEGIN
     IF NEW.role IS DISTINCT FROM OLD.role THEN
-        IF NOT public.is_admin() THEN
+        -- Check if trusted operator provisioning is active:
+        -- Untrusted clients (anon, authenticated, authenticator) CANNOT bypass this because:
+        -- 1. session_user MUST be postgres or service_role
+        -- 2. app.admin_provisioning_active_user MUST match NEW.id
+        -- 3. app.admin_provisioning_nonce MUST be non-empty (set only by set_admin_role_by_email)
+        IF session_user IN ('postgres', 'service_role') THEN
+            active_nonce := NULLIF(current_setting('app.admin_provisioning_nonce', true), '');
+            active_target := NULLIF(current_setting('app.admin_provisioning_active_user', true), '');
+            IF active_nonce IS NOT NULL AND active_target = NEW.id::text THEN
+                is_trusted_operator_provisioning := true;
+            END IF;
+        END IF;
+
+        -- Role escalation is strictly prohibited unless either:
+        -- (a) A trusted operator is running authorized provisioning for this specific user ID, or
+        -- (b) The session caller is verified as an active administrator or service_role via public.is_admin()
+        IF NOT is_trusted_operator_provisioning AND NOT public.is_admin() THEN
             NEW.role := OLD.role;
         END IF;
     END IF;
@@ -109,7 +129,7 @@ BEGIN
         avatar_url,
         phone,
         role,
-        is_email_verified,
+        is_confirmed,
         created_at,
         updated_at
     )
@@ -134,7 +154,7 @@ BEGIN
         full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
         avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
         phone = COALESCE(EXCLUDED.phone, public.profiles.phone),
-        is_email_verified = (NEW.email_confirmed_at IS NOT NULL),
+        is_confirmed = (NEW.email_confirmed_at IS NOT NULL),
         updated_at = NOW();
 
     RETURN NEW;
@@ -151,7 +171,7 @@ AS $$
 BEGIN
     IF NEW.email_confirmed_at IS NOT NULL AND OLD.email_confirmed_at IS NULL THEN
         UPDATE public.profiles
-        SET is_email_verified = TRUE,
+        SET is_confirmed = TRUE,
             updated_at = NOW()
         WHERE id = NEW.id;
     END IF;
@@ -161,39 +181,107 @@ $$;
 
 -- 2.6 Administrative Role Assignment Utility Function
 CREATE OR REPLACE FUNCTION public.set_admin_role_by_email(target_email text)
-RETURNS boolean
+RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth, pg_temp
 AS $$
 DECLARE
-    matched_user_id uuid;
+    clean_email text;
+    target_user_id uuid;
+    target_user_metadata jsonb;
+    existing_full_name text;
+    verified_role text;
+    provisioning_nonce text;
 BEGIN
-    IF target_email IS NULL OR TRIM(target_email) = '' THEN
-        RETURN false;
+    -- 1. Authorization guard: Only postgres (SQL Editor / superuser) or service_role session may execute
+    IF session_user NOT IN ('postgres', 'service_role') THEN
+        RAISE EXCEPTION 'Access Denied: public.set_admin_role_by_email may only be executed by trusted database operators (postgres, service_role). Current session_user is "%".', session_user;
     END IF;
 
-    SELECT id INTO matched_user_id
+    -- 2. Validate input
+    IF target_email IS NULL OR TRIM(target_email) = '' THEN
+        RAISE EXCEPTION 'Target email cannot be null or empty.';
+    END IF;
+    clean_email := LOWER(TRIM(target_email));
+
+    -- 3. Locate corresponding auth user
+    SELECT id, raw_user_meta_data INTO target_user_id, target_user_metadata
     FROM auth.users
-    WHERE LOWER(email) = LOWER(TRIM(target_email))
+    WHERE LOWER(email) = clean_email
     LIMIT 1;
 
-    IF matched_user_id IS NOT NULL THEN
-        INSERT INTO public.profiles (id, email, role, full_name, is_email_verified, updated_at)
-        VALUES (matched_user_id, LOWER(TRIM(target_email)), 'admin', 'Administrator', true, NOW())
-        ON CONFLICT (id) DO UPDATE
-        SET role = 'admin', updated_at = NOW();
-
-        UPDATE auth.users
-        SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
-        WHERE id = matched_user_id;
-
-        RETURN true;
+    IF target_user_id IS NULL THEN
+        RAISE EXCEPTION 'User with email "%" does not exist in auth.users. The account must register or sign up before being promoted.', clean_email;
     END IF;
 
-    RETURN false;
+    -- 4. Determine display name
+    SELECT full_name INTO existing_full_name
+    FROM public.profiles
+    WHERE id = target_user_id;
+
+    IF existing_full_name IS NULL OR TRIM(existing_full_name) = '' THEN
+        existing_full_name := COALESCE(
+            target_user_metadata->>'full_name',
+            TRIM(CONCAT(target_user_metadata->>'first_name', ' ', target_user_metadata->>'last_name')),
+            SPLIT_PART(clean_email, '@', 1)
+        );
+    END IF;
+
+    -- 5. Generate a cryptographically random transaction-scoped nonce
+    provisioning_nonce := md5(gen_random_uuid()::text || clock_timestamp()::text || random()::text);
+    PERFORM set_config('app.admin_provisioning_nonce', provisioning_nonce, true);
+    PERFORM set_config('app.admin_provisioning_active_user', target_user_id::text, true);
+
+    -- 6. Upsert profile with role = 'admin'
+    INSERT INTO public.profiles (
+        id,
+        email,
+        full_name,
+        role,
+        is_confirmed,
+        updated_at
+    )
+    VALUES (
+        target_user_id,
+        clean_email,
+        COALESCE(existing_full_name, 'Administrator'),
+        'admin',
+        true,
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET 
+        role = 'admin',
+        is_confirmed = true,
+        updated_at = NOW();
+
+    -- 7. Immediately clear transaction nonce after update
+    PERFORM set_config('app.admin_provisioning_nonce', '', true);
+    PERFORM set_config('app.admin_provisioning_active_user', '', true);
+
+    -- 8. Post-update verification: assert that the role was actually persisted in public.profiles
+    SELECT role INTO verified_role
+    FROM public.profiles
+    WHERE id = target_user_id;
+
+    IF verified_role IS DISTINCT FROM 'admin' THEN
+        RAISE EXCEPTION 'Admin provisioning failed: public.profiles.role remained "%" for user % (ID: %). Check triggers and security policies.',
+            COALESCE(verified_role, 'NULL'), clean_email, target_user_id;
+    END IF;
+
+    -- 9. Update server-controlled app_metadata so JWT mirrors the admin role
+    UPDATE auth.users
+    SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
+    WHERE id = target_user_id;
+
+    RETURN 'Success: Account ' || clean_email || ' (User ID: ' || target_user_id || ') is now an active administrator with verified role "admin".';
 END;
 $$;
+
+-- Revoke default PUBLIC execution; grant strictly to trusted operators
+REVOKE ALL ON FUNCTION public.set_admin_role_by_email(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.set_admin_role_by_email(text) TO postgres, service_role;
 
 -- ==============================================================================
 -- SECTION 3: APPLICATION TABLES (CANONICAL SCHEMA)
@@ -207,7 +295,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     avatar_url TEXT,
     phone TEXT,
     role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'staff', 'manager', 'admin', 'superadmin', 'guest', 'client')),
-    is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    is_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
