@@ -130,9 +130,18 @@ async function runSecurityTests() {
   );
 
   assert(
-    'protect_profile_role recognizes transaction-scoped provisioning flag without global bypass',
-    protectBody.includes('app.admin_provisioning_active') && !protectBody.includes("session_user = 'postgres'"),
-    'Trigger checks app.admin_provisioning_active and does NOT globally bypass for session_user = postgres'
+    'protect_profile_role requires session_user in postgres/service_role and transaction nonce',
+    protectBody.includes("session_user IN ('postgres', 'service_role')") &&
+    protectBody.includes('app.admin_provisioning_nonce') &&
+    protectBody.includes('active_target = NEW.id::text'),
+    'Trigger strictly enforces session_user check, active transaction nonce, and target user matching'
+  );
+
+  assert(
+    'protect_profile_role rejects custom configuration tampering from untrusted sessions',
+    !protectBody.includes("COALESCE(current_setting('app.admin_provisioning_active', true) = 'true', false)") &&
+    protectBody.includes("session_user IN ('postgres', 'service_role')"),
+    'Custom configuration variable alone cannot bypass trigger without authorized session_user'
   );
 
   // ----------------------------------------------------------------------------
@@ -162,15 +171,16 @@ async function runSecurityTests() {
   const setAdminBody = setAdminMatch ? setAdminMatch[0] : '';
 
   assert(
-    'set_admin_role_by_email has runtime operator authorization guard',
-    setAdminBody.includes('CURRENT_USER NOT IN') && setAdminBody.includes("'postgres'") && setAdminBody.includes("'service_role'"),
-    'Function checks that caller is postgres or service_role'
+    'set_admin_role_by_email has session_user operator authorization guard',
+    setAdminBody.includes("session_user NOT IN ('postgres', 'service_role')"),
+    'Function checks that session_user is postgres or service_role'
   );
 
   assert(
-    'set_admin_role_by_email sets transaction-scoped provisioning flag',
-    setAdminBody.includes("set_config('app.admin_provisioning_active', 'true', true)"),
-    'Function activates transaction-scoped app.admin_provisioning_active flag'
+    'set_admin_role_by_email sets cryptographically random transaction nonce and target user ID',
+    setAdminBody.includes("set_config('app.admin_provisioning_nonce', provisioning_nonce, true)") &&
+    setAdminBody.includes("set_config('app.admin_provisioning_active_user', target_user_id::text, true)"),
+    'Function activates transaction-scoped app.admin_provisioning_nonce and active user ID'
   );
 
   assert(
@@ -190,6 +200,13 @@ async function runSecurityTests() {
     completeSchemaSql.includes('REVOKE ALL ON FUNCTION public.set_admin_role_by_email(text) FROM PUBLIC, anon, authenticated;') ||
     completeSchemaSql.includes('REVOKE ALL ON FUNCTION public.set_admin_role_by_email'),
     'Execution privilege strictly revoked from unprivileged roles'
+  );
+
+  assert(
+    'canonical profiles confirmation column is is_confirmed without conflicting duplicate fields',
+    completeSchemaSql.includes('is_confirmed BOOLEAN NOT NULL DEFAULT FALSE') &&
+    !completeSchemaSql.includes('is_email_verified BOOLEAN NOT NULL DEFAULT FALSE'),
+    'complete_schema.sql strictly standardizes on the canonical is_confirmed column'
   );
 
   // ----------------------------------------------------------------------------
