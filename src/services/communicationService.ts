@@ -325,6 +325,23 @@ export async function saveTemplate(template: CommunicationTemplate): Promise<voi
   }
 }
 
+export async function deleteTemplate(templateIdOrKey: string): Promise<void> {
+  const all = await listTemplates();
+  const updated = all.filter((t) => t.id !== templateIdOrKey && t.templateKey !== templateIdOrKey);
+  setLocal(LOCAL_TEMPLATES_KEY, updated);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('communication_templates')
+        .delete()
+        .or(`id.eq.${templateIdOrKey},template_key.eq.${templateIdOrKey}`);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 /**
  * Replaces {{variable}} placeholders with real booking, payment, and customer values
  */

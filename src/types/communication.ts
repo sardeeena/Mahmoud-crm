@@ -35,7 +35,7 @@ export type TemplateKey =
 
 export interface CommunicationTemplate {
   id: string;
-  templateKey: TemplateKey;
+  templateKey: TemplateKey | string;
   name: string;
   channel: 'Email' | 'WhatsApp' | 'Both';
   subject?: string | null;

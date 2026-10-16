@@ -20,7 +20,9 @@ import {
   ExternalLink,
   Phone,
   Smartphone,
+  Sliders,
 } from 'lucide-react';
+import { WhatsAppTemplateManager } from './WhatsAppTemplateManager';
 import {
   sendWhatsAppMessage,
   listCommunicationMessages,
@@ -55,6 +57,9 @@ export const CommunicationsWhatsApp: React.FC<CommunicationsWhatsAppProps> = ({ 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Console Mode (Dispatcher vs Template Manager)
+  const [consoleMode, setConsoleMode] = useState<'dispatcher' | 'templates'>('dispatcher');
 
   // WhatsApp Composer
   const [recipientPhone, setRecipientPhone] = useState('+20 ');
@@ -334,75 +339,153 @@ export const CommunicationsWhatsApp: React.FC<CommunicationsWhatsAppProps> = ({ 
         </div>
       )}
 
-      {/* Main Grid: Composer on Left / Activity & Logs on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: WhatsApp Composer */}
-        <div className="lg:col-span-7 bg-stone-900 border border-stone-800 rounded-xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center justify-between border-b border-stone-800 pb-3">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-emerald-400" />
-              WhatsApp Message Dispatcher
-            </h2>
-            <div className="flex items-center space-x-1 bg-stone-950 p-1 rounded-lg border border-stone-800 text-xs">
-              <button
-                type="button"
-                onClick={() => setActiveTab('composer')}
-                className={`px-3 py-1 rounded font-medium transition-colors ${
-                  activeTab === 'composer' ? 'bg-emerald-600 text-white shadow' : 'text-stone-400 hover:text-white'
-                }`}
-              >
-                Draft
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('preview')}
-                className={`px-3 py-1 rounded font-medium transition-colors ${
-                  activeTab === 'preview' ? 'bg-emerald-600 text-white shadow' : 'text-stone-400 hover:text-white'
-                }`}
-              >
-                Chat Bubble Preview
-              </button>
-            </div>
-          </div>
+      {/* Navigation Sub-Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-stone-900/60 border border-stone-800 p-2.5 rounded-xl">
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={() => setConsoleMode('dispatcher')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+              consoleMode === 'dispatcher'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-stone-950 text-stone-400 hover:text-stone-200 border border-stone-800 hover:border-stone-700'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Message Dispatcher</span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                consoleMode === 'dispatcher' ? 'bg-emerald-700 text-emerald-100' : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              {messages.length}
+            </span>
+          </button>
 
-          {/* Quick Selectors: Booking Reference & Template */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-stone-400 mb-1">
-                Attach Booking Context
-              </label>
-              <select
-                value={selectedBookingRef}
-                onChange={(e) => handleBookingChange(e.target.value)}
-                className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-              >
-                <option value="">-- Manual Guest (No Booking) --</option>
-                {bookings.map((b) => (
-                  <option key={b.bookingId || b.bookingReference} value={b.bookingReference}>
-                    {b.bookingReference} - {b.customer?.firstName} {b.customer?.lastName} ({b.tourTitle?.substring(0, 24)}...)
-                  </option>
-                ))}
-              </select>
+          <button
+            type="button"
+            onClick={() => setConsoleMode('templates')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+              consoleMode === 'templates'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-stone-950 text-stone-400 hover:text-stone-200 border border-stone-800 hover:border-stone-700'
+            }`}
+          >
+            <Sliders className="w-4 h-4 text-emerald-400" />
+            <span>Manage Templates</span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                consoleMode === 'templates' ? 'bg-emerald-700 text-emerald-100' : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              {templates.length}
+            </span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-stone-400 px-2 flex items-center gap-2">
+          {consoleMode === 'dispatcher' ? (
+            <span>Direct guest dispatch with booking auto-fill and delivery logs</span>
+          ) : (
+            <span>Define WhatsApp templates, assign dynamic variable tags & real-time preview</span>
+          )}
+        </div>
+      </div>
+
+      {consoleMode === 'templates' ? (
+        <WhatsAppTemplateManager
+          templates={templates}
+          bookings={bookings}
+          onTemplatesUpdated={loadData}
+          onSelectForDispatch={(templateKey) => {
+            setConsoleMode('dispatcher');
+            setSelectedTemplateKey(templateKey);
+            const b = bookings.find((x) => x.bookingReference === selectedBookingRef);
+            applyTemplate(templateKey, b);
+            showToast(`Loaded template "${templateKey}" into dispatch composer`, 'info');
+          }}
+        />
+      ) : (
+        /* Main Grid: Composer on Left / Activity & Logs on Right */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: WhatsApp Composer */}
+          <div className="lg:col-span-7 bg-stone-900 border border-stone-800 rounded-xl p-5 shadow-lg space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+              <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-emerald-400" />
+                WhatsApp Message Dispatcher
+              </h2>
+              <div className="flex items-center space-x-1 bg-stone-950 p-1 rounded-lg border border-stone-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('composer')}
+                  className={`px-3 py-1 rounded font-medium transition-colors ${
+                    activeTab === 'composer' ? 'bg-emerald-600 text-white shadow' : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  Draft
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('preview')}
+                  className={`px-3 py-1 rounded font-medium transition-colors ${
+                    activeTab === 'preview' ? 'bg-emerald-600 text-white shadow' : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  Chat Bubble Preview
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-medium text-stone-400 mb-1">
-                Apply Reusable Template
-              </label>
-              <select
-                value={selectedTemplateKey}
-                onChange={(e) => applyTemplate(e.target.value)}
-                className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-              >
-                <option value="">-- Custom Message --</option>
-                {templates.map((t) => (
-                  <option key={t.id || t.templateKey} value={t.templateKey}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+            {/* Quick Selectors: Booking Reference & Template */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-stone-400 mb-1">
+                  Attach Booking Context
+                </label>
+                <select
+                  value={selectedBookingRef}
+                  onChange={(e) => handleBookingChange(e.target.value)}
+                  className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">-- Manual Guest (No Booking) --</option>
+                  {bookings.map((b) => (
+                    <option key={b.bookingId || b.bookingReference} value={b.bookingReference}>
+                      {b.bookingReference} - {b.customer?.firstName} {b.customer?.lastName} ({b.tourTitle?.substring(0, 24)}...)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-medium text-stone-400">
+                    Apply Reusable Template
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setConsoleMode('templates')}
+                    className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 font-medium"
+                    title="Open Template Manager"
+                  >
+                    <Sliders className="w-3 h-3" />
+                    <span>Manage Templates</span>
+                  </button>
+                </div>
+                <select
+                  value={selectedTemplateKey}
+                  onChange={(e) => applyTemplate(e.target.value)}
+                  className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">-- Custom Message --</option>
+                  {templates.map((t) => (
+                    <option key={t.id || t.templateKey} value={t.templateKey}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
           {/* Recipient Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -654,6 +737,7 @@ export const CommunicationsWhatsApp: React.FC<CommunicationsWhatsAppProps> = ({ 
           </div>
         </div>
       </div>
+      )}
 
       {/* Provider Configuration Modal */}
       {isSettingsOpen && (
