@@ -8,6 +8,7 @@ import {
   setSchemaMissing,
 } from './supabaseClient';
 import { DbBooking } from '../types/database';
+import { ALL_TOURS } from '../data/toursData';
 import { bookingRateLimiter } from '../lib/security';
 import { findOrCreateAuthoritativeCustomer } from './platformConsistency';
 import { recordActivity } from './crmService';
@@ -146,9 +147,21 @@ class SupabaseBookingRepository implements IBookingRepository {
         }
       }
 
+      if (!dbTourRecord && !booking.tourSlug && realTourId) {
+        const catalogMatch = ALL_TOURS.find((t) => t.id === realTourId || t.slug === realTourId);
+        if (catalogMatch) {
+          const { data: t } = await supabase.from('tours').select('*').eq('slug', catalogMatch.slug).maybeSingle();
+          if (t) {
+            dbTourRecord = t;
+            realTourId = t.id;
+          }
+        }
+      }
+
       if (!dbTourRecord) {
-        console.warn(`Tour ${realTourId} not found in database. Retaining booking ${booking.bookingReference} in local state.`);
-        return booking;
+        throw new Error(
+          `Unable to complete reservation: Excursion "${booking.tourTitle || realTourId}" is not registered in the reservation database. Please select an available departure or contact our booking desk.`
+        );
       }
 
       // 2. Validate availability and capacity against database tour limits and tour_availability

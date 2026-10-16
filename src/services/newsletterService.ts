@@ -166,6 +166,7 @@ export async function subscribeToNewsletter(
           source,
           status: 'subscribed',
           discount_code: discountCode,
+          ...(honeypot ? { website_url_hp: honeypot } : {}),
           metadata: {
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
             subscribedAt: now,

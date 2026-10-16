@@ -617,6 +617,7 @@ CREATE TABLE IF NOT EXISTS public.newsletter_subscriptions (
     source TEXT NOT NULL DEFAULT 'footer',
     status TEXT NOT NULL DEFAULT 'subscribed' CHECK (status IN ('subscribed', 'unsubscribed')),
     discount_code TEXT NOT NULL DEFAULT 'REDSEA15',
+    website_url_hp TEXT,
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -648,6 +649,7 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     source TEXT NOT NULL DEFAULT 'web' CHECK (source IN ('web', 'whatsapp', 'email', 'phone')),
     ip_address TEXT,
     admin_notes TEXT,
+    website_url_hp TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -1093,28 +1095,72 @@ $$;
 REVOKE ALL ON FUNCTION public.set_admin_role_by_email(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.set_admin_role_by_email(text) TO postgres, service_role;
 
--- 4.8 Server-Side Rate Limiting & Abuse Prevention Trigger Function
+-- 4.8 Atomic Rate Limiting Helper Function (Row-level locked upsert)
+CREATE OR REPLACE FUNCTION public.check_atomic_rate_limit(
+    p_action TEXT,
+    p_identifier TEXT,
+    p_window_interval INTERVAL,
+    p_max_hits INT,
+    p_error_message TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+    v_clean_id TEXT;
+    v_window_start TIMESTAMPTZ;
+    v_hits INT;
+BEGIN
+    IF p_identifier IS NULL OR TRIM(p_identifier) = '' THEN
+        RETURN;
+    END IF;
+
+    v_clean_id := LOWER(TRIM(p_identifier));
+    v_window_start := date_trunc('minute', NOW()) - 
+        (((EXTRACT(minute FROM NOW())::int) % GREATEST(1, (EXTRACT(epoch FROM p_window_interval)::int / 60))) * INTERVAL '1 minute');
+
+    INSERT INTO public.rate_limit_buckets (bucket_key, bucket_window, hit_count)
+    VALUES (p_action || ':' || v_clean_id, v_window_start, 1)
+    ON CONFLICT (bucket_key, bucket_window)
+    DO UPDATE SET hit_count = public.rate_limit_buckets.hit_count + 1
+    RETURNING hit_count INTO v_hits;
+
+    IF v_hits > p_max_hits THEN
+        RAISE EXCEPTION '%', p_error_message USING ERRCODE = 'P0001';
+    END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.check_atomic_rate_limit(TEXT, TEXT, INTERVAL, INT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_atomic_rate_limit(TEXT, TEXT, INTERVAL, INT, TEXT) TO postgres, service_role;
+
+-- 4.9 Server-Side Hardened Rate Limiting & Abuse Prevention Trigger Function
 CREATE OR REPLACE FUNCTION public.check_public_submission_rate_limit()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
     client_ip TEXT;
-    recent_ip_count INT;
-    recent_email_count INT;
-    ip_window INTERVAL := INTERVAL '10 minutes';
-    email_window INTERVAL := INTERVAL '10 minutes';
-    max_ip_submissions INT := 10;
-    max_email_submissions INT := 5;
+    clean_email TEXT;
 BEGIN
-    -- Bypass rate limiting for administrative, batch, and test maintenance roles
+    -- 1. Trusted administrative bypass (strictly restricted to postgres & service_role)
     IF session_user IN ('postgres', 'service_role') THEN
         RETURN NEW;
     END IF;
 
-    -- Extract client IP from PostgREST headers if present
+    -- 2. Anti-Bot Honeypot Enforcement (in-database check)
+    IF TG_TABLE_NAME IN ('inquiries', 'newsletter_subscriptions') THEN
+        IF NEW.website_url_hp IS NOT NULL AND TRIM(NEW.website_url_hp) <> '' THEN
+            RAISE EXCEPTION 'Bot submission blocked by honeypot verification.'
+                USING ERRCODE = 'P0001';
+        END IF;
+    END IF;
+
+    -- 3. Extract and sanitize client IP from PostgREST headers
     BEGIN
         client_ip := NULLIF(current_setting('request.headers', true)::json->>'cf-connecting-ip', '');
         IF client_ip IS NULL THEN
@@ -1127,87 +1173,132 @@ BEGIN
         client_ip := NULL;
     END;
 
-    -- Sanitize client IP
     IF client_ip IS NOT NULL THEN
-        client_ip := trim(client_ip);
+        client_ip := TRIM(client_ip);
+        IF LENGTH(client_ip) > 64 THEN
+            client_ip := SUBSTRING(client_ip FROM 1 FOR 64);
+        END IF;
     END IF;
 
-    -- 1. Handling for INQUIRIES
+    -- 4. Table-Specific Validation & Atomic Throttling
     IF TG_TABLE_NAME = 'inquiries' THEN
-        -- Auto-attach detected client IP to the inquiry record
+        -- Enforce required fields
+        IF TRIM(COALESCE(NEW.customer_name, '')) = '' OR TRIM(COALESCE(NEW.email, '')) = '' OR TRIM(COALESCE(NEW.message, '')) = '' THEN
+            RAISE EXCEPTION 'Invalid inquiry submission: Customer name, email, and message are required.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
+        clean_email := LOWER(TRIM(NEW.email));
+        IF NOT (clean_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$') THEN
+            RAISE EXCEPTION 'Invalid email address format for customer inquiry.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
+        -- Unprivileged clients cannot manipulate status or admin notes
+        NEW.status := 'new';
+        NEW.email := clean_email;
+
         IF (NEW.ip_address IS NULL OR NEW.ip_address = '') AND client_ip IS NOT NULL THEN
             NEW.ip_address := client_ip;
         END IF;
 
-        -- Check IP-based rate limit
+        -- Atomic email rate limit: 5 inquiries per 10 minutes
+        PERFORM public.check_atomic_rate_limit(
+            'inquiry_email',
+            clean_email,
+            INTERVAL '10 minutes',
+            5,
+            'Rate limit exceeded: Too many inquiries submitted for this email address. Please wait a few minutes before trying again.'
+        );
+
+        -- Atomic IP rate limit: 10 inquiries per 10 minutes
         IF client_ip IS NOT NULL AND client_ip <> '' THEN
-            SELECT COUNT(*) INTO recent_ip_count
-            FROM public.inquiries
-            WHERE (ip_address = client_ip)
-              AND created_at > (NOW() - ip_window);
-
-            IF recent_ip_count >= max_ip_submissions THEN
-                RAISE EXCEPTION 'Rate limit exceeded: Too many inquiries submitted from your IP address. Please wait a few minutes before trying again.'
-                    USING ERRCODE = 'P0001';
-            END IF;
+            PERFORM public.check_atomic_rate_limit(
+                'inquiry_ip',
+                client_ip,
+                INTERVAL '10 minutes',
+                10,
+                'Rate limit exceeded: Too many inquiries submitted from your IP address. Please wait a few minutes before trying again.'
+            );
         END IF;
 
-        -- Check Email-based rate limit
-        IF NEW.email IS NOT NULL AND NEW.email <> '' THEN
-            SELECT COUNT(*) INTO recent_email_count
-            FROM public.inquiries
-            WHERE LOWER(email) = LOWER(TRIM(NEW.email))
-              AND created_at > (NOW() - email_window);
-
-            IF recent_email_count >= max_email_submissions THEN
-                RAISE EXCEPTION 'Rate limit exceeded: Too many inquiries submitted for this email address. Please check your inbox or wait before resubmitting.'
-                    USING ERRCODE = 'P0001';
-            END IF;
-        END IF;
-
-    -- 2. Handling for NEWSLETTER SUBSCRIPTIONS
     ELSIF TG_TABLE_NAME = 'newsletter_subscriptions' THEN
+        clean_email := LOWER(TRIM(NEW.email));
+        IF clean_email = '' OR NOT (clean_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$') THEN
+            RAISE EXCEPTION 'Invalid email address format for newsletter subscription.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
+        NEW.email := clean_email;
+        NEW.status := 'subscribed';
+
+        -- Atomic email rate limit: 3 attempts per 10 minutes
+        PERFORM public.check_atomic_rate_limit(
+            'newsletter_email',
+            clean_email,
+            INTERVAL '10 minutes',
+            3,
+            'Rate limit exceeded: Too many newsletter subscription requests for this email.'
+        );
+
+        -- Atomic IP rate limit: 10 attempts per 10 minutes
         IF client_ip IS NOT NULL AND client_ip <> '' THEN
-            SELECT COUNT(*) INTO recent_ip_count
-            FROM public.newsletter_subscriptions
-            WHERE (metadata->>'client_ip' = client_ip)
-              AND created_at > (NOW() - ip_window);
-
-            IF recent_ip_count >= max_ip_submissions THEN
-                RAISE EXCEPTION 'Rate limit exceeded: Too many newsletter subscription requests from this network. Please try again later.'
-                    USING ERRCODE = 'P0001';
-            END IF;
-
-            -- Attach client_ip into metadata JSONB
-            IF NEW.metadata IS NULL THEN
-                NEW.metadata := jsonb_build_object('client_ip', client_ip);
-            ELSE
-                NEW.metadata := NEW.metadata || jsonb_build_object('client_ip', client_ip);
-            END IF;
+            PERFORM public.check_atomic_rate_limit(
+                'newsletter_ip',
+                client_ip,
+                INTERVAL '10 minutes',
+                10,
+                'Rate limit exceeded: Too many newsletter subscriptions from this network. Please try again later.'
+            );
         END IF;
 
-    -- 3. Handling for BOOKINGS
     ELSIF TG_TABLE_NAME = 'bookings' THEN
-        -- Prevent automated flood of bookings from the same customer
-        IF NEW.customer_id IS NOT NULL THEN
-            SELECT COUNT(*) INTO recent_email_count
-            FROM public.bookings
-            WHERE customer_id = NEW.customer_id
-              AND created_at > (NOW() - INTERVAL '30 minutes');
-
-            IF recent_email_count >= 5 THEN
-                RAISE EXCEPTION 'Rate limit exceeded: Too many bookings initiated in a short period. Please contact reservations or wait 30 minutes.'
-                    USING ERRCODE = 'P0001';
-            END IF;
+        -- Unprivileged clients cannot self-grant 'paid' or forged statuses
+        IF NEW.payment_status NOT IN ('pending', 'pay_at_pickup') THEN
+            NEW.payment_status := 'pending';
         END IF;
+        IF NEW.status NOT IN ('pending', 'confirmed') THEN
+            NEW.status := 'confirmed';
+        END IF;
+        IF NEW.operational_status IS DISTINCT FROM 'Scheduled' THEN
+            NEW.operational_status := 'Scheduled';
+        END IF;
+
+        -- Atomic customer rate limit: 5 bookings per 30 minutes
+        IF NEW.customer_id IS NOT NULL THEN
+            PERFORM public.check_atomic_rate_limit(
+                'booking_customer',
+                NEW.customer_id::text,
+                INTERVAL '30 minutes',
+                5,
+                'Rate limit exceeded: Too many bookings initiated in a short period. Please contact reservations or wait 30 minutes.'
+            );
+        END IF;
+
+        -- Atomic IP rate limit on booking creation: 10 bookings per 30 minutes
+        IF client_ip IS NOT NULL AND client_ip <> '' THEN
+            PERFORM public.check_atomic_rate_limit(
+                'booking_ip',
+                client_ip,
+                INTERVAL '30 minutes',
+                10,
+                'Rate limit exceeded: Too many bookings submitted from your network. Please wait a few minutes before trying again.'
+            );
+        END IF;
+    END IF;
+
+    -- Cleanup expired rate limit buckets probabilistically (5% of calls)
+    IF (random() < 0.05) THEN
+        DELETE FROM public.rate_limit_buckets WHERE bucket_window < (NOW() - INTERVAL '2 hours');
     END IF;
 
     RETURN NEW;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.check_public_submission_rate_limit() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.check_public_submission_rate_limit() TO anon, authenticated, service_role;
+-- Revoke direct execution of trigger function
+REVOKE ALL ON FUNCTION public.check_public_submission_rate_limit() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_public_submission_rate_limit() TO postgres, service_role;
 
 DROP TRIGGER IF EXISTS trg_rate_limit_inquiries ON public.inquiries;
 CREATE TRIGGER trg_rate_limit_inquiries
@@ -2542,6 +2633,19 @@ CREATE INDEX IF NOT EXISTS idx_media_assets_storage_path ON public.media_assets(
 CREATE INDEX IF NOT EXISTS idx_media_assets_created_at ON public.media_assets(created_at DESC);
 
 ALTER TABLE public.media_assets ENABLE ROW LEVEL SECURITY;
+
+-- 20. RATE LIMIT BUCKETS TABLE (ATOMIC CONCURRENCY ENGINE)
+CREATE TABLE IF NOT EXISTS public.rate_limit_buckets (
+    bucket_key TEXT NOT NULL,
+    bucket_window TIMESTAMPTZ NOT NULL,
+    hit_count INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (bucket_key, bucket_window)
+);
+
+ALTER TABLE public.rate_limit_buckets ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.rate_limit_buckets FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public.rate_limit_buckets TO postgres, service_role;
 
 DROP POLICY IF EXISTS "Public can view media assets" ON public.media_assets;
 CREATE POLICY "Public can view media assets"

@@ -247,6 +247,7 @@ export async function createCustomerInquiry(
           status: 'new',
           source: input.source || 'web',
           admin_notes: input.tour_title ? `Referenced Tour: ${input.tour_title}` : null,
+          ...(input.website_url_hp ? { website_url_hp: input.website_url_hp } : {}),
         })
         .select('*')
         .single();

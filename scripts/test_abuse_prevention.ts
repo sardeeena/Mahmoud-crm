@@ -1,11 +1,12 @@
 import { createCustomerInquiry } from '../src/services/inquiryService';
 import { subscribeToNewsletter } from '../src/services/newsletterService';
+import { bookingRepository } from '../src/services/bookingRepository';
 import fs from 'fs';
 import path from 'path';
 
 /**
  * ==============================================================================
- * ABUSE PREVENTION & RATE LIMITING REGRESSION TEST SUITE
+ * ABUSE PREVENTION & RATE LIMITING VERIFICATION SUITE
  * ==============================================================================
  */
 
@@ -69,38 +70,86 @@ async function runTests() {
 
   // 4. Test SQL Migration & Trigger Parity
   console.log('\nTest 4: Database Trigger & Function Parity');
-  const migrationPath = path.resolve('supabase/migrations/20261015000000_server_side_abuse_prevention.sql');
+  const migration20261015Path = path.resolve('supabase/migrations/20261015000000_server_side_abuse_prevention.sql');
+  const migration20261016Path = path.resolve('supabase/migrations/20261016000000_hardened_abuse_prevention_and_atomic_rate_limits.sql');
   const completePath = path.resolve('complete_schema.sql');
   const schemaPath = path.resolve('supabase/schema.sql');
 
-  assert(fs.existsSync(migrationPath), 'Migration 20261015000000_server_side_abuse_prevention.sql exists');
+  assert(fs.existsSync(migration20261015Path), 'Migration 20261015000000_server_side_abuse_prevention.sql exists');
+  assert(fs.existsSync(migration20261016Path), 'Forward-only migration 20261016000000_hardened_abuse_prevention_and_atomic_rate_limits.sql exists');
   assert(fs.existsSync(completePath), 'complete_schema.sql exists');
   assert(fs.existsSync(schemaPath), 'supabase/schema.sql exists');
 
-  const migSql = fs.readFileSync(migrationPath, 'utf8');
+  const mig16Sql = fs.readFileSync(migration20261016Path, 'utf8');
   const completeSql = fs.readFileSync(completePath, 'utf8');
   const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
-  assert(migSql.includes('check_public_submission_rate_limit()'), 'Migration contains rate limiting function');
-  assert(completeSql.includes('check_public_submission_rate_limit()'), 'complete_schema.sql contains rate limiting function');
-  assert(schemaSql.includes('check_public_submission_rate_limit()'), 'supabase/schema.sql contains rate limiting function');
+  // 5. Test Atomic Rate Limiting Engine
+  console.log('\nTest 5: Atomic Rate Limiter Architecture');
+  assert(mig16Sql.includes('rate_limit_buckets'), 'Migration defines rate_limit_buckets table');
+  assert(completeSql.includes('rate_limit_buckets'), 'complete_schema.sql defines rate_limit_buckets table');
+  assert(schemaSql.includes('rate_limit_buckets'), 'supabase/schema.sql defines rate_limit_buckets table');
 
-  assert(migSql.includes('trg_rate_limit_inquiries'), 'Migration contains trg_rate_limit_inquiries');
-  assert(completeSql.includes('trg_rate_limit_inquiries'), 'complete_schema.sql contains trg_rate_limit_inquiries');
-  assert(schemaSql.includes('trg_rate_limit_inquiries'), 'supabase/schema.sql contains trg_rate_limit_inquiries');
+  assert(mig16Sql.includes('check_atomic_rate_limit'), 'Migration defines atomic check_atomic_rate_limit');
+  assert(completeSql.includes('check_atomic_rate_limit'), 'complete_schema.sql defines atomic check_atomic_rate_limit');
+  assert(schemaSql.includes('check_atomic_rate_limit'), 'supabase/schema.sql defines atomic check_atomic_rate_limit');
 
-  assert(migSql.includes('trg_rate_limit_newsletter'), 'Migration contains trg_rate_limit_newsletter');
-  assert(completeSql.includes('trg_rate_limit_newsletter'), 'complete_schema.sql contains trg_rate_limit_newsletter');
-  assert(schemaSql.includes('trg_rate_limit_newsletter'), 'supabase/schema.sql contains trg_rate_limit_newsletter');
+  assert(mig16Sql.includes('ON CONFLICT (bucket_key, bucket_window)'), 'Migration uses atomic ON CONFLICT row-level locking upsert');
+  assert(completeSql.includes('ON CONFLICT (bucket_key, bucket_window)'), 'complete_schema.sql uses atomic ON CONFLICT row-level locking upsert');
 
-  assert(migSql.includes('trg_rate_limit_bookings'), 'Migration contains trg_rate_limit_bookings');
-  assert(completeSql.includes('trg_rate_limit_bookings'), 'complete_schema.sql contains trg_rate_limit_bookings');
-  assert(schemaSql.includes('trg_rate_limit_bookings'), 'supabase/schema.sql contains trg_rate_limit_bookings');
+  // 6. Test Database-Level Honeypot Verification
+  console.log('\nTest 6: Database-Level Honeypot Enforcement');
+  assert(mig16Sql.includes('website_url_hp IS NOT NULL'), 'Trigger verifies website_url_hp is not null/empty');
+  assert(completeSql.includes('website_url_hp IS NOT NULL'), 'complete_schema.sql trigger checks website_url_hp');
+  assert(schemaSql.includes('website_url_hp IS NOT NULL'), 'supabase/schema.sql trigger checks website_url_hp');
 
-  // 5. Test Error Handling for Rate Limiting
-  console.log('\nTest 5: Safe Exception Output in Trigger');
-  assert(migSql.includes("ERRCODE = 'P0001'"), 'Trigger uses standard user-defined error code P0001');
-  assert(migSql.includes("session_user IN ('postgres', 'service_role')"), 'Trigger explicitly permits administrative & test roles');
+  // 7. Test Security Boundaries & Least Privilege
+  console.log('\nTest 7: Security Boundaries & Privilege Revocations');
+  assert(mig16Sql.includes("REVOKE ALL ON FUNCTION public.check_public_submission_rate_limit() FROM PUBLIC, anon, authenticated"), 'Direct trigger function execution revoked from unprivileged roles');
+  assert(mig16Sql.includes("REVOKE ALL ON TABLE public.rate_limit_buckets FROM PUBLIC, anon, authenticated"), 'Direct access to rate_limit_buckets revoked from unprivileged roles');
+  assert(mig16Sql.includes("session_user IN ('postgres', 'service_role')"), 'Trigger explicitly permits administrative & test maintenance roles');
+  assert(mig16Sql.includes("SET search_path = pg_catalog, public, pg_temp"), 'search_path hardened with pg_catalog first');
+
+  // 8. Test Safe Booking Persistence Guarantees
+  console.log('\nTest 8: Honest Booking Persistence (No Fake Success)');
+  let bookingRejectedProperly = false;
+  try {
+    await bookingRepository.createBooking({
+      bookingReference: 'RST-2026-TEST99',
+      tourId: 'nonexistent-tour-uuid-0000-0000',
+      tourTitle: 'Non-Existent Mystery Island',
+      date: '2026-11-20',
+      status: 'confirmed',
+      paymentStatus: 'pending',
+      paymentMethod: 'pay_at_pickup',
+      customer: {
+        firstName: 'Test',
+        lastName: 'Traveler',
+        email: 'test.traveler@example.com',
+        phoneNumber: '+20 100 0000000',
+        country: 'Germany',
+      },
+      guests: { adults: 2, children: 0, infants: 0 },
+      pickup: { locationId: 'p1', hotelName: 'Steigenberger ALDAU Beach' },
+      pricing: {
+        basePricePerAdultEur: 50,
+        basePricePerChildEur: 25,
+        totalEur: 100,
+        formattedTotal: '€100.00',
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+  } catch (err: any) {
+    if (err.message.includes('not registered') || err.message.includes('not available')) {
+      bookingRejectedProperly = true;
+    }
+  }
+
+  assert(
+    bookingRejectedProperly === true,
+    'createBooking rejects unpersisted tour and throws explicit error instead of claiming false success'
+  );
 
   console.log('\n================================================================');
   console.log(`Results: ${passed} passed, ${failed} failed.`);

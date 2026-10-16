@@ -192,6 +192,7 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
     }
 
     if (!data || data.length === 0) {
+      console.warn('Notice: Remote tours table is empty. Serving local catalog fallback. Execute scripts/import_catalogue_to_supabase.ts to populate database tours.');
       return getFilteredLocal();
     }
 
