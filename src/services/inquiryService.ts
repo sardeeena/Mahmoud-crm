@@ -14,6 +14,7 @@ export interface CreateInquiryInput {
   subject: string;
   message: string;
   source?: 'web' | 'whatsapp' | 'email' | 'phone';
+  website_url_hp?: string; // Honeypot field for bot suppression
 }
 
 const LOCAL_INQUIRIES_KEY = 'rse_inquiries_data';
@@ -47,6 +48,30 @@ function saveStoredInquiries(inquiries: DbInquiry[]) {
 export async function createCustomerInquiry(
   input: CreateInquiryInput
 ): Promise<{ success: boolean; inquiry?: DbInquiry; error?: string }> {
+  // 0. Honeypot check: If the hidden honeypot input is populated by a spam bot, trap and silently drop
+  if (input.website_url_hp && input.website_url_hp.trim() !== '') {
+    console.warn('Bot submission blocked via honeypot field.');
+    return {
+      success: true,
+      inquiry: {
+        id: `inq-hp-${Date.now()}`,
+        customer_name: input.customer_name,
+        email: input.email,
+        phone: input.phone || null,
+        whatsapp: input.whatsapp || null,
+        tour_id: input.tour_id || null,
+        subject: input.subject,
+        message: input.message,
+        status: 'new',
+        source: 'web',
+        ip_address: null,
+        admin_notes: 'Dropped honeypot bot trap',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+
   const limit = inquiryRateLimiter.check();
   if (limit.isLocked) {
     return {
@@ -227,11 +252,20 @@ export async function createCustomerInquiry(
         .single();
 
       if (error) {
+        if (error.message?.includes('Rate limit exceeded') || error.code === 'P0001') {
+          return {
+            success: false,
+            error: error.message || 'Rate limit exceeded: Please wait a few minutes before sending another inquiry.',
+          };
+        }
         console.warn('Notice: Inquiries table insert error (using local state):', error.message);
       } else if (data) {
         return { success: true, inquiry: data as DbInquiry };
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.message?.includes('Rate limit exceeded')) {
+        return { success: false, error: err.message };
+      }
       console.warn('Supabase inquiries table connection issue:', err);
     }
   }

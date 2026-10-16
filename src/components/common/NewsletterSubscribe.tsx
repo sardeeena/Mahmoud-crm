@@ -25,6 +25,7 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
 }) => {
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
+  const [websiteUrlHp, setWebsiteUrlHp] = useState(''); // Anti-bot honeypot
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<{
@@ -45,7 +46,7 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
 
     setIsSubmitting(true);
     try {
-      const res = await subscribeToNewsletter(email, source);
+      const res = await subscribeToNewsletter(email, source, websiteUrlHp);
       if (res.success) {
         setSuccessData({
           discountCode: res.discountCode,
@@ -133,6 +134,20 @@ export const NewsletterSubscribe: React.FC<NewsletterSubscribeProps> = ({
             {/* Right Column: Interactive Subscription Form */}
             <div className="lg:col-span-5">
               <form onSubmit={handleSubmit} className="space-y-2.5">
+                {/* Invisible anti-bot honeypot field */}
+                <div className="opacity-0 absolute -left-[9999px] h-0 w-0 overflow-hidden pointer-events-none" aria-hidden="true" tabIndex={-1}>
+                  <label htmlFor="newsletter_url_hp">Website URL</label>
+                  <input
+                    id="newsletter_url_hp"
+                    type="text"
+                    name="newsletter_url_hp"
+                    value={websiteUrlHp}
+                    onChange={(e) => setWebsiteUrlHp(e.target.value)}
+                    tabIndex={-1}
+                    autoComplete="off"
+                  />
+                </div>
+
                 <div className="relative">
                   <label htmlFor="newsletter-email" className="sr-only">
                     Email address

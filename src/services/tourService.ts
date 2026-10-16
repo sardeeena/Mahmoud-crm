@@ -192,7 +192,7 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
     }
 
     if (!data || data.length === 0) {
-      return [];
+      return getFilteredLocal();
     }
 
     let tours = data.map((row: any) => {

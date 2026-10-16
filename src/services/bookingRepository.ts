@@ -146,6 +146,11 @@ class SupabaseBookingRepository implements IBookingRepository {
         }
       }
 
+      if (!dbTourRecord) {
+        console.warn(`Tour ${realTourId} not found in database. Retaining booking ${booking.bookingReference} in local state.`);
+        return booking;
+      }
+
       // 2. Validate availability and capacity against database tour limits and tour_availability
       const totalPartySize = (booking.guests.adults || 1) + (booking.guests.children || 0) + (booking.guests.infants || 0);
       if (dbTourRecord) {

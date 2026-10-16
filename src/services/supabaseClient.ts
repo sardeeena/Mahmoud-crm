@@ -178,6 +178,11 @@ export const formatSupabaseError = (error: unknown): string => {
     return 'Password is too weak. It must be at least 6 characters long.';
   }
 
+  // Server-side submission rate limiting from PostgreSQL triggers
+  if (message.includes('Rate limit exceeded') || (code === 'P0001' && message)) {
+    return message;
+  }
+
   // Over email rate limit
   if (message.includes('rate limit') || message.includes('over_email_send_rate_limit')) {
     return 'Too many email requests sent. For security, please wait a minute before requesting another email.';

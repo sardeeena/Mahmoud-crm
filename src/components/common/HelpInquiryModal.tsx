@@ -38,6 +38,7 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
   const [tourId, setTourId] = useState(selectedTour?.id || '');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [websiteUrlHp, setWebsiteUrlHp] = useState(''); // Anti-bot honeypot
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -83,6 +84,7 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
       subject: subject.trim() || 'General Excursion Assistance & Help Request',
       message: message.trim(),
       source: 'web',
+      website_url_hp: websiteUrlHp,
     });
 
     setLoading(false);
@@ -180,6 +182,20 @@ export const HelpInquiryModal: React.FC<HelpInquiryModalProps> = ({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Invisible anti-bot honeypot field */}
+              <div className="opacity-0 absolute -left-[9999px] h-0 w-0 overflow-hidden pointer-events-none" aria-hidden="true" tabIndex={-1}>
+                <label htmlFor="website_url_hp">Website URL</label>
+                <input
+                  id="website_url_hp"
+                  type="text"
+                  name="website_url_hp"
+                  value={websiteUrlHp}
+                  onChange={(e) => setWebsiteUrlHp(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+
               {errorMsg && (
                 <div className="p-3 bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-200 text-xs rounded-lg flex items-start space-x-2">
                   <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />

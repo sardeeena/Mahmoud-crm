@@ -47,7 +47,8 @@ function notifyNewsletterUpdated(subscriber?: NewsletterSubscriber) {
  */
 export async function subscribeToNewsletter(
   email: string,
-  source = 'footer'
+  source = 'footer',
+  honeypot?: string
 ): Promise<{ 
   success: boolean; 
   alreadySubscribed?: boolean; 
@@ -55,6 +56,16 @@ export async function subscribeToNewsletter(
   message: string; 
   error?: string 
 }> {
+  // 0. Anti-bot honeypot check: If filled, trap bot and return fake success without database insert
+  if (honeypot && honeypot.trim() !== '') {
+    console.warn('Bot subscription blocked via honeypot field.');
+    return {
+      success: true,
+      discountCode: 'REDSEA15',
+      message: 'Thank you for subscribing to Red Sea Voyagers! Your promo code is REDSEA15.',
+    };
+  }
+
   const limit = newsletterRateLimiter.check();
   if (limit.isLocked) {
     return {
@@ -164,6 +175,15 @@ export async function subscribeToNewsletter(
         .single();
 
       if (insertError) {
+        // If server-side abuse prevention trigger fired
+        if (insertError.message?.includes('Rate limit exceeded') || insertError.code === 'P0001') {
+          return {
+            success: false,
+            discountCode,
+            message: insertError.message || 'Rate limit exceeded: Too many subscriptions from this network. Please try again later.',
+            error: 'Rate limit exceeded',
+          };
+        }
         // If unique constraint conflict happens
         if (insertError.code === '23505') {
           return {
