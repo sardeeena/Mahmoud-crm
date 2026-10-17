@@ -1916,7 +1916,7 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 INSERT INTO public.pickup_locations (id, code, name, area, fee_eur_per_person, fee_eur_flat, description, is_active, sort_order)
 VALUES
 (
-    'p1000000-0000-0000-0000-000000000001',
+    'b1000000-0000-0000-0000-000000000001',
     'hurghada',
     'Hurghada Hotels (Central)',
     'Hurghada (Mamsha, Dahar, Sheraton, Marina)',
@@ -1927,7 +1927,7 @@ VALUES
     1
 ),
 (
-    'p1000000-0000-0000-0000-000000000002',
+    'b1000000-0000-0000-0000-000000000002',
     'el-gouna',
     'El Gouna Resorts',
     'El Gouna Peninsula & Lagoons',
@@ -1938,7 +1938,7 @@ VALUES
     2
 ),
 (
-    'p1000000-0000-0000-0000-000000000003',
+    'b1000000-0000-0000-0000-000000000003',
     'makadi-bay',
     'Makadi Bay Resorts',
     'Makadi Bay Coast',
@@ -1949,7 +1949,7 @@ VALUES
     3
 ),
 (
-    'p1000000-0000-0000-0000-000000000004',
+    'b1000000-0000-0000-0000-000000000004',
     'sahl-hasheesh',
     'Sahl Hasheesh Resorts',
     'Sahl Hasheesh Old Town & Promenade',
@@ -1960,7 +1960,7 @@ VALUES
     4
 ),
 (
-    'p1000000-0000-0000-0000-000000000005',
+    'b1000000-0000-0000-0000-000000000005',
     'safaga',
     'Safaga & Soma Bay',
     'Soma Bay Peninsula & Safaga Port',
@@ -1971,7 +1971,7 @@ VALUES
     5
 ),
 (
-    'p1000000-0000-0000-0000-000000000006',
+    'b1000000-0000-0000-0000-000000000006',
     'sharm-el-sheikh',
     'Sharm El-Sheikh Hotels (All Zones)',
     'Naama Bay, Nabq Bay, Sharks Bay, Hadaba, Ras Um Sid',
@@ -2040,7 +2040,7 @@ INSERT INTO public.tours (
 )
 VALUES
 (
-    't1000000-0000-0000-0000-000000000001',
+    '10000000-0000-0000-0000-000000000001',
     'Orange Bay Island & Snorkeling Cruise',
     'orange-bay-island-snorkeling',
     'Cruise to Giftun Island’s famous Orange Bay beach with its crystal turquoise lagoon, two guided coral reef stops, and open buffet lunch onboard.',
@@ -2052,7 +2052,7 @@ VALUES
     'Free cancellation up to 24 hours prior to excursion departure.', '08:30 AM', 'Popular', 4.8, 126, 1
 ),
 (
-    't1000000-0000-0000-0000-000000000002',
+    '10000000-0000-0000-0000-000000000002',
     'Dolphin House Yacht Cruise with Snorkeling',
     'dolphin-house-hurghada-snorkeling',
     'Sail to the renowned Sha’ab El Erg offshore lagoon to observe pods of wild spinner dolphins in their natural habitat.',
@@ -2064,7 +2064,7 @@ VALUES
     'Free cancellation up to 24 hours prior to excursion departure.', '08:00 AM', 'Top Pick', 4.9, 142, 2
 ),
 (
-    't1000000-0000-0000-0000-000000000003',
+    '10000000-0000-0000-0000-000000000003',
     'Paradise Island Royal Cruise with Seafood Lunch',
     'paradise-island-royal-cruise',
     'A deluxe island escape to Paradise Beach featuring shaded canopy loungers, folklore show, fresh seafood lunch, and guided reef snorkeling.',
@@ -2076,7 +2076,7 @@ VALUES
     'Free cancellation up to 24 hours prior to excursion departure.', '08:30 AM', 'Deluxe', 4.7, 98, 3
 ),
 (
-    't1000000-0000-0000-0000-000000000004',
+    '10000000-0000-0000-0000-000000000004',
     'Sunset Desert Safari & Quad Bike Adventure',
     'sunset-desert-safari-quad-bike',
     'Drive quad bikes through the rugged Eastern Desert mountains, visit a traditional Bedouin settlement, ride camels, and enjoy a barbecue dinner under stars.',
@@ -2088,7 +2088,7 @@ VALUES
     'Free cancellation up to 24 hours prior.', '01:30 PM', 'Adventure', 4.9, 87, 4
 ),
 (
-    't1000000-0000-0000-0000-000000000005',
+    '10000000-0000-0000-0000-000000000005',
     'Introductory Scuba Diving 2-Dive Yacht Trip',
     'introductory-scuba-diving-day-trip',
     'Designed specifically for beginners. Enjoy two 20-minute 1-on-1 guided dives with a licensed PADI instructor in warm shallow coral gardens.',
@@ -2105,63 +2105,63 @@ ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, price = EXCLUDED.price;
 -- 6. TOUR IMAGES
 INSERT INTO public.tour_images (tour_id, image_url, alt_text, caption, is_primary, sort_order)
 VALUES
-('t1000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', 'Orange Bay beach wooden swings and crystal lagoon', 'Orange Bay Lagoon', TRUE, 1),
-('t1000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80', 'Snorkeling over colorful Red Sea corals', 'Coral Garden Stop', FALSE, 2),
-('t1000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80', 'Passenger yacht sailing on Red Sea', 'Cruising to Giftun Island', FALSE, 3),
+('10000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', 'Orange Bay beach wooden swings and crystal lagoon', 'Orange Bay Lagoon', TRUE, 1),
+('10000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80', 'Snorkeling over colorful Red Sea corals', 'Coral Garden Stop', FALSE, 2),
+('10000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80', 'Passenger yacht sailing on Red Sea', 'Cruising to Giftun Island', FALSE, 3),
 
-('t1000000-0000-0000-0000-000000000002', 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80', 'Dolphin pod swimming near Hurghada', 'Wild Dolphin Encounter', TRUE, 1),
-('t1000000-0000-0000-0000-000000000002', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', 'Red sea reef barrier', 'Reef Snorkeling', FALSE, 2),
+('10000000-0000-0000-0000-000000000002', 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1200&q=80', 'Dolphin pod swimming near Hurghada', 'Wild Dolphin Encounter', TRUE, 1),
+('10000000-0000-0000-0000-000000000002', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', 'Red sea reef barrier', 'Reef Snorkeling', FALSE, 2),
 
-('t1000000-0000-0000-0000-000000000003', 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80', 'Paradise Island sandy beach', 'Paradise Island Beach', TRUE, 1),
-('t1000000-0000-0000-0000-000000000004', 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80', 'Quad bike in Egyptian desert mountains', 'Desert Quad Safari', TRUE, 1),
-('t1000000-0000-0000-0000-000000000005', 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80', 'Scuba diver exploring coral pillar', 'Intro Dive', TRUE, 1);
+('10000000-0000-0000-0000-000000000003', 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80', 'Paradise Island sandy beach', 'Paradise Island Beach', TRUE, 1),
+('10000000-0000-0000-0000-000000000004', 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80', 'Quad bike in Egyptian desert mountains', 'Desert Quad Safari', TRUE, 1),
+('10000000-0000-0000-0000-000000000005', 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80', 'Scuba diver exploring coral pillar', 'Intro Dive', TRUE, 1);
 
 
 -- 7. TOUR HIGHLIGHTS
 INSERT INTO public.tour_highlights (tour_id, item, sort_order)
 VALUES
-('t1000000-0000-0000-0000-000000000001', '2 hours on Orange Bay beach with shaded loungers and shallow turquoise water', 1),
-('t1000000-0000-0000-0000-000000000001', 'Two 45-minute guided snorkeling stops at vibrant offshore reefs', 2),
-('t1000000-0000-0000-0000-000000000001', 'Fresh open buffet lunch served onboard with soft drinks & bottled water', 3),
-('t1000000-0000-0000-0000-000000000001', 'Complimentary snorkeling equipment and flotation jackets provided', 4),
-('t1000000-0000-0000-0000-000000000001', 'Hotel lobby pickup and return across Hurghada included', 5);
+('10000000-0000-0000-0000-000000000001', '2 hours on Orange Bay beach with shaded loungers and shallow turquoise water', 1),
+('10000000-0000-0000-0000-000000000001', 'Two 45-minute guided snorkeling stops at vibrant offshore reefs', 2),
+('10000000-0000-0000-0000-000000000001', 'Fresh open buffet lunch served onboard with soft drinks & bottled water', 3),
+('10000000-0000-0000-0000-000000000001', 'Complimentary snorkeling equipment and flotation jackets provided', 4),
+('10000000-0000-0000-0000-000000000001', 'Hotel lobby pickup and return across Hurghada included', 5);
 
 
 -- 8. TOUR ITINERARY
 INSERT INTO public.tour_itinerary (tour_id, time, title, description, sort_order)
 VALUES
-('t1000000-0000-0000-0000-000000000001', '08:00', 'Hotel pickup', 'Air-conditioned transfer from your resort lobby to Hurghada Marina.', 1),
-('t1000000-0000-0000-0000-000000000001', '09:00', 'Departure from marina', 'Safety briefing and scenic sail across the Red Sea toward Giftun Island.', 2),
-('t1000000-0000-0000-0000-000000000001', '10:00', 'First snorkeling stop', 'Guided reef snorkeling session observing parrotfish, rays, and clownfish.', 3),
-('t1000000-0000-0000-0000-000000000001', '12:30', 'Lunch onboard', 'Warm buffet lunch with fish, chicken, rice, salads, and seasonal fruits.', 4),
-('t1000000-0000-0000-0000-000000000001', '14:00', 'Island beach time', 'Disembark at Orange Bay for relaxation, photography, and swimming in shallow lagoons.', 5),
-('t1000000-0000-0000-0000-000000000001', '16:30', 'Return to marina', 'Leisurely cruise back as afternoon sun reflects on coastal mountains.', 6),
-('t1000000-0000-0000-0000-000000000001', '17:00', 'Hotel drop-off', 'Return transfer back to your hotel lobby.', 7);
+('10000000-0000-0000-0000-000000000001', '08:00', 'Hotel pickup', 'Air-conditioned transfer from your resort lobby to Hurghada Marina.', 1),
+('10000000-0000-0000-0000-000000000001', '09:00', 'Departure from marina', 'Safety briefing and scenic sail across the Red Sea toward Giftun Island.', 2),
+('10000000-0000-0000-0000-000000000001', '10:00', 'First snorkeling stop', 'Guided reef snorkeling session observing parrotfish, rays, and clownfish.', 3),
+('10000000-0000-0000-0000-000000000001', '12:30', 'Lunch onboard', 'Warm buffet lunch with fish, chicken, rice, salads, and seasonal fruits.', 4),
+('10000000-0000-0000-0000-000000000001', '14:00', 'Island beach time', 'Disembark at Orange Bay for relaxation, photography, and swimming in shallow lagoons.', 5),
+('10000000-0000-0000-0000-000000000001', '16:30', 'Return to marina', 'Leisurely cruise back as afternoon sun reflects on coastal mountains.', 6),
+('10000000-0000-0000-0000-000000000001', '17:00', 'Hotel drop-off', 'Return transfer back to your hotel lobby.', 7);
 
 
 -- 9. TOUR INCLUSIONS & EXCLUSIONS
 INSERT INTO public.tour_inclusions (tour_id, item, sort_order)
 VALUES
-('t1000000-0000-0000-0000-000000000001', 'Hotel pickup and return transfer in air-conditioned vehicle', 1),
-('t1000000-0000-0000-0000-000000000001', 'Full-day boat cruise on passenger yacht with sun decks', 2),
-('t1000000-0000-0000-0000-000000000001', 'Snorkeling equipment (mask, snorkel, fins)', 3),
-('t1000000-0000-0000-0000-000000000001', 'Orange Bay island national park admission ticket', 4),
-('t1000000-0000-0000-0000-000000000001', 'Buffet lunch prepared fresh onboard', 5),
-('t1000000-0000-0000-0000-000000000001', 'Unlimited soft drinks, mineral water, tea & coffee', 6);
+('10000000-0000-0000-0000-000000000001', 'Hotel pickup and return transfer in air-conditioned vehicle', 1),
+('10000000-0000-0000-0000-000000000001', 'Full-day boat cruise on passenger yacht with sun decks', 2),
+('10000000-0000-0000-0000-000000000001', 'Snorkeling equipment (mask, snorkel, fins)', 3),
+('10000000-0000-0000-0000-000000000001', 'Orange Bay island national park admission ticket', 4),
+('10000000-0000-0000-0000-000000000001', 'Buffet lunch prepared fresh onboard', 5),
+('10000000-0000-0000-0000-000000000001', 'Unlimited soft drinks, mineral water, tea & coffee', 6);
 
 INSERT INTO public.tour_exclusions (tour_id, item, sort_order)
 VALUES
-('t1000000-0000-0000-0000-000000000001', 'Personal expenses & souvenir shopping on island', 1),
-('t1000000-0000-0000-0000-000000000001', 'Underwater photography package (available as optional extra)', 2),
-('t1000000-0000-0000-0000-000000000001', 'Gratuities for yacht crew & dive masters', 3);
+('10000000-0000-0000-0000-000000000001', 'Personal expenses & souvenir shopping on island', 1),
+('10000000-0000-0000-0000-000000000001', 'Underwater photography package (available as optional extra)', 2),
+('10000000-0000-0000-0000-000000000001', 'Gratuities for yacht crew & dive masters', 3);
 
 
 -- 10. TOUR FAQS
 INSERT INTO public.tour_faqs (tour_id, question, answer, sort_order)
 VALUES
-('t1000000-0000-0000-0000-000000000001', 'Is snorkeling equipment provided or should I bring my own?', 'High-quality sanitized masks, snorkels, and fins in all adult and children sizes are provided onboard free of charge. You are also welcome to bring your personal gear.', 1),
-('t1000000-0000-0000-0000-000000000001', 'Can non-swimmers participate safely?', 'Absolutely. Our boats carry US Coast Guard approved life jackets in all sizes. Our certified snorkeling guides accompany guests in the water with rescue rings and support floats.', 2),
-('t1000000-0000-0000-0000-000000000001', 'What should we pack for the trip?', 'Please bring your hotel towel, swimwear, sunglasses, sun cream, camera or waterproof phone pouch, and a photo ID or passport copy.', 3);
+('10000000-0000-0000-0000-000000000001', 'Is snorkeling equipment provided or should I bring my own?', 'High-quality sanitized masks, snorkels, and fins in all adult and children sizes are provided onboard free of charge. You are also welcome to bring your personal gear.', 1),
+('10000000-0000-0000-0000-000000000001', 'Can non-swimmers participate safely?', 'Absolutely. Our boats carry US Coast Guard approved life jackets in all sizes. Our certified snorkeling guides accompany guests in the water with rescue rings and support floats.', 2),
+('10000000-0000-0000-0000-000000000001', 'What should we pack for the trip?', 'Please bring your hotel towel, swimwear, sunglasses, sun cream, camera or waterproof phone pouch, and a photo ID or passport copy.', 3);
 
 
 -- 11. TOUR SEO METADATA
@@ -2169,7 +2169,7 @@ INSERT INTO public.seo_metadata (entity_type, entity_id, seo_title, meta_descrip
 VALUES
 (
     'tour',
-    't1000000-0000-0000-0000-000000000001',
+    '10000000-0000-0000-0000-000000000001',
     'Orange Bay Island & Snorkeling Cruise | Hurghada Boat Trip',
     'Book direct Orange Bay island boat trip from Hurghada. 2 hours on Giftun Island beach, 2 guided snorkeling stops, fresh onboard lunch. Free cancellation.',
     ARRAY['orange bay hurghada', 'giftun island tour', 'red sea snorkeling boat trip', 'hurghada boat excursion'],
@@ -2193,7 +2193,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO public.vessels (id, name, vessel_type, registration_number, port_marina, passenger_capacity, amenities, is_active)
 VALUES
 (
-    'v1000000-0000-0000-0000-000000000001',
+    '01000000-0000-0000-0000-000000000001',
     'Royal Sea Breeze I',
     'motor_yacht',
     'HRG-MAR-2024-08',
@@ -2203,7 +2203,7 @@ VALUES
     TRUE
 ),
 (
-    'v1000000-0000-0000-0000-000000000002',
+    '01000000-0000-0000-0000-000000000002',
     'Dolphin Star IV',
     'speedboat',
     'HRG-SPD-2023-14',
@@ -2213,7 +2213,7 @@ VALUES
     TRUE
 ),
 (
-    'v1000000-0000-0000-0000-000000000003',
+    '01000000-0000-0000-0000-000000000003',
     'Lagoon Princess',
     'catamaran',
     'ELG-CAT-2025-01',
@@ -2228,8 +2228,8 @@ ON CONFLICT (id) DO NOTHING;
 -- 14. TOUR VESSEL ASSIGNMENTS
 INSERT INTO public.tour_vessels (tour_id, vessel_id, is_default)
 VALUES
-('t1000000-0000-0000-0000-000000000001', 'v1000000-0000-0000-0000-000000000001', TRUE),
-('t1000000-0000-0000-0000-000000000002', 'v1000000-0000-0000-0000-000000000002', TRUE)
+('10000000-0000-0000-0000-000000000001', '01000000-0000-0000-0000-000000000001', TRUE),
+('10000000-0000-0000-0000-000000000002', '01000000-0000-0000-0000-000000000002', TRUE)
 ON CONFLICT (tour_id, vessel_id) DO NOTHING;
 
 
