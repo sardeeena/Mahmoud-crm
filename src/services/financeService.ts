@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
 import {
   FinancePayment,
   FinancePaymentMethod,
@@ -385,27 +385,59 @@ export async function recordPayment(paymentData: {
   // Sync with Supabase if configured
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('payment_transactions').insert({
-        id: newPayment.id.startsWith('pay-') ? undefined : newPayment.id,
-        booking_id: newPayment.bookingId,
-        booking_reference: newPayment.bookingReference,
-        customer_id: newPayment.customerId,
-        customer_name: newPayment.customerName,
-        customer_email: newPayment.customerEmail,
-        customer_phone: newPayment.customerPhone,
-        amount: newPayment.amount,
-        currency: newPayment.currency,
-        payment_method: newPayment.paymentMethod,
-        provider: newPayment.provider,
-        is_manual: newPayment.isManual,
-        status: newPayment.paymentStatus,
-        transaction_reference: newPayment.transactionReference,
-        notes: newPayment.notes,
-        recorded_by: newPayment.recordedBy,
-        payment_date: newPayment.paymentDate,
-      });
-    } catch {
-      // ignore
+      let resolvedBookingUuid = newPayment.bookingId;
+      let resolvedCustomerUuid = newPayment.customerId;
+
+      // If bookingId is not a UUID, resolve it from bookings table by booking_reference
+      if (!resolvedBookingUuid?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const { data: bRow } = await supabase
+          .from('bookings')
+          .select('id, customer_id')
+          .eq('booking_reference', newPayment.bookingReference)
+          .maybeSingle();
+
+        if (bRow) {
+          resolvedBookingUuid = bRow.id;
+          if (!resolvedCustomerUuid && bRow.customer_id) {
+            resolvedCustomerUuid = bRow.customer_id;
+          }
+        }
+      }
+
+      if (resolvedBookingUuid?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const paymentPayload: Record<string, any> = {
+          booking_id: resolvedBookingUuid,
+          amount: newPayment.amount,
+          currency: newPayment.currency || 'EUR',
+          payment_method: newPayment.paymentMethod,
+          status: newPayment.paymentStatus,
+          transaction_reference: newPayment.transactionReference,
+          notes: newPayment.notes,
+          recorded_by: newPayment.recordedBy,
+          payment_date: newPayment.paymentDate,
+        };
+
+        if (resolvedCustomerUuid?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          paymentPayload.customer_id = resolvedCustomerUuid;
+        }
+
+        const { data: inserted, error: payError } = await supabase
+          .from('payment_transactions')
+          .insert(paymentPayload)
+          .select('id')
+          .maybeSingle();
+
+        if (payError) {
+          throw new Error(formatSupabaseError(payError));
+        }
+
+        if (inserted?.id) {
+          newPayment.id = inserted.id;
+        }
+      }
+    } catch (err: any) {
+      console.error('Error inserting payment transaction in Supabase:', err);
+      throw err;
     }
   }
 

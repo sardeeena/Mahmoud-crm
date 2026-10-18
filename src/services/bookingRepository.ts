@@ -563,7 +563,7 @@ class SupabaseBookingRepository implements IBookingRepository {
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('bookings')
           .update({
             status: booking.status,
@@ -574,8 +574,13 @@ class SupabaseBookingRepository implements IBookingRepository {
             updated_at: new Date().toISOString(),
           })
           .eq('booking_reference', booking.bookingReference);
+
+        if (error) {
+          throw new Error(formatSupabaseError(error));
+        }
       } catch (err) {
-        console.warn('Update booking Supabase error:', err);
+        console.error('Update booking Supabase error:', err);
+        throw err;
       }
     }
 
@@ -638,7 +643,7 @@ class SupabaseBookingRepository implements IBookingRepository {
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase
+        const { error: cancelError } = await supabase
           .from('bookings')
           .update({
             status: 'cancellation_requested',
@@ -646,6 +651,10 @@ class SupabaseBookingRepository implements IBookingRepository {
             updated_at: new Date().toISOString(),
           })
           .eq('booking_reference', bookingReference);
+
+        if (cancelError) {
+          throw new Error(formatSupabaseError(cancelError));
+        }
 
         // Revert capacity in tour_availability
         if (existing.tourId && existing.date) {
@@ -671,7 +680,8 @@ class SupabaseBookingRepository implements IBookingRepository {
           }
         }
       } catch (err) {
-        console.warn('Cancel booking in Supabase notice:', err);
+        console.error('Cancel booking in Supabase error:', err);
+        throw err;
       }
     }
 

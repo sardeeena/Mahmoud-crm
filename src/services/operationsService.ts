@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
 import {
   DbVessel,
   DbGuide,
@@ -772,7 +772,7 @@ export async function saveAssignment(assignment: Partial<OperationalAssignment>)
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('operational_assignments').upsert({
+      const { error: assignError } = await supabase.from('operational_assignments').upsert({
         id: savedAssignment.id.startsWith('assign-') ? undefined : savedAssignment.id,
         tour_id: savedAssignment.tourId,
         date: savedAssignment.date,
@@ -782,6 +782,10 @@ export async function saveAssignment(assignment: Partial<OperationalAssignment>)
         status: savedAssignment.status,
         notes: savedAssignment.notes,
       });
+
+      if (assignError) {
+        return { success: false, error: formatSupabaseError(assignError) };
+      }
 
       // Also sync to departures table
       await supabase.from('departures').upsert({
@@ -795,8 +799,8 @@ export async function saveAssignment(assignment: Partial<OperationalAssignment>)
         status: (savedAssignment.status || 'scheduled').toLowerCase(),
         notes: savedAssignment.notes,
       });
-    } catch {
-      // ignore
+    } catch (err: any) {
+      return { success: false, error: formatSupabaseError(err) };
     }
   }
 
@@ -1127,7 +1131,7 @@ export async function saveVessel(vessel: Partial<DbVessel>): Promise<DbVessel> {
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('vessels').upsert({
+      const { error } = await supabase.from('vessels').upsert({
         id: saved.id.startsWith('ves-') ? undefined : saved.id,
         name: saved.name,
         vessel_type: saved.vessel_type,
@@ -1144,8 +1148,12 @@ export async function saveVessel(vessel: Partial<DbVessel>): Promise<DbVessel> {
         next_maintenance: saved.next_maintenance,
         crew: saved.crew,
       });
-    } catch {
-      // ignore
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Error saving vessel to Supabase:', err);
+      throw err;
     }
   }
 
@@ -1158,9 +1166,13 @@ export async function deleteVessel(id: string): Promise<boolean> {
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('vessels').delete().eq('id', id);
-    } catch {
-      // ignore
+      const { error } = await supabase.from('vessels').delete().eq('id', id);
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Error deleting vessel from Supabase:', err);
+      throw err;
     }
   }
 
@@ -1228,7 +1240,7 @@ export async function saveGuide(guide: Partial<DbGuide>): Promise<DbGuide> {
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('guides').upsert({
+      const { error } = await supabase.from('guides').upsert({
         id: saved.id.startsWith('gui-') ? undefined : saved.id,
         full_name: saved.full_name,
         role: saved.role,
@@ -1241,8 +1253,12 @@ export async function saveGuide(guide: Partial<DbGuide>): Promise<DbGuide> {
         availability_status: saved.availability_status,
         notes: saved.notes,
       });
-    } catch {
-      // ignore
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Error saving guide to Supabase:', err);
+      throw err;
     }
   }
 
@@ -1255,9 +1271,13 @@ export async function deleteGuide(id: string): Promise<boolean> {
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('guides').delete().eq('id', id);
-    } catch {
-      // ignore
+      const { error } = await supabase.from('guides').delete().eq('id', id);
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Error deleting guide from Supabase:', err);
+      throw err;
     }
   }
 

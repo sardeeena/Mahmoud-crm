@@ -148,9 +148,11 @@ export async function saveSetting<T>(key: string, value: T, description?: string
 
     if (error) {
       console.warn(`Supabase setting write warning for ${key}:`, error);
+      throw new Error(formatSupabaseError(error));
     }
   } catch (err: any) {
-    console.warn(`Error writing setting ${key} to Supabase:`, err);
+    console.error(`Error writing setting ${key} to Supabase:`, err);
+    throw err;
   }
 }
 

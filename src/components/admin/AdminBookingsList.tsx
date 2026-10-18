@@ -73,28 +73,36 @@ export const AdminBookingsList: React.FC = () => {
       ],
     };
 
-    await bookingRepository.updateBooking(updated);
-    showToast(`Booking ${ref} marked as ${newStatus.toUpperCase()}`, 'success');
-    if (selectedBooking?.bookingReference === ref) {
-      setSelectedBooking(updated);
+    try {
+      await bookingRepository.updateBooking(updated);
+      showToast(`Booking ${ref} marked as ${newStatus.toUpperCase()}`, 'success');
+      if (selectedBooking?.bookingReference === ref) {
+        setSelectedBooking(updated);
+      }
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update booking status', 'error');
     }
-    await loadBookings();
   };
 
   const confirmCancelBooking = async () => {
     if (!bookingToCancel) return;
     const ref = bookingToCancel.bookingReference;
-    await bookingRepository.cancelBooking(ref, cancelReason);
-    showToast(`Booking ${ref} cancelled.`, 'info');
-    if (selectedBooking?.bookingReference === ref) {
-      setSelectedBooking({
-        ...bookingToCancel,
-        status: 'cancelled',
-        cancellationReason: cancelReason,
-      });
+    try {
+      await bookingRepository.cancelBooking(ref, cancelReason);
+      showToast(`Booking ${ref} cancelled.`, 'info');
+      if (selectedBooking?.bookingReference === ref) {
+        setSelectedBooking({
+          ...bookingToCancel,
+          status: 'cancelled',
+          cancellationReason: cancelReason,
+        });
+      }
+      setBookingToCancel(null);
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to cancel booking', 'error');
     }
-    setBookingToCancel(null);
-    await loadBookings();
   };
 
   const exportBookingsCSV = () => {

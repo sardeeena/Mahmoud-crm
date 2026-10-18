@@ -9,7 +9,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:catalogue": "tsx scripts/test_catalogue_import.ts",
+    "test:parity": "tsx scripts/verify_schema_parity.ts",
+    "test:security": "tsx scripts/test_admin_security.ts",
+    "test:abuse": "tsx scripts/test_abuse_prevention.ts",
+    "test:routes": "tsx scripts/test_routes.ts",
+    "test:all": "tsx scripts/test_catalogue_import.ts && tsx scripts/verify_schema_parity.ts && tsx scripts/test_admin_security.ts && tsx scripts/test_abuse_prevention.ts && tsx scripts/test_routes.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

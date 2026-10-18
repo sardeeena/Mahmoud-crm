@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
 import {
   CrmLead,
   LeadStage,
@@ -272,11 +272,15 @@ export async function createLead(input: Partial<CrmLead>): Promise<CrmLead> {
         .select('*')
         .maybeSingle();
 
-      if (!error && data) {
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+      if (data) {
         newLead.id = data.id;
       }
-    } catch {
-      // ignore
+    } catch (err: any) {
+      console.error('Error creating lead in Supabase:', err);
+      throw err;
     }
   }
 
@@ -303,7 +307,7 @@ export async function updateLead(leadId: string, updates: Partial<CrmLead>): Pro
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase
+      const { error } = await supabase
         .from('leads')
         .update({
           name: updates.name,
@@ -333,8 +337,13 @@ export async function updateLead(leadId: string, updates: Partial<CrmLead>): Pro
           updated_at: new Date().toISOString(),
         })
         .eq('id', leadId);
-    } catch {
-      // ignore
+
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Error updating lead in Supabase:', err);
+      throw err;
     }
   }
 
@@ -366,7 +375,7 @@ export async function updateLeadStage(
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase
+      const { error } = await supabase
         .from('leads')
         .update({
           stage: newStage,
@@ -375,8 +384,13 @@ export async function updateLeadStage(
           updated_at: new Date().toISOString(),
         })
         .eq('id', leadId);
-    } catch {
-      // ignore
+
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Error updating lead stage in Supabase:', err);
+      throw err;
     }
   }
 
@@ -427,9 +441,13 @@ export async function deleteLead(leadId: string): Promise<boolean> {
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('leads').delete().eq('id', leadId);
-    } catch {
-      // ignore
+      const { error } = await supabase.from('leads').delete().eq('id', leadId);
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Error deleting lead from Supabase:', err);
+      throw err;
     }
   }
 

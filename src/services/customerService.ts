@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
 import { bookingRepository } from './bookingRepository';
 import { UserRole } from '../types/database';
 import { getStoredLocalUsers, LOCAL_USERS_KEY } from './authService';
@@ -205,10 +205,11 @@ export async function updateCustomerRole(
         .eq('id', userId);
 
       if (error) {
-        console.warn('Error updating role in profiles:', error);
+        throw new Error(formatSupabaseError(error));
       }
-    } catch (err) {
-      console.warn('Exception updating role:', err);
+    } catch (err: any) {
+      console.error('Exception updating customer role in Supabase:', err);
+      throw err;
     }
   }
 
@@ -227,13 +228,9 @@ export async function updateCustomerDetails(
   id: string,
   updates: Partial<UnifiedCustomer>
 ): Promise<boolean> {
-  const localList = getStoredCustomers();
-  const updated = localList.map((c) => (c.id === id ? { ...c, ...updates } : c));
-  saveStoredCustomers(updated);
-
   if (isSupabaseConfigured()) {
     try {
-      await supabase
+      const { error: profError } = await supabase
         .from('profiles')
         .update({
           full_name: updates.fullName,
@@ -242,6 +239,10 @@ export async function updateCustomerDetails(
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
+
+      if (profError) {
+        throw new Error(formatSupabaseError(profError));
+      }
 
       await supabase
         .from('customers')
@@ -253,10 +254,15 @@ export async function updateCustomerDetails(
           hotel: updates.hotel,
         })
         .eq('id', id);
-    } catch {
-      // ignore
+    } catch (err: any) {
+      console.error('Exception updating customer details in Supabase:', err);
+      throw err;
     }
   }
+
+  const localList = getStoredCustomers();
+  const updated = localList.map((c) => (c.id === id ? { ...c, ...updates } : c));
+  saveStoredCustomers(updated);
 
   return true;
 }
@@ -270,10 +276,13 @@ export async function deleteCustomerRecord(id: string): Promise<boolean> {
 
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('customers').delete().eq('id', id);
-      await supabase.from('profiles').delete().eq('id', id);
-    } catch {
-      // ignore
+      const { error: custErr } = await supabase.from('customers').delete().eq('id', id);
+      if (custErr) throw new Error(formatSupabaseError(custErr));
+      const { error: profErr } = await supabase.from('profiles').delete().eq('id', id);
+      if (profErr) throw new Error(formatSupabaseError(profErr));
+    } catch (err: any) {
+      console.error('Error deleting customer in Supabase:', err);
+      throw err;
     }
   }
 

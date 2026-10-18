@@ -192,8 +192,7 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
     }
 
     if (!data || data.length === 0) {
-      console.warn('Notice: Remote tours table is empty. Serving local catalog fallback. Execute scripts/import_catalogue_to_supabase.ts to populate database tours.');
-      return getFilteredLocal();
+      return [];
     }
 
     let tours = data.map((row: any) => {
@@ -438,20 +437,20 @@ export async function adminListTours(filters?: {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
         console.warn('Supabase tours table not found in schema cache. Falling back to local data.');
-      } else {
-        console.warn('Supabase adminListTours query error, using local fallback:', error.message);
+        return getLocalList();
       }
-      return getLocalList();
+      console.error('Supabase adminListTours query error:', error.message);
+      throw new Error(formatSupabaseError(error));
     }
     return (data || []) as DbTour[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
       console.warn('Supabase tours table not found in schema cache. Falling back to local data.');
-    } else {
-      console.warn('Failed to list admin tours, using local fallback:', err);
+      return getLocalList();
     }
-    return getLocalList();
+    console.error('Failed to list admin tours:', err);
+    throw err;
   }
 }
 

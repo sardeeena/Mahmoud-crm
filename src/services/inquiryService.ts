@@ -348,10 +348,11 @@ export async function updateInquiryStatus(
         .eq('id', id);
 
       if (error) {
-        console.warn('Failed to update inquiry in Supabase:', error);
+        throw new Error(formatSupabaseError(error));
       }
-    } catch (err) {
-      console.warn('Inquiry status update exception:', err);
+    } catch (err: any) {
+      console.error('Failed to update inquiry in Supabase:', err);
+      throw err;
     }
   }
 
@@ -369,9 +370,13 @@ export async function deleteInquiry(id: string): Promise<boolean> {
   // Supabase deletion
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('inquiries').delete().eq('id', id);
-    } catch {
-      // ignore
+      const { error } = await supabase.from('inquiries').delete().eq('id', id);
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    } catch (err: any) {
+      console.error('Failed to delete inquiry from Supabase:', err);
+      throw err;
     }
   }
 
