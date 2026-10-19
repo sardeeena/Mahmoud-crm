@@ -5,7 +5,7 @@
 
 export type { Database, Json, Tables, TablesInsert, TablesUpdate } from './database.types';
 
-export type UserRole = 'admin' | 'manager' | 'staff' | 'customer';
+export type UserRole = 'admin' | 'super_admin' | 'manager' | 'staff' | 'customer';
 
 export type TourStatus = 'draft' | 'published' | 'archived';
 export type TourType = 'Shared' | 'Private';

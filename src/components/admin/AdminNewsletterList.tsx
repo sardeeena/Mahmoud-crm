@@ -51,8 +51,9 @@ export const AdminNewsletterList: React.FC = () => {
     try {
       const data = await listNewsletterSubscribers();
       setSubscribers(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load newsletter subscribers:', err);
+      showToast(err.message || 'Failed to load newsletter subscribers from database', 'error');
     } finally {
       setLoading(false);
     }

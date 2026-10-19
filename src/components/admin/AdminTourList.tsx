@@ -56,8 +56,9 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
     try {
       const data = await adminListTours();
       setTours(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading tours:', err);
+      showToast(err.message || 'Failed to load excursions from database', 'error');
     } finally {
       setLoading(false);
     }

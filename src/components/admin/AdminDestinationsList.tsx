@@ -20,8 +20,9 @@ export const AdminDestinationsList: React.FC = () => {
     try {
       const data = await getDestinations();
       setDestinations(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showToast(err.message || 'Failed to load destinations from database', 'error');
     } finally {
       setLoading(false);
     }

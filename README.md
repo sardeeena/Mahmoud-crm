@@ -1,12 +1,13 @@
-# 🌊 Red Sea Excursions & Voyages Platform
+# 🌊 Red Sea Excursions & Voyages Platform (Mahmoud CRM)
 
-> An enterprise-grade, full-stack tour operator and excursion booking platform specializing in Red Sea marine adventures, island boat trips, coral reef snorkeling, PADI scuba diving, and desert quad safaris.
+> An enterprise-grade, full-stack tour operator, excursion booking platform, and administrative CRM specializing in Red Sea marine adventures, island boat trips, coral reef snorkeling, PADI scuba diving, and desert quad safaris.
 
 [![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-19.x-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.x-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%2015-3ECF8E?logo=supabase)](https://supabase.com/)
+[![PWA](https://img.shields.io/badge/PWA-Ready-orange?logo=pwa)](https://web.dev/progressive-web-apps/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
@@ -14,17 +15,17 @@
 ## 📑 Table of Contents
 
 1. [Project Overview](#-project-overview)
-2. [Key Capabilities & Features](#-key-capabilities--features)
-3. [Architecture & Tech Stack](#-architecture--tech-stack)
-4. [Project Structure](#-project-structure)
-5. [Getting Started & Local Development](#-getting-started--local-development)
-6. [Environment Variables](#-environment-variables)
-7. [Database & Supabase Integration](#-database--supabase-integration)
-8. [Admin CMS & Operations Portal](#-admin-cms--operations-portal)
-9. [Customer Authentication & Voyager Portal](#-customer-authentication--voyager-portal)
-10. [Multi-Currency & Internationalization](#-multi-currency--internationalization)
-11. [SEO & Social Metadata](#-seo--social-metadata)
-12. [Production Build & Deployment](#-production-build--deployment)
+2. [Documentation Guides](#-documentation-guides)
+3. [Key Capabilities & Features](#-key-capabilities--features)
+4. [Architecture & Tech Stack](#-architecture--tech-stack)
+5. [Database & Supabase Integration](#-database--supabase-integration)
+6. [Project Structure](#-project-structure)
+7. [Getting Started & Local Development](#-getting-started--local-development)
+8. [Environment Variables](#-environment-variables)
+9. [Admin CMS, Operations, CRM & Finance](#-admin-cms-operations-crm--finance)
+10. [Automated Testing & Verification](#-automated-testing--verification)
+11. [Production Build & Deployment](#-production-build--deployment)
+12. [License](#-license)
 
 ---
 
@@ -32,7 +33,18 @@
 
 **Red Sea Excursions & Voyages** delivers a luxury direct-to-consumer maritime tourism experience alongside a comprehensive operations management engine. It connects international holidaymakers in Egypt (Hurghada, El Gouna, Sahl Hasheesh, Makadi Bay, Safaga, Marsa Alam) with verified local sea captains, desert safari guides, and PADI-certified divemasters.
 
-The platform provides real-time excursion discovery, automated multi-step booking workflows, hotel pickup coordination, PDF voucher generation, wishlist management, interactive customer accounts, and an executive administration dashboard.
+The platform provides real-time excursion discovery, automated multi-step booking workflows, hotel pickup coordination, PDF voucher generation, wishlist management, interactive customer accounts, and a 15-module administration dashboard.
+
+---
+
+## 📖 Documentation Guides
+
+We provide specialized guides depending on your role:
+
+- 📘 [**Master Operations & Linking Manual (manual.md)**](./manual.md) — **Essential for Launch:** Exhaustive, step-by-step instructions on every third-party account, secret key, environment variable, DNS record, Vercel build setting, Supabase storage bucket, and payment provider setup.
+- 🚀 [**Quick Setup Guide (setup.md)**](./setup.md) — Fast-track instructions for connecting Supabase, running the master SQL migration, and elevating your administrator account.
+- 📋 [**Phase 4 Implementation Report (PHASE_4_COMPLETION_REPORT.md)**](./PHASE_4_COMPLETION_REPORT.md) — Technical audit of repaired data layers, honest empty states, and RBAC authorization.
+- 📋 [**Catalogue Import Dry-Run Report (CATALOGUE_IMPORT_DRY_RUN_REPORT.md)**](./CATALOGUE_IMPORT_DRY_RUN_REPORT.md) — Pre-flight dry-run validation report of the 365 relational catalog entities.
 
 ---
 
@@ -55,7 +67,7 @@ The platform provides real-time excursion discovery, automated multi-step bookin
   1. Date & party selection (adults, children, infants) with live capacity validation.
   2. Resort lobby pickup specification with optional area surcharges (El Gouna, Makadi Bay, Soma Bay).
   3. Lead passenger contact details, special requests, and payment selection (`Pay at Pickup` cash/card or online options).
-- **Instant Booking Confirmation**: Generates a unique booking reference (`RSE-XXXXXX`) with downloadable digital voucher summaries.
+- **Instant Booking Confirmation**: Generates a unique booking reference (`RST-XXXX-XXXX`) with downloadable digital voucher summaries.
 - **Draft Autosave**: Automatically preserves uncompleted booking state in browser local storage so guests never lose progress.
 
 ### 👤 Customer Voyager Portal
@@ -64,17 +76,22 @@ The platform provides real-time excursion discovery, automated multi-step bookin
 - **Live Digital Vouchers**: Direct print and voucher inspection modal with barcode generation and hotel meeting point info.
 - **Wishlist & Saved Tours**: Fast off-canvas drawer to save favorite excursions with real-time counters.
 
-### 🛡️ Executive Admin CMS, Operations, CRM & Finance
-- **Role-Based Access Control (RBAC)**: Support for `admin`, `manager`, `staff`, and `customer` roles enforced via PostgreSQL Row-Level Security (RLS).
-- **Tours Management**: Complete CRUD interface for excursions (pricing, itineraries, inclusions, exclusions, gallery images, difficulty, and publish states).
-- **Bookings Management**: Real-time status modification (`confirmed`, `pending`, `cancellation_requested`, `cancelled`, `completed`), payment tracking, and customer contact inspection.
-- **Availability Calendar & Capacity**: Manage daily slot caps, blackout dates, and passenger capacity counters.
-- **Customer CRM**: Leads pipeline, customer profiles, inquiries, tasks & follow-ups, activity timeline, and booking history.
-- **Operations & Maritime Fleet**: Today's departures, operational assignments, passenger manifests, hotel pickup schedules, vessel fleet management, guide/captain assignments, and live marine weather bulletins.
-- **Finance & Accounting**: Payments ledger, invoice generation with PDF printing, controlled refund records with audit trail, outstanding balances, and multi-currency reporting.
-- **Communications**: Email & WhatsApp dispatches, reusable template engine with variable interpolation, deduplicated staff internal notifications, and complete communication audit logs.
-- **Executive Management Reporting**: Five specialized analytical views (Executive, Sales, Operations, Customers, Finance) querying real Supabase data with configurable date ranges (Today, Yesterday, This Week, This Month, Last Month, This Year, Custom) and CSV/Excel/Print exports.
-- **Database & Sync Diagnostics**: Live health status panel showing Supabase connection, schema cache status, and table counts.
+### 🛡️ 15-Module Executive Admin Dashboard
+1. **Executive & BI Analytics**: Real-time revenue counters, passenger counts, conversion metrics, and date-range filters (`today`, `this_week`, `this_month`, `last_month`, `this_year`, `custom`).
+2. **Tours & Excursions**: Complete CRUD for tour parameters, itineraries, highlights, FAQs, inclusions, and exclusions.
+3. **Destinations**: Regional management for Hurghada, El Gouna, Makadi Bay, Sahl Hasheesh, Safaga, and Marsa Alam.
+4. **Categories**: Theme taxonomy (Island Trips, Diving, Safari, Private Yachts, Water Sports).
+5. **Bookings & Reservations**: Status transitions (`pending`, `confirmed`, `cancellation_requested`, `cancelled`), hotel pickup details, and notes.
+6. **Availability & Departures**: Manage daily slot caps, blackout dates, and passenger capacity counters with automatic cancellation rollbacks.
+7. **Fleet Vessels**: Vessel specifications, passenger limits, safety certificates, and active/drydock statuses.
+8. **Guides & Captains**: Staff directory, languages spoken, PADI licensing, and availability assignments.
+9. **Operations Assignments**: Conflict-free linking of vessels and guides to daily departures.
+10. **CRM & Leads Pipeline**: Lead stage progression (`New`, `Contacted`, `Qualified`, `Proposal`, `Follow-up`, `Won`, `Lost`), task tracker, and activity timeline.
+11. **Customer Directory**: Unified customer lifetime spend, booking counts, and contact notes.
+12. **Reviews Moderation**: Review approval/moderation with optimistic updates and rollbacks.
+13. **Coupons & Promos**: Code creation, percentage/fixed discounts, usage limits, and expiration dates.
+14. **Finance & Invoicing**: Payments ledger, invoice generation with PDF printing, and refund processing.
+15. **Media Library**: Supabase Storage integration with metadata tagging and orphaned asset audit tools.
 
 ---
 
@@ -86,112 +103,29 @@ The platform provides real-time excursion discovery, automated multi-step bookin
 | **Styling & Design** | Tailwind CSS v4, Motion (Framer Motion v12), Lucide Icons |
 | **Backend & Dev Server** | Node.js, Express 4.x, TSX runtime (`server.ts`) |
 | **Database & Auth** | Supabase (PostgreSQL 15+), Supabase Auth, Row-Level Security (RLS) |
-| **AI Capabilities** | `@google/genai` (Gemini API server-side integration ready) |
-| **Storage & State** | Supabase Storage (`tour-media`), LocalStorage sync, React Context |
+| **Edge & Hosting** | Vercel (SPA rewrites, CDN edge caching) |
+| **Storage & Media** | Supabase Storage (`tours` public bucket, up to 50MB) |
+| **PWA & Offline** | Vite PWA Plugin, Service Worker, Web App Manifest |
+| **AI Capabilities** | `@google/genai` (Google Gemini AI server-side proxy at `/api/chat`) |
 
 ---
 
-## 📂 Project Structure
+## 🗄️ Database & Supabase Integration
 
-```
-├── .env.example                 # Environment variables specification
-├── index.html                   # HTML entry point with rich SEO meta
-├── metadata.json                # AI Studio application metadata
-├── package.json                 # Project dependencies and script definitions
-├── server.ts                    # Full-stack Express server with Vite middleware integration
-├── tsconfig.json                # TypeScript compiler configuration
-├── vite.config.ts               # Vite bundler configuration
-│
-├── public/                      # Static assets & public media
-│   ├── logo.png                 # Primary transparent brand logo
-│   ├── logo.webp / logo.jpg     # Alternate format archives
-│   └── og-image.jpg             # Social sharing OpenGraph card
-│
-├── src/
-│   ├── App.tsx                  # Root routing, view management, and global layout
-│   ├── main.tsx                 # Application client entrypoint
-│   ├── index.css                # Global styles, Tailwind imports, and custom shimmer keyframes
-│   │
-│   ├── components/
-│   │   ├── admin/               # Administration CMS components
-│   │   │   ├── AdminDashboard.tsx
-│   │   │   ├── AdminLayout.tsx
-│   │   │   ├── AdminLoginPage.tsx
-│   │   │   ├── ToursManagement.tsx
-│   │   │   ├── BookingsManagement.tsx
-│   │   │   ├── CustomersManagement.tsx
-│   │   │   ├── AvailabilityManagement.tsx
-│   │   │   └── SettingsView.tsx
-│   │   ├── common/              # Shared UI elements
-│   │   │   ├── Header.tsx       # Navbar with brand logo, currency selector, and auth modals
-│   │   │   ├── Footer.tsx       # Multi-column footer with contact and legal links
-│   │   │   └── WishlistDrawer.tsx
-│   │   ├── home/                # Homepage presentation
-│   │   │   ├── Hero.tsx         # Cinematic background slideshow with synchronized narrative
-│   │   │   ├── SearchModule.tsx # Parametric filter & search bar
-│   │   │   ├── PopularTours.tsx # Curated tour grid with skeleton loading state
-│   │   │   ├── DestinationsSection.tsx
-│   │   │   ├── CategoriesSection.tsx
-│   │   │   ├── ReviewsSection.tsx
-│   │   │   ├── WhyChooseUs.tsx
-│   │   │   └── FaqSection.tsx
-│   │   └── tours/               # Excursions & discovery components
-│   │       ├── TourCard.tsx
-│   │       ├── TourCardSkeleton.tsx
-│   │       ├── TourDetailSkeleton.tsx
-│   │       ├── TourFilters.tsx
-│   │       ├── TourGrid.tsx
-│   │       └── RelatedTours.tsx
-│   │
-│   ├── contexts/                # React Context Providers
-│   │   ├── AuthContext.tsx      # Supabase user sessions, roles, and profile state
-│   │   ├── LanguageContext.tsx  # Multi-lingual dictionary (English, German, etc.)
-│   │   └── WishlistContext.tsx  # Saved excursions state
-│   │
-│   ├── data/                    # Fallback data & initial seeding
-│   │   └── toursData.ts         # High-fidelity static tours, categories, and reviews
-│   │
-│   ├── pages/                   # Top-level route views
-│   │   ├── ExcursionsPage.tsx   # Discovery & filter page
-│   │   ├── TourDetailPage.tsx   # Comprehensive tour experience page
-│   │   ├── BookingModal.tsx     # 3-step checkout overlay
-│   │   ├── AccountPage.tsx      # Customer voyager profile & bookings
-│   │   ├── LoginPage.tsx        # Customer login
-│   │   ├── RegisterPage.tsx     # Customer registration
-│   │   ├── ResetPasswordPage.tsx# Password reset
-│   │   ├── AboutPage.tsx        # Company background
-│   │   ├── ContactPage.tsx      # Direct booking assistance & inquiries
-│   │   ├── FaqPage.tsx          # Comprehensive FAQ
-│   │   └── LegalPage.tsx        # Terms of service and privacy policy
-│   │
-│   ├── services/                # Backend API & service integrations
-│   │   ├── supabaseClient.ts    # Supabase SDK initialization & connection testing
-│   │   ├── tourService.ts       # Database tour queries and Supabase CRUD
-│   │   ├── bookingService.ts    # Reservation creation, reference generation, and updates
-│   │   ├── draftStorage.ts      # Unsaved booking draft persistence
-│   │   └── seoService.ts        # Dynamic document head and structured data injection
-│   │
-│   └── types/                   # TypeScript schemas
-│       ├── index.ts             # Domain frontend interfaces
-│       ├── database.ts          # Relational Supabase interfaces
-│       └── database.types.ts    # Direct Supabase CLI generated type declarations
-│
-└── supabase/                    # Database migrations & SQL blueprints
-    ├── seed.sql                 # Production reference catalog (destinations, categories, tours, vessels, guides)
-    └── migrations/
-        └── 20260922000000_phase4_schema.sql # Complete 33-table production schema & RLS policies
-```
+The platform features an authoritative **54-table relational database**:
+- Canonical master script: `/complete_schema.sql` (single-run provisioning).
+- Full Row-Level Security (RLS) enforcing least privilege.
+- Role-Based Access Control (`admin`, `super_admin`, `manager`, `staff`, `customer`).
+- Server-side abuse prevention with atomic rate limiting (`check_atomic_rate_limit`) and honeypot bot suppression.
 
 ---
 
 ## 💻 Getting Started & Local Development
 
-For a complete step-by-step walkthrough, see [SETUP_GUIDE.md](./SETUP_GUIDE.md).
-
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher
 - **npm** or **bun**
-- (Optional) A free [Supabase](https://supabase.com) account for persistent cloud data
+- (Optional) A [Supabase](https://supabase.com) account for persistent cloud data
 
 ### Installation
 1. Clone the repository and install dependencies:
@@ -215,66 +149,54 @@ For a complete step-by-step walkthrough, see [SETUP_GUIDE.md](./SETUP_GUIDE.md).
 
 ## 🔐 Environment Variables
 
-| Variable | Description | Client Exposed? |
-|---|---|---|
-| `VITE_SUPABASE_URL` | Your Supabase project URL (`https://<project-id>.supabase.co`) | Yes (Client-side) |
-| `VITE_SUPABASE_ANON_KEY` | Public anonymous key for querying database with RLS | Yes (Client-side) |
-| `GEMINI_API_KEY` | Google Gemini API key for AI assistant features | Server-side only |
-| `APP_URL` | Canonical deployment URL for metadata and webhooks | Server & Client |
+| Variable | Required | Description | Scope |
+|---|---|---|---|
+| `VITE_SUPABASE_URL` | **Yes** | Supabase project URL (`https://<project-id>.supabase.co`) | Client & Server |
+| `VITE_SUPABASE_ANON_KEY` | **Yes** | Public anonymous key for database & auth with RLS | Client & Server |
+| `GEMINI_API_KEY` | Optional | Google Gemini API key for AI chat concierge | Server-side only |
+| `APP_URL` | **Yes** | Canonical deployment web URL | Server & Client |
 
 ---
 
-## 🗄️ Database & Supabase Integration
+## 🧪 Automated Testing & Verification
 
-The platform features a resilient two-tier data layer:
-1. **Live Supabase PostgreSQL**: Queries live published tours, itineraries, inclusions, reviews, inquiries, newsletter subscribers, and bookings with full Row Level Security (RLS).
-2. **Deterministic Fallback**: If Supabase credentials are not configured or the database schema is freshly initializing, the client seamlessly falls back to local storage and static catalog reference data.
-
-For comprehensive database documentation, schema diagrams, RLS rules, and execution steps:
-- 📖 [Complete Supabase Architecture & Guide (SUPABASE.md)](./SUPABASE.md)
-- 🚀 [Website & Supabase Launch Guide (SETUP_GUIDE.md)](./SETUP_GUIDE.md)
-
----
-
-## 🧭 Admin CMS & Operations Portal
-
-Access the administration portal via the `/admin` URL or by clicking the **Admin Portal** link in the footer.
-
-- **Default Admin Route**: `/admin`
-- **Dashboard Capabilities**:
-  - Live revenue counters and booking status pie charts.
-  - Detailed Tour Editor with multi-image gallery uploaders.
-  - Instant toggle between `Draft` and `Published` tour states.
-  - Booking status modifications with customer email confirmation triggers.
-  - Quick database diagnostics and Supabase health checks.
-
----
-
-## 💱 Multi-Currency & Internationalization
-
-- **Currencies Supported**:
-  - **EUR (€)**: Base reference currency
-  - **USD ($)**: 1.08 exchange rate
-  - **GBP (£)**: 0.85 exchange rate
-  - **EGP (E£)**: 52.50 exchange rate
-- **Localization**: All tour titles, durations, pickup notices, and navigation elements utilize the custom `LanguageContext` provider.
-
----
-
-## 📈 Production Build & Deployment
-
-To produce an optimized production distribution:
+The project includes **6 comprehensive test suites** covering safety, security, routing, and data layer persistence:
 
 ```bash
-# Verify TypeScript types and code validity
-npm run lint
-
-# Build production assets via Vite
-npm run build
-
-# Start the full-stack production server
-npm run start
+# Run all 6 test suites
+npm run test:all
 ```
+
+Individual test suites:
+- `npm run test:catalogue` — Catalogue dry-run verification (0 writes)
+- `npm run test:parity` — Schema parity audit (54 tables, 13 functions)
+- `npm run test:security` — Admin RBAC & privilege escalation defense
+- `npm run test:abuse` — Honeypot bot traps & atomic rate limiters
+- `npm run test:routes` — Vercel SPA routing & built asset verification
+- `npm run test:admin` — Admin CRUD persistence, honest empty states, and type safety
+
+TypeScript check:
+```bash
+npm run lint
+```
+
+Production build test:
+```bash
+npm run build
+```
+
+---
+
+## 🚀 Production Build & Deployment
+
+To deploy on Vercel:
+1. Connect your repository to Vercel.
+2. Build Command: `npm run build`
+3. Output Directory: `dist`
+4. Add environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `APP_URL`, `GEMINI_API_KEY`.
+5. Deploy.
+
+For complete custom domain, DNS, and SMTP email setup instructions, see [**manual.md**](./manual.md).
 
 ---
 

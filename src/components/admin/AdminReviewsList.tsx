@@ -17,7 +17,7 @@ import {
   Check,
   AlertTriangle,
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
 import { adminListTours } from '../../services/tourService';
 import { DbTour, DbReview } from '../../types/database';
 import { RECENT_REVIEWS } from '../../data/toursData';
@@ -129,19 +129,25 @@ export const AdminReviewsList: React.FC = () => {
 
   // Update status (Approve / Unpublish)
   const handleTogglePublished = async (reviewId: string, shouldPublish: boolean) => {
+    const previous = [...reviews];
     const updated = reviews.map((r) => (r.id === reviewId ? { ...r, is_published: shouldPublish } : r));
     setReviews(updated);
     localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(updated));
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase.from('reviews').update({ is_published: shouldPublish }).eq('id', reviewId);
-      } catch (err) {
-        console.warn('Failed to update review status in Supabase:', err);
+        const { error } = await supabase.from('reviews').update({ is_published: shouldPublish }).eq('id', reviewId);
+        if (error) throw error;
+      } catch (err: any) {
+        setReviews(previous);
+        localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(previous));
+        showToast(`Failed to update review status: ${formatSupabaseError(err)}`, 'error');
+        return;
       }
     }
 
     setActionMessage(shouldPublish ? 'Review published to website.' : 'Review hidden from website.');
+    showToast(shouldPublish ? 'Review approved and published.' : 'Review unlisted from website.', 'success');
     setTimeout(() => setActionMessage(null), 3000);
   };
 
@@ -154,15 +160,22 @@ export const AdminReviewsList: React.FC = () => {
     if (!reviewToDelete) return;
     setIsDeleting(true);
 
+    const previous = [...reviews];
     const updated = reviews.filter((r) => r.id !== reviewToDelete.id);
     setReviews(updated);
     localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(updated));
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase.from('reviews').delete().eq('id', reviewToDelete.id);
-      } catch (err) {
-        console.warn('Failed to delete review in Supabase:', err);
+        const { error } = await supabase.from('reviews').delete().eq('id', reviewToDelete.id);
+        if (error) throw error;
+      } catch (err: any) {
+        setReviews(previous);
+        localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(previous));
+        showToast(`Failed to delete review: ${formatSupabaseError(err)}`, 'error');
+        setIsDeleting(false);
+        setReviewToDelete(null);
+        return;
       }
     }
 
@@ -180,11 +193,23 @@ export const AdminReviewsList: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const dateFormatted = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const dateFormatted = new Date().toISOString().split('T')[0];
+
+    // Find if newTourId is a valid UUID or needs resolving from tours
+    let targetTourId: string | null = newTourId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newTourId);
+    if (!isUuid) {
+      const match = tours.find((t) => t.id === newTourId || t.slug === newTourId);
+      if (match && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(match.id)) {
+        targetTourId = match.id;
+      } else {
+        targetTourId = null;
+      }
+    }
 
     const newRev: DbReview = {
       id: `rev-${Date.now()}`,
-      tour_id: newTourId,
+      tour_id: targetTourId || newTourId,
       author_name: newAuthorName.trim(),
       country: newCountry,
       country_code: newCountry === 'Germany' ? 'DE' : newCountry === 'United Kingdom' ? 'GB' : 'EG',
@@ -197,14 +222,9 @@ export const AdminReviewsList: React.FC = () => {
       created_at: new Date().toISOString(),
     };
 
-    const updated = [newRev, ...reviews];
-    setReviews(updated);
-    localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(updated));
-
     if (isSupabaseConfigured()) {
       try {
-        await supabase.from('reviews').insert({
-          tour_id: newRev.tour_id,
+        const payload: any = {
           author_name: newRev.author_name,
           country: newRev.country,
           country_code: newRev.country_code,
@@ -214,18 +234,37 @@ export const AdminReviewsList: React.FC = () => {
           traveler_type: newRev.traveler_type,
           verified_booking: true,
           is_published: true,
-        });
-      } catch (err) {
-        console.warn('Failed to create review in Supabase:', err);
+        };
+        if (targetTourId) {
+          payload.tour_id = targetTourId;
+        }
+
+        const { data: inserted, error } = await supabase
+          .from('reviews')
+          .insert(payload)
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (inserted?.id) {
+          newRev.id = inserted.id;
+        }
+      } catch (err: any) {
+        showToast(`Failed to create review in Supabase: ${formatSupabaseError(err)}`, 'error');
+        setIsSubmitting(false);
+        return;
       }
     }
+
+    const updated = [newRev, ...reviews];
+    setReviews(updated);
+    localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(updated));
 
     setIsSubmitting(false);
     setIsAddModalOpen(false);
     setNewAuthorName('');
     setNewComment('');
-    setActionMessage('New verified guest review published successfully.');
-    setTimeout(() => setActionMessage(null), 3500);
+    showToast('New verified guest review published successfully.', 'success');
   };
 
   // Metrics calculation

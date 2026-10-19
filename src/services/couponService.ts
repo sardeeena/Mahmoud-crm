@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError, isSchemaMissing, isSchemaMissingError, setSchemaMissing } from './supabaseClient';
 import { DbCoupon } from '../types/database';
 
 const LOCAL_COUPONS_KEY = 'rse_coupons_cache';
@@ -82,7 +82,7 @@ function saveLocalCoupons(coupons: DbCoupon[]) {
 }
 
 export async function getCoupons(): Promise<DbCoupon[]> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
     return getLocalCoupons();
   }
 
@@ -93,12 +93,16 @@ export async function getCoupons(): Promise<DbCoupon[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase coupons fetch failed, using local cache:', error);
-      return getLocalCoupons();
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+        return getLocalCoupons();
+      }
+      console.error('Supabase coupons fetch failed:', error);
+      throw new Error(formatSupabaseError(error));
     }
 
     if (!data || data.length === 0) {
-      return getLocalCoupons();
+      return [];
     }
 
     return data.map((item: any) => ({
@@ -109,8 +113,12 @@ export async function getCoupons(): Promise<DbCoupon[]> {
       times_redeemed: item.times_used ?? item.times_redeemed ?? 0,
     }));
   } catch (err) {
-    console.warn('Error fetching coupons:', err);
-    return getLocalCoupons();
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+      return getLocalCoupons();
+    }
+    console.error('Error fetching coupons:', err);
+    throw err;
   }
 }
 

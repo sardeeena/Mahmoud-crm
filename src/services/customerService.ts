@@ -197,7 +197,9 @@ export async function updateCustomerRole(
   userId: string,
   newRole: UserRole
 ): Promise<boolean> {
-  if (isSupabaseConfigured()) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
+  if (isSupabaseConfigured() && isUuid) {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -228,7 +230,9 @@ export async function updateCustomerDetails(
   id: string,
   updates: Partial<UnifiedCustomer>
 ): Promise<boolean> {
-  if (isSupabaseConfigured()) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  if (isSupabaseConfigured() && isUuid) {
     try {
       const { error: profError } = await supabase
         .from('profiles')
@@ -274,7 +278,9 @@ export async function deleteCustomerRecord(id: string): Promise<boolean> {
   const localList = getStoredCustomers();
   saveStoredCustomers(localList.filter((c) => c.id !== id));
 
-  if (isSupabaseConfigured()) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  if (isSupabaseConfigured() && isUuid) {
     try {
       const { error: custErr } = await supabase.from('customers').delete().eq('id', id);
       if (custErr) throw new Error(formatSupabaseError(custErr));

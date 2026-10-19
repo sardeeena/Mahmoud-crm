@@ -73,38 +73,46 @@ export const AdminInquiriesList: React.FC = () => {
 
   const handleStatusChange = async (id: string, newStatus: DbInquiry['status']) => {
     setUpdating(true);
-    const success = await updateInquiryStatus(id, newStatus);
-    setUpdating(false);
-
-    if (success) {
-      setInquiries((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
-      );
-      if (selectedInquiry?.id === id) {
-        setSelectedInquiry((prev) => (prev ? { ...prev, status: newStatus } : null));
+    try {
+      const success = await updateInquiryStatus(id, newStatus);
+      if (success) {
+        setInquiries((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
+        );
+        if (selectedInquiry?.id === id) {
+          setSelectedInquiry((prev) => (prev ? { ...prev, status: newStatus } : null));
+        }
+        showToast(`Inquiry status updated to "${newStatus}".`, 'success');
       }
-      showToast(`Inquiry status updated to "${newStatus}".`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update inquiry status', 'error');
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleSaveNote = async () => {
     if (!selectedInquiry) return;
     setUpdating(true);
-    const success = await updateInquiryStatus(
-      selectedInquiry.id,
-      selectedInquiry.status,
-      adminNoteInput
-    );
-    setUpdating(false);
-
-    if (success) {
-      setInquiries((prev) =>
-        prev.map((item) =>
-          item.id === selectedInquiry.id ? { ...item, admin_notes: adminNoteInput } : item
-        )
+    try {
+      const success = await updateInquiryStatus(
+        selectedInquiry.id,
+        selectedInquiry.status,
+        adminNoteInput
       );
-      setSelectedInquiry((prev) => (prev ? { ...prev, admin_notes: adminNoteInput } : null));
-      showToast('Admin note saved.', 'success');
+      if (success) {
+        setInquiries((prev) =>
+          prev.map((item) =>
+            item.id === selectedInquiry.id ? { ...item, admin_notes: adminNoteInput } : item
+          )
+        );
+        setSelectedInquiry((prev) => (prev ? { ...prev, admin_notes: adminNoteInput } : null));
+        showToast('Admin note saved.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save admin note', 'error');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -115,18 +123,23 @@ export const AdminInquiriesList: React.FC = () => {
   const confirmDeleteInquiry = async () => {
     if (!inquiryToDelete) return;
     setIsDeleting(true);
-    const success = await deleteInquiry(inquiryToDelete.id);
-    if (success) {
-      setInquiries((prev) => prev.filter((item) => item.id !== inquiryToDelete.id));
-      if (selectedInquiry?.id === inquiryToDelete.id) {
-        setSelectedInquiry(null);
+    try {
+      const success = await deleteInquiry(inquiryToDelete.id);
+      if (success) {
+        setInquiries((prev) => prev.filter((item) => item.id !== inquiryToDelete.id));
+        if (selectedInquiry?.id === inquiryToDelete.id) {
+          setSelectedInquiry(null);
+        }
+        showToast(`Inquiry from "${inquiryToDelete.customer_name}" removed.`, 'info');
+      } else {
+        showToast('Failed to remove inquiry.', 'error');
       }
-      showToast(`Inquiry from "${inquiryToDelete.customer_name}" removed.`, 'info');
-    } else {
-      showToast('Failed to remove inquiry.', 'error');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete inquiry', 'error');
+    } finally {
+      setInquiryToDelete(null);
+      setIsDeleting(false);
     }
-    setInquiryToDelete(null);
-    setIsDeleting(false);
   };
 
   const openInquiryDetail = (inq: DbInquiry) => {

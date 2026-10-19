@@ -625,9 +625,14 @@ export async function signOutAdmin(): Promise<void> {
 /**
  * Helper to test if a user has administrative authorization (admin, manager, or staff)
  */
-export function isUserAdmin(user: AppUser | null): boolean {
+export function isUserAdmin(user: AppUser | null | undefined): boolean {
   if (!user) return false;
-  return user.role === 'admin' || user.role === 'manager' || user.role === 'staff';
+  return (
+    user.role === 'admin' ||
+    user.role === 'super_admin' ||
+    user.role === 'manager' ||
+    user.role === 'staff'
+  );
 }
 
 /**
@@ -911,6 +916,7 @@ export function validatePasswordStrength(password: string): {
  */
 export function getUserPermissions(role?: UserRole): string[] {
   switch (role) {
+    case 'super_admin':
     case 'admin':
       return [
         'tours:read',

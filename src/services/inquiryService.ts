@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured, formatSupabaseError } from './supabaseClient';
+import { supabase, isSupabaseConfigured, formatSupabaseError, isSchemaMissing, isSchemaMissingError, setSchemaMissing } from './supabaseClient';
 import { DbInquiry } from '../types/database';
 import { sanitizeString, isValidEmail, inquiryRateLimiter } from '../lib/security';
 import { createLead, recordActivity } from './crmService';
@@ -279,7 +279,7 @@ export async function createCustomerInquiry(
  * Lists all inquiries for the admin dashboard.
  */
 export async function listInquiries(filter?: { status?: string }): Promise<DbInquiry[]> {
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && !isSchemaMissing()) {
     try {
       let query = supabase
         .from('inquiries')
@@ -291,11 +291,23 @@ export async function listInquiries(filter?: { status?: string }): Promise<DbInq
       }
 
       const { data, error } = await query;
-      if (!error && data) {
+      if (error) {
+        if (isSchemaMissingError(error)) {
+          setSchemaMissing(true);
+        } else {
+          console.error('Inquiries query error:', formatSupabaseError(error));
+          throw new Error(formatSupabaseError(error));
+        }
+      } else if (data) {
         return data as DbInquiry[];
       }
     } catch (err) {
-      console.warn('Fallback to local inquiries due to query error:', err);
+      if (isSchemaMissingError(err)) {
+        setSchemaMissing(true);
+      } else {
+        console.error('Failed to list inquiries from Supabase:', err);
+        throw err;
+      }
     }
   }
 

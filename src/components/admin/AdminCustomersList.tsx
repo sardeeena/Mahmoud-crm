@@ -44,8 +44,9 @@ export const AdminCustomersList: React.FC = () => {
     try {
       const data = await listUnifiedCustomers();
       setCustomers(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load customers:', err);
+      showToast(err.message || 'Failed to load customers from database', 'error');
     } finally {
       setLoading(false);
     }

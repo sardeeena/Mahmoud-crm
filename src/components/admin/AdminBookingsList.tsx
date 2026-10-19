@@ -34,8 +34,9 @@ export const AdminBookingsList: React.FC = () => {
     try {
       const data = await bookingRepository.listBookings();
       setBookings(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching bookings:', err);
+      showToast(err.message || 'Failed to load bookings from database', 'error');
     } finally {
       setLoading(false);
     }

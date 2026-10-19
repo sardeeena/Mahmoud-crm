@@ -19,8 +19,9 @@ export const AdminExtrasList: React.FC = () => {
     try {
       const data = await getTourExtras();
       setExtras(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showToast(err.message || 'Failed to load tour extras from database', 'error');
     } finally {
       setLoading(false);
     }

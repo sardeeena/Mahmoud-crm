@@ -386,25 +386,32 @@ export async function updateSubscriberStatus(
   idOrEmail: string,
   status: 'subscribed' | 'unsubscribed'
 ): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrEmail);
+      const query = supabase
+        .from('newsletter_subscriptions')
+        .update({ status, updated_at: new Date().toISOString() });
+
+      const { error } = isUuid
+        ? await query.eq('id', idOrEmail)
+        : await query.eq('email', idOrEmail.toLowerCase());
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Failed to update newsletter status in database:', err);
+      throw new Error(formatSupabaseError(err));
+    }
+  }
+
   const localList = getStoredSubscribers();
   const updated = localList.map((s) => {
-    if (s.id === idOrEmail || s.email === idOrEmail) {
+    if (s.id === idOrEmail || s.email.toLowerCase() === idOrEmail.toLowerCase()) {
       return { ...s, status };
     }
     return s;
   });
   saveStoredSubscribers(updated);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabase
-        .from('newsletter_subscriptions')
-        .update({ status, updated_at: new Date().toISOString() })
-        .or(`id.eq.${idOrEmail},email.eq.${idOrEmail}`);
-    } catch (err) {
-      console.warn('Failed to update newsletter status in database:', err);
-    }
-  }
 
   notifyNewsletterUpdated();
   return true;
@@ -414,20 +421,25 @@ export async function updateSubscriberStatus(
  * Deletes a subscriber record
  */
 export async function deleteSubscriber(idOrEmail: string): Promise<boolean> {
-  const localList = getStoredSubscribers();
-  const filtered = localList.filter((s) => s.id !== idOrEmail && s.email !== idOrEmail);
-  saveStoredSubscribers(filtered);
-
   if (isSupabaseConfigured()) {
     try {
-      await supabase
-        .from('newsletter_subscriptions')
-        .delete()
-        .or(`id.eq.${idOrEmail},email.eq.${idOrEmail}`);
-    } catch {
-      // ignore
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrEmail);
+      const query = supabase.from('newsletter_subscriptions').delete();
+
+      const { error } = isUuid
+        ? await query.eq('id', idOrEmail)
+        : await query.eq('email', idOrEmail.toLowerCase());
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Failed to delete newsletter subscriber from database:', err);
+      throw new Error(formatSupabaseError(err));
     }
   }
+
+  const localList = getStoredSubscribers();
+  const filtered = localList.filter((s) => s.id !== idOrEmail && s.email.toLowerCase() !== idOrEmail.toLowerCase());
+  saveStoredSubscribers(filtered);
 
   notifyNewsletterUpdated();
   return true;

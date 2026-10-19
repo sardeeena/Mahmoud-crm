@@ -20,8 +20,9 @@ export const AdminCategoriesList: React.FC = () => {
     try {
       const data = await getCategories();
       setCategories(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showToast(err.message || 'Failed to load categories from database', 'error');
     } finally {
       setLoading(false);
     }

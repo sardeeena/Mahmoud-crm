@@ -20,8 +20,9 @@ export const AdminPickupList: React.FC = () => {
     try {
       const data = await getPickupLocations();
       setLocations(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showToast(err.message || 'Failed to load pickup locations from database', 'error');
     } finally {
       setLoading(false);
     }
