@@ -9,7 +9,7 @@ For a full breakdown of every account, secret, and external integration required
 ## 🏗️ Architecture Overview
 
 The application utilizes Supabase for:
-1. **PostgreSQL Relational Database**: 54 normalized tables storing excursions, itineraries, categories, destinations, hotel pickup locations, extras, customer reservations, inquiries, reviews, newsletter subscribers, CRM leads, fleet vessels, guide staff, payment transactions, and communications.
+1. **PostgreSQL Relational Database**: 55 normalized tables storing excursions, itineraries, categories, destinations, hotel pickup locations, extras, customer reservations, inquiries, reviews, newsletter subscribers, CRM leads, fleet vessels, guide staff, payment transactions, and communications (including `rate_limit_buckets`).
 2. **Supabase Authentication**: Secure user registration, password reset, session management, and Role-Based Access Control (RBAC) via `public.profiles`.
 3. **Supabase Storage**:
    - `tours` (Public, up to 50MB): Excursion photo galleries, videos, and promotional banners.
@@ -49,24 +49,26 @@ APP_URL=https://mahmoud-crm-eosin.vercel.app
 
 ---
 
-## Step 3: Execute the Master SQL Script
+## Step 3: Database Schema & Migration Strategy
 
-The master SQL script provisions **100% of everything** required by the application in a single execution:
-- Database extensions (`uuid-ossp`, `pgcrypto`)
-- All 54 relational tables with foreign keys and check constraints
-- Security Definer functions: `is_admin()`, `protect_profile_role()`, `handle_new_user()`, `set_admin_role_by_email()`, `check_atomic_rate_limit()`
-- Automated triggers on `auth.users` to synchronize profiles
-- Storage buckets: `tours`, `avatars`, `vouchers`
-- Storage policies on `storage.objects` for image and video uploads
-- Row-Level Security policies on all tables (preventing recursion)
-- Production reference data (destinations, categories, pickup locations, optional extras, fleet vessels, licensed captains)
+> ⚠️ **CRITICAL SAFETY WARNING FOR EXISTING DATABASES**:  
+> If you are deploying to an **existing production database** that already contains live bookings, customer accounts, or operational records, **DO NOT** execute `/complete_schema.sql` indiscriminately. Instead, apply the ordered incremental migrations from `supabase/migrations/` sequentially.  
+> 
+> Running `/complete_schema.sql` in its entirety is designed for **fresh Supabase projects** only.
 
-### How to Run:
+### For Fresh Projects:
 1. In your [Supabase Dashboard](https://supabase.com/dashboard), navigate to **SQL Editor** in the left menu.
 2. Click **New Query**.
 3. Open the canonical authoritative schema file **`/complete_schema.sql`** in this project repository.
 4. Paste the entire content into the SQL Editor and click **Run**.
 5. You should see a success message: `Success. No rows returned`.
+
+### For Existing Projects:
+1. Audit your database schema using the Table Audit in `/admin/settings` or run:
+   ```bash
+   npm run test:parity
+   ```
+2. Apply missing incremental migrations from `supabase/migrations/` in chronological order via the Supabase CLI or SQL Editor.
 
 ---
 
@@ -77,22 +79,19 @@ To access the CMS Admin Dashboard (`/admin`), your account must have the `admin`
 ### 1. Register Your Account
 1. Open the application in your browser.
 2. Click **Sign In** in the top navigation or go to `/register`.
-3. Sign up with your administrator email:
-   ```
-   diamond.entertainment70@gmail.com
-   ```
+3. Sign up with your intended administrator email (e.g., `admin@yourdomain.com`).
 4. Set a secure password and submit.
 
 ### 2. Promote Account to Administrator in Supabase
 Once your account has registered, promote it using the built-in helper function.
 1. Open **Supabase Dashboard > SQL Editor**.
-2. Run the following command:
+2. Run the following command with your registered admin email:
    ```sql
-   SELECT public.set_admin_role_by_email('diamond.entertainment70@gmail.com');
+   SELECT public.set_admin_role_by_email('admin@yourdomain.com');
    ```
 3. The SQL Editor will return:
    ```
-   Success: Account diamond.entertainment70@gmail.com is now an active administrator.
+   Success: Account admin@yourdomain.com (User ID: ...) is now an active administrator with verified role "admin".
    ```
 
 ---
@@ -100,7 +99,7 @@ Once your account has registered, promote it using the built-in helper function.
 ## Step 5: Log into the CMS Admin Dashboard
 
 1. Navigate to `/admin` or `/admin/login`.
-2. Sign in with `diamond.entertainment70@gmail.com` and your password.
+2. Sign in with your registered admin email and password.
 3. You will have full access to:
    - **Executive & BI Analytics**: Real-time revenue counters, passenger counts, conversion metrics.
    - **Tours & Excursions**: Complete CRUD for tour parameters, itineraries, highlights, FAQs, inclusions, and exclusions.
@@ -119,10 +118,20 @@ Once your account has registered, promote it using the built-in helper function.
 Run the complete automated test suite to ensure the platform is ready:
 
 ```bash
-# Run all 6 automated test suites
+# Run all 8 automated test suites
 npm run test:all
 
-# Run linter
+# Run individual test suites
+npm run test:catalogue   # Validates catalogue records & RFC-4122 UUIDs (dry-run)
+npm run test:parity      # Validates 55 tables & 15 functions anti-divergence
+npm run test:security    # Validates admin privilege escalation defenses
+npm run test:abuse       # Validates bot honeypots & atomic rate limiters
+npm run test:routes      # Validates Vercel SPA rewrites & deep routes
+npm run test:admin       # Validates admin persistence & RLS error surfacing
+npm run test:recovery    # Validates password recovery & session security
+npm run test:comm        # Validates communication provider credential enforcement
+
+# Run TypeScript linter
 npm run lint
 
 # Build production bundle

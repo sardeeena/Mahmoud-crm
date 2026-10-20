@@ -46,8 +46,8 @@ export function mapDbTourToFrontendTour(
 ): Tour {
   const images = relations.images || [];
   const primaryImgObj = images.find((img) => img.is_primary) || images[0];
-  const primaryImageUrl = primaryImgObj?.image_url || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80';
-  const galleryImageUrls = images.length > 0 ? images.map((i) => i.image_url) : [primaryImageUrl];
+  const primaryImageUrl = primaryImgObj?.image_url || '';
+  const galleryImageUrls = images.length > 0 ? images.map((i) => i.image_url) : (primaryImageUrl ? [primaryImageUrl] : []);
 
   const sortedItinerary: ItineraryItem[] = (relations.itinerary || [])
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -69,44 +69,44 @@ export function mapDbTourToFrontendTour(
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((e) => e.item);
 
-  const cats = relations.categories && relations.categories.length > 0 ? relations.categories : ['Boat Trip'];
+  const cats = relations.categories && relations.categories.length > 0 ? relations.categories : [];
 
   return {
     id: dbTour.id,
     slug: dbTour.slug,
     title: dbTour.title,
-    destination: relations.destinationName || 'Hurghada',
-    category: cats[0] || 'Boat Trip',
+    destination: relations.destinationName || '',
+    category: cats[0] || 'Excursion',
     categories: cats,
     tourType: dbTour.tour_type,
     durationCategory: dbTour.duration_type,
-    durationHours: Number(dbTour.duration_hours) || 7,
-    durationLabel: dbTour.duration,
-    priceEur: Number(dbTour.price),
-    childPriceEur: Number(dbTour.child_price) || Math.round(Number(dbTour.price) * 0.5),
-    privatePriceEur: Number(dbTour.private_price) || 250,
-    rating: Number(dbTour.rating) || 4.9,
-    reviewCount: Number(dbTour.review_count) || 25,
+    durationHours: Number(dbTour.duration_hours) || 0,
+    durationLabel: dbTour.duration || (dbTour.duration_hours ? `${dbTour.duration_hours} Hours` : ''),
+    priceEur: Number(dbTour.price) || 0,
+    childPriceEur: dbTour.child_price !== null && dbTour.child_price !== undefined ? Number(dbTour.child_price) : undefined,
+    privatePriceEur: dbTour.private_price !== null && dbTour.private_price !== undefined && Number(dbTour.private_price) > 0 ? Number(dbTour.private_price) : undefined,
+    rating: Number(dbTour.rating) || 0,
+    reviewCount: Number(dbTour.review_count) || 0,
     badge: dbTour.badge || (dbTour.featured ? 'Popular' : undefined),
     primaryImage: primaryImageUrl,
     galleryImages: galleryImageUrls,
     shortDescription: dbTour.short_description || '',
     fullDescription: dbTour.description || '',
-    highlights: sortedHighlights.length > 0 ? sortedHighlights : ['Scenic coastal navigation', 'Snorkeling over coral gardens', 'Buffet lunch onboard'],
+    highlights: sortedHighlights,
     itinerary: sortedItinerary,
     included: sortedInclusions,
     excluded: sortedExclusions,
-    whatToBring: ['Hotel towel', 'Swimwear', 'Sunscreen & sunglasses', 'Passport copy'],
-    importantInformation: ['Not wheelchair accessible on boat decks', 'Flotation vests available for all ages'],
-    languages: dbTour.languages || ['English', 'German'],
-    maxGuests: dbTour.max_guests || 35,
-    pickupInfo: dbTour.pickup_info || 'Hotel pickup and return included.',
-    pickupAvailable: dbTour.pickup_available,
-    cancellationPolicy: dbTour.cancellation_policy || 'Free cancellation up to 24 hours before trip.',
-    availableDays: dbTour.available_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-    departureTime: dbTour.departure_time || '08:30 AM',
+    whatToBring: [],
+    importantInformation: [],
+    languages: dbTour.languages && dbTour.languages.length > 0 ? dbTour.languages : ['English'],
+    maxGuests: dbTour.max_guests || 0,
+    pickupInfo: dbTour.pickup_info || (dbTour.pickup_available ? 'Hotel pickup available.' : 'Pickup not included.'),
+    pickupAvailable: !!dbTour.pickup_available,
+    cancellationPolicy: dbTour.cancellation_policy || 'Standard cancellation policy applies.',
+    availableDays: dbTour.available_days || [],
+    departureTime: dbTour.departure_time || '',
     difficulty: dbTour.difficulty || 'Easy',
-    ageRestrictions: dbTour.age_restrictions || 'Suitable for all ages.',
+    ageRestrictions: dbTour.age_restrictions || '',
     reviews: relations.reviews,
   };
 }

@@ -45,7 +45,7 @@ import {
   SocialLinksSettings,
   FooterContentSettings,
 } from '../../services/siteSettingsService';
-import completeSchemaSql from '../../../supabase/schema.sql?raw';
+import completeSchemaSql from '../../../complete_schema.sql?raw';
 import phase4Sql from '../../../supabase/migrations/20260922000000_phase4_schema.sql?raw';
 import fixAdminAuthSql from '../../../supabase/migrations/20260928000000_fix_admin_auth_rls.sql?raw';
 import { useToast } from '../../contexts/ToastContext';
@@ -942,7 +942,7 @@ export const AdminSettings: React.FC = () => {
 
             <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-stone-800">
               <span className="text-stone-400 font-mono text-[11px]">
-                File: <code className="text-emerald-300">/supabase/schema.sql</code> (~2,280 lines)
+                File: <code className="text-emerald-300">/complete_schema.sql</code> (~3,500 lines)
               </span>
               <div className="flex items-center space-x-2">
                 <button

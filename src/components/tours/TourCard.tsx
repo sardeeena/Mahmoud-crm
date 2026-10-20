@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Star, Clock, MapPin, CheckCircle2, ArrowRight, Heart, Eye, Scale, Sparkles } from 'lucide-react';
+import { Star, Clock, MapPin, CheckCircle2, ArrowRight, Heart, Eye, Scale, Sparkles, Compass } from 'lucide-react';
 import { Tour, CurrencyConfig } from '../../types';
 import { formatPrice } from '../../data/toursData';
 import { useWishlist } from '../../contexts/WishlistContext';
@@ -38,12 +38,19 @@ export const TourCard: React.FC<TourCardProps> = ({
         className="relative aspect-[16/10] overflow-hidden bg-stone-100 cursor-pointer"
         onClick={() => onViewTour(tour)}
       >
-        <img
-          src={tour.primaryImage}
-          alt={tour.title}
-          className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
-          loading="lazy"
-        />
+        {tour.primaryImage ? (
+          <img
+            src={tour.primaryImage}
+            alt={tour.title}
+            className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-stone-200 text-stone-400">
+            <Compass className="w-8 h-8 mb-1 opacity-50 text-[#0A6C74]" />
+            <span className="text-[10px] font-medium tracking-wide uppercase">Photo Coming Soon</span>
+          </div>
+        )}
 
         {/* Cinematic gradient vignette */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
@@ -134,17 +141,23 @@ export const TourCard: React.FC<TourCardProps> = ({
 
           {/* Rating */}
           <div className="flex items-center space-x-1.5 mb-2 text-xs">
-            <div className="flex text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star 
-                  key={i} 
-                  className={`w-3.5 h-3.5 ${i < Math.floor(tour.rating) ? 'fill-current' : 'fill-current opacity-25'}`} 
-                />
-              ))}
-            </div>
-            <span className="font-bold text-stone-900 text-xs font-mono">{tour.rating.toFixed(1)}</span>
-            <span className="text-stone-400">·</span>
-            <span className="text-stone-500 text-[11px]">({tour.reviewCount} reviews)</span>
+            {tour.reviewCount > 0 ? (
+              <>
+                <div className="flex text-amber-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className={`w-3.5 h-3.5 ${i < Math.floor(tour.rating) ? 'fill-current' : 'fill-current opacity-25'}`} 
+                    />
+                  ))}
+                </div>
+                <span className="font-bold text-stone-900 text-xs font-mono">{tour.rating.toFixed(1)}</span>
+                <span className="text-stone-400">·</span>
+                <span className="text-stone-500 text-[11px]">({tour.reviewCount} reviews)</span>
+              </>
+            ) : (
+              <span className="text-stone-500 text-[11px] font-medium">New Excursion</span>
+            )}
           </div>
 
           {/* Pickup info */}

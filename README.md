@@ -160,20 +160,22 @@ The platform features an authoritative **54-table relational database**:
 
 ## 🧪 Automated Testing & Verification
 
-The project includes **6 comprehensive test suites** covering safety, security, routing, and data layer persistence:
+The project includes **8 comprehensive test suites** covering safety, security, routing, password recovery, communication provider credentials, and data layer persistence:
 
 ```bash
-# Run all 6 test suites
+# Run all 8 test suites in sequence
 npm run test:all
 ```
 
 Individual test suites:
-- `npm run test:catalogue` — Catalogue dry-run verification (0 writes)
-- `npm run test:parity` — Schema parity audit (54 tables, 13 functions)
+- `npm run test:catalogue` — Catalogue dry-run verification (0 writes, 365 relational records, RFC-4122 UUIDs)
+- `npm run test:parity` — Schema parity & anti-divergence audit (55 tables, 15 functions)
 - `npm run test:security` — Admin RBAC & privilege escalation defense
 - `npm run test:abuse` — Honeypot bot traps & atomic rate limiters
 - `npm run test:routes` — Vercel SPA routing & built asset verification
-- `npm run test:admin` — Admin CRUD persistence, honest empty states, and type safety
+- `npm run test:admin` — Admin CRUD persistence, honest empty states, and RLS error surfacing
+- `npm run test:recovery` — Password recovery & Supabase session validation
+- `npm run test:comm` — Communication provider credentials strict validation & rejection
 
 TypeScript check:
 ```bash

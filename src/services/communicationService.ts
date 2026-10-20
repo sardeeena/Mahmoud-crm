@@ -364,8 +364,130 @@ export function renderTemplateVariables(
 }
 
 // ------------------------------------------------------------------------------
-// 2. PROVIDER CONFIGURATION (Strict "Not configured" state enforcement)
+// 2. PROVIDER CONFIGURATION & VALIDATION LAYER (Strict Credential Enforcement)
 // ------------------------------------------------------------------------------
+
+export class ProviderConfigurationError extends Error {
+  public readonly channel: CommunicationChannel;
+  public readonly provider: string;
+  public readonly missingFields: string[];
+
+  constructor(
+    channel: CommunicationChannel,
+    provider: string,
+    missingFields: string[],
+    details: string
+  ) {
+    super(`[${channel} Provider Configuration Error] ${details}`);
+    this.name = 'ProviderConfigurationError';
+    this.channel = channel;
+    this.provider = provider;
+    this.missingFields = missingFields;
+    Object.setPrototypeOf(this, ProviderConfigurationError.prototype);
+  }
+}
+
+/**
+ * Validates whether required email provider credentials exist.
+ * Throws a descriptive ProviderConfigurationError if configuration is incomplete or missing.
+ */
+export function validateEmailProviderCredentials(emailConfig?: ProviderConfig['email']): void {
+  const cfg = emailConfig || getProviderConfig().email;
+
+  if (!cfg || !cfg.provider || cfg.provider === 'none') {
+    throw new ProviderConfigurationError(
+      'Email',
+      'none',
+      ['provider'],
+      'Email provider is not configured. Please select a valid provider (Resend, SendGrid, or SMTP) in Communication Settings.'
+    );
+  }
+
+  const missingFields: string[] = [];
+
+  if (!cfg.apiKey || !cfg.apiKey.trim()) {
+    missingFields.push('apiKey (API Key / Auth Token)');
+  } else if (cfg.apiKey.trim().length < 6) {
+    missingFields.push('apiKey (must be at least 6 characters)');
+  }
+
+  if (!cfg.fromEmail || !cfg.fromEmail.trim()) {
+    missingFields.push('fromEmail (Sender Email Address)');
+  } else if (!cfg.fromEmail.includes('@') || !cfg.fromEmail.includes('.')) {
+    missingFields.push('fromEmail (must be a valid email address)');
+  }
+
+  if (missingFields.length > 0) {
+    throw new ProviderConfigurationError(
+      'Email',
+      cfg.provider,
+      missingFields,
+      `Incomplete credentials for email provider "${cfg.provider}". Missing or invalid required configuration: ${missingFields.join(', ')}.`
+    );
+  }
+}
+
+/**
+ * Validates whether required WhatsApp provider credentials exist.
+ * Throws a descriptive ProviderConfigurationError if configuration is incomplete or missing.
+ */
+export function validateWhatsAppProviderCredentials(whatsappConfig?: ProviderConfig['whatsapp']): void {
+  const cfg = whatsappConfig || getProviderConfig().whatsapp;
+
+  if (!cfg || !cfg.provider || cfg.provider === 'none') {
+    throw new ProviderConfigurationError(
+      'WhatsApp',
+      'none',
+      ['provider'],
+      'WhatsApp provider is not configured. Please select a valid provider (Meta Cloud API, Twilio, or Custom) in Communication Settings.'
+    );
+  }
+
+  const missingFields: string[] = [];
+
+  if (!cfg.apiKey || !cfg.apiKey.trim()) {
+    missingFields.push('apiKey (Access Token / Twilio Auth Token)');
+  } else if (cfg.apiKey.trim().length < 6) {
+    missingFields.push('apiKey (must be at least 6 characters)');
+  }
+
+  if (cfg.provider === 'meta_cloud') {
+    if (!cfg.phoneNumberId || !cfg.phoneNumberId.trim()) {
+      missingFields.push('phoneNumberId (Meta Phone Number ID)');
+    }
+  } else if (cfg.provider === 'twilio') {
+    if (!cfg.fromNumber || !cfg.fromNumber.trim()) {
+      missingFields.push('fromNumber (Twilio WhatsApp Sender Number)');
+    }
+  }
+
+  if (missingFields.length > 0) {
+    throw new ProviderConfigurationError(
+      'WhatsApp',
+      cfg.provider,
+      missingFields,
+      `Incomplete credentials for WhatsApp provider "${cfg.provider}". Missing or invalid required configuration: ${missingFields.join(', ')}.`
+    );
+  }
+}
+
+/**
+ * Universal validator for any communication channel provider credentials.
+ * Throws a descriptive ProviderConfigurationError if configuration is incomplete.
+ */
+export function validateProviderCredentials(
+  channel: CommunicationChannel,
+  config?: ProviderConfig
+): void {
+  const currentConfig = config || getProviderConfig();
+  if (channel === 'Email') {
+    validateEmailProviderCredentials(currentConfig.email);
+  } else if (channel === 'WhatsApp') {
+    validateWhatsAppProviderCredentials(currentConfig.whatsapp);
+  } else {
+    throw new Error(`Unsupported communication channel: "${channel}". Must be "Email" or "WhatsApp".`);
+  }
+}
 
 export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
   email: {
@@ -387,14 +509,34 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
 
 export function getProviderConfig(): ProviderConfig {
   const cfg = getLocal<ProviderConfig>(LOCAL_PROVIDER_CONFIG_KEY, DEFAULT_PROVIDER_CONFIG);
-  cfg.email.isConfigured = Boolean(cfg.email.apiKey && cfg.email.apiKey.trim().length > 5 && cfg.email.provider !== 'none');
-  cfg.whatsapp.isConfigured = Boolean(cfg.whatsapp.apiKey && cfg.whatsapp.apiKey.trim().length > 5 && cfg.whatsapp.provider !== 'none');
+  try {
+    validateEmailProviderCredentials(cfg.email);
+    cfg.email.isConfigured = true;
+  } catch {
+    cfg.email.isConfigured = false;
+  }
+  try {
+    validateWhatsAppProviderCredentials(cfg.whatsapp);
+    cfg.whatsapp.isConfigured = true;
+  } catch {
+    cfg.whatsapp.isConfigured = false;
+  }
   return cfg;
 }
 
 export function saveProviderConfig(config: ProviderConfig): void {
-  config.email.isConfigured = Boolean(config.email.apiKey && config.email.apiKey.trim().length > 5 && config.email.provider !== 'none');
-  config.whatsapp.isConfigured = Boolean(config.whatsapp.apiKey && config.whatsapp.apiKey.trim().length > 5 && config.whatsapp.provider !== 'none');
+  try {
+    validateEmailProviderCredentials(config.email);
+    config.email.isConfigured = true;
+  } catch {
+    config.email.isConfigured = false;
+  }
+  try {
+    validateWhatsAppProviderCredentials(config.whatsapp);
+    config.whatsapp.isConfigured = true;
+  } catch {
+    config.whatsapp.isConfigured = false;
+  }
   setLocal(LOCAL_PROVIDER_CONFIG_KEY, config);
 }
 
@@ -428,8 +570,15 @@ export async function sendEmailMessage(params: {
   const messageId = `msg-em-${Date.now().toString(36)}`;
   const now = new Date().toISOString();
 
-  // IMPORTANT: Check if email provider is actually configured
-  if (!providerConfig.email.isConfigured) {
+  // STRICT VALIDATION LAYER: Check required provider credentials before attempting dispatch
+  try {
+    validateEmailProviderCredentials(providerConfig.email);
+  } catch (validationErr: any) {
+    const descriptiveError =
+      validationErr instanceof Error
+        ? validationErr.message
+        : 'Incomplete or missing email provider credentials.';
+
     const failedMsg: CommunicationMessage = {
       id: messageId,
       channel: 'Email',
@@ -445,23 +594,17 @@ export async function sendEmailMessage(params: {
       subject: params.subject,
       content: params.content,
       status: 'failed',
-      providerName: 'Not configured',
+      providerName: providerConfig.email.provider || 'Not configured',
       providerMessageId: null,
-      failureReason: 'Email provider not configured. API credentials (Resend/SendGrid/SMTP) missing. Message dispatch rejected.',
+      failureReason: descriptiveError,
       staffName: params.staffName || 'System Dispatcher',
       createdAt: now,
     };
 
     await logCommunicationMessage(failedMsg);
 
-    return {
-      success: false,
-      status: 'failed',
-      providerName: 'Not configured',
-      failureReason: failedMsg.failureReason,
-      error: 'Email provider is not configured. Message was not dispatched.',
-      messageId,
-    };
+    // Strict validation layer throws descriptive error
+    throw validationErr;
   }
 
   // Provider IS configured -> Send request
@@ -562,8 +705,15 @@ export async function sendWhatsAppMessage(params: {
   const messageId = `msg-wa-${Date.now().toString(36)}`;
   const now = new Date().toISOString();
 
-  // IMPORTANT: Check if WhatsApp provider is actually configured
-  if (!providerConfig.whatsapp.isConfigured) {
+  // STRICT VALIDATION LAYER: Check required provider credentials before attempting dispatch
+  try {
+    validateWhatsAppProviderCredentials(providerConfig.whatsapp);
+  } catch (validationErr: any) {
+    const descriptiveError =
+      validationErr instanceof Error
+        ? validationErr.message
+        : 'Incomplete or missing WhatsApp provider credentials.';
+
     const failedMsg: CommunicationMessage = {
       id: messageId,
       channel: 'WhatsApp',
@@ -579,23 +729,17 @@ export async function sendWhatsAppMessage(params: {
       subject: null,
       content: params.content,
       status: 'failed',
-      providerName: 'Not configured',
+      providerName: providerConfig.whatsapp.provider || 'Not configured',
       providerMessageId: null,
-      failureReason: 'WhatsApp provider not configured. Meta Cloud API / Twilio credentials missing. Dispatch rejected.',
+      failureReason: descriptiveError,
       staffName: params.staffName || 'System Dispatcher',
       createdAt: now,
     };
 
     await logCommunicationMessage(failedMsg);
 
-    return {
-      success: false,
-      status: 'failed',
-      providerName: 'Not configured',
-      failureReason: failedMsg.failureReason,
-      error: 'WhatsApp provider is not configured. Message was not dispatched.',
-      messageId,
-    };
+    // Strict validation layer throws descriptive error
+    throw validationErr;
   }
 
   // Provider IS configured -> Send request
@@ -1379,31 +1523,39 @@ export async function dispatchCommunicationByTemplate(
 
   // Email dispatch
   if (tmpl.channel === 'Email' || tmpl.channel === 'Both') {
-    await sendEmailMessage({
-      recipientEmail: booking.customer.email,
-      customerName: variables.customer_name || 'Customer',
-      customerId: booking.customerId,
-      bookingId: booking.bookingId || booking.bookingReference,
-      bookingReference: booking.bookingReference,
-      templateKey: tmpl.templateKey,
-      subject: renderedSubject,
-      content: renderedContent,
-    });
+    try {
+      await sendEmailMessage({
+        recipientEmail: booking.customer.email,
+        customerName: variables.customer_name || 'Customer',
+        customerId: booking.customerId,
+        bookingId: booking.bookingId || booking.bookingReference,
+        bookingReference: booking.bookingReference,
+        templateKey: tmpl.templateKey,
+        subject: renderedSubject,
+        content: renderedContent,
+      });
+    } catch (err) {
+      console.warn(`[Communication] Automated email dispatch failed:`, err);
+    }
   }
 
   // WhatsApp dispatch
   if (tmpl.channel === 'WhatsApp' || tmpl.channel === 'Both') {
     const phone = booking.customer.whatsappNumber || `${booking.customer.countryCode || ''} ${booking.customer.phoneNumber || ''}`.trim();
     if (phone) {
-      await sendWhatsAppMessage({
-        recipientPhone: phone,
-        customerName: variables.customer_name || 'Customer',
-        customerId: booking.customerId,
-        bookingId: booking.bookingId || booking.bookingReference,
-        bookingReference: booking.bookingReference,
-        templateKey: tmpl.templateKey,
-        content: renderedContent,
-      });
+      try {
+        await sendWhatsAppMessage({
+          recipientPhone: phone,
+          customerName: variables.customer_name || 'Customer',
+          customerId: booking.customerId,
+          bookingId: booking.bookingId || booking.bookingReference,
+          bookingReference: booking.bookingReference,
+          templateKey: tmpl.templateKey,
+          content: renderedContent,
+        });
+      } catch (err) {
+        console.warn(`[Communication] Automated WhatsApp dispatch failed:`, err);
+      }
     }
   }
 }

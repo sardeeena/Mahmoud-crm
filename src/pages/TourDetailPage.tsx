@@ -193,27 +193,39 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
             </h1>
 
             {/* Rating & Review count */}
-            <div className="flex items-center space-x-3 text-xs">
-              <div className="flex text-[#C28D32]">
-                {[...Array(5)].map((_, i) => (
-                  <Star 
-                    key={i} 
-                    className={`w-4 h-4 ${i < Math.floor(tour.rating) ? 'fill-current' : 'fill-current opacity-30'}`} 
-                  />
-                ))}
-              </div>
-              <span className="font-bold text-stone-900 text-sm">
-                {tour.rating.toFixed(1)}
-              </span>
-              <span className="text-stone-400">•</span>
-              <span className="text-stone-600 font-medium">
-                {tour.reviewCount} customer reviews
-              </span>
-              <span className="text-stone-400">•</span>
-              <span className="text-emerald-700 font-semibold flex items-center">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                Hotel Pickup Included
-              </span>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+              {tour.reviewCount > 0 ? (
+                <>
+                  <div className="flex text-[#C28D32]">
+                    {[...Array(5)].map((_, i) => (
+                      <Star 
+                        key={i} 
+                        className={`w-4 h-4 ${i < Math.floor(tour.rating) ? 'fill-current' : 'fill-current opacity-30'}`} 
+                      />
+                    ))}
+                  </div>
+                  <span className="font-bold text-stone-900 text-sm">
+                    {tour.rating.toFixed(1)}
+                  </span>
+                  <span className="text-stone-400">•</span>
+                  <span className="text-stone-600 font-medium">
+                    {tour.reviewCount} customer reviews
+                  </span>
+                </>
+              ) : (
+                <span className="text-stone-500 font-medium">
+                  New Excursion · No reviews yet
+                </span>
+              )}
+              {tour.pickupAvailable && (
+                <>
+                  <span className="text-stone-400">•</span>
+                  <span className="text-emerald-700 font-semibold flex items-center">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                    Hotel Pickup Included
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -233,21 +245,23 @@ export const TourDetailPage: React.FC<TourDetailPageProps> = ({
           </div>
 
           {/* Highlights */}
-          <div className="space-y-3">
-            <h3 className="font-display text-lg font-bold text-[#0E1B2A]">
-              Experience Highlights
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {tour.highlights.map((hl, idx) => (
-                <div key={idx} className="flex items-start text-xs text-stone-700 p-2.5 rounded bg-white border border-stone-200">
-                  <div className="p-1 rounded bg-[#E8F3F4] text-[#0A6C74] mr-2.5 mt-0.5 shrink-0">
-                    <Sparkles className="w-3 h-3" />
+          {tour.highlights && tour.highlights.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-display text-lg font-bold text-[#0E1B2A]">
+                Experience Highlights
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {tour.highlights.map((hl, idx) => (
+                  <div key={idx} className="flex items-start text-xs text-stone-700 p-2.5 rounded bg-white border border-stone-200">
+                    <div className="p-1 rounded bg-[#E8F3F4] text-[#0A6C74] mr-2.5 mt-0.5 shrink-0">
+                      <Sparkles className="w-3 h-3" />
+                    </div>
+                    <span className="leading-snug">{hl}</span>
                   </div>
-                  <span className="leading-snug">{hl}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ITINERARY */}
           <div className="pt-4 border-t border-stone-200">

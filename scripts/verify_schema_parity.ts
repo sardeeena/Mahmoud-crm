@@ -56,6 +56,28 @@ function runParityCheck() {
     }
   }
 
+  // Canonical baseline required tables (enforces that objects missing from BOTH files are caught)
+  const REQUIRED_CANONICAL_TABLES = [
+    'audit_logs', 'automation_events', 'booking_extras', 'booking_passengers', 'bookings',
+    'categories', 'communication_messages', 'communication_templates', 'coupons',
+    'crm_activities', 'crm_communications', 'crm_conversations', 'crm_lead_stages',
+    'crm_notes', 'crm_segments', 'crm_tags', 'crm_tasks', 'customers', 'departures',
+    'destinations', 'faqs', 'guides', 'inquiries', 'invoices', 'leads', 'media_assets',
+    'newsletter_subscriptions', 'operational_assignments', 'payment_providers',
+    'payment_transactions', 'pickup_locations', 'pickup_schedules', 'profiles',
+    'rate_limit_buckets', 'refund_records', 'reviews', 'seo_metadata', 'site_settings',
+    'staff_notifications', 'tour_assigned_extras', 'tour_availability', 'tour_categories',
+    'tour_exclusions', 'tour_extras', 'tour_faqs', 'tour_highlights', 'tour_images',
+    'tour_inclusions', 'tour_itinerary', 'tour_pickup_locations', 'tour_vessels',
+    'tour_videos', 'tours', 'vessels', 'weather_bulletins'
+  ];
+
+  const missingFromBaseline = REQUIRED_CANONICAL_TABLES.filter((t) => !completeTables.has(t));
+  if (missingFromBaseline.length > 0) {
+    console.error('❌ Parity Failure: Canonical tables missing from complete_schema.sql:', missingFromBaseline);
+    process.exit(1);
+  }
+
   const missingInMig = [...completeTables].filter((t) => !migrationTables.has(t));
   const missingInComplete = [...migrationTables].filter((t) => !completeTables.has(t));
 
@@ -65,7 +87,7 @@ function runParityCheck() {
     if (missingInComplete.length) console.error('   In migrations but missing in complete_schema:', missingInComplete);
     process.exit(1);
   }
-  console.log(`✓ Table Parity: Exact match across all ${completeTables.size} canonical tables.`);
+  console.log(`✓ Table Parity: Exact match across all ${completeTables.size} canonical tables (including rate_limit_buckets).`);
 
   // 2. Audit Functions
   const completeFns = new Set<string>();
@@ -82,6 +104,31 @@ function runParityCheck() {
     while ((m2 = r2.exec(content)) !== null) {
       migrationFns.add(m2[1].toLowerCase());
     }
+  }
+
+  // Canonical baseline required functions & RPCs
+  const REQUIRED_CANONICAL_FUNCTIONS = [
+    'check_atomic_rate_limit',
+    'check_public_submission_rate_limit',
+    'create_booking_atomic',
+    'get_executive_bi_metrics',
+    'get_tour_availability_schedule',
+    'handle_new_user',
+    'handle_updated_at',
+    'handle_user_confirmed',
+    'is_admin',
+    'lookup_booking_secure',
+    'protect_profile_role',
+    'query_custom_bi_report',
+    'recalculate_customer_stats',
+    'request_booking_cancellation_secure',
+    'set_admin_role_by_email'
+  ];
+
+  const missingFnsFromBaseline = REQUIRED_CANONICAL_FUNCTIONS.filter((f) => !completeFns.has(f));
+  if (missingFnsFromBaseline.length > 0) {
+    console.error('❌ Parity Failure: Canonical functions missing from complete_schema.sql:', missingFnsFromBaseline);
+    process.exit(1);
   }
 
   const missingFnInMig = [...completeFns].filter((f) => !migrationFns.has(f));
