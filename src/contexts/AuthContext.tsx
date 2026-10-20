@@ -58,8 +58,8 @@ interface AuthContextType {
   resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   resendVerification: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   confirmEmail: (email: string, token?: string) => Promise<{ success: boolean; error?: string }>;
-  resetPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; resetCode?: string }>;
-  sendPasswordReset: (email: string) => Promise<{ success: boolean; error?: string; message?: string; resetCode?: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  sendPasswordReset: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   updatePassword: (newPassword: string, email?: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: Partial<AppUser>) => Promise<{ success: boolean; error?: string }>;
   validatePassword: (password: string) => { isValid: boolean; score: number; feedback: string[] };
@@ -232,34 +232,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isSupabaseConfigured()) {
       // Exchange code or token_hash if landing directly from an email confirmation link
+      // Do not compete with ResetPasswordPage which handles recovery tokens directly
       try {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
-        const tokenHash = params.get('token_hash');
-        const otpType = params.get('type') || 'signup';
+        const isResetPath =
+          typeof window !== 'undefined' &&
+          (window.location.pathname === '/reset-password' || window.location.pathname === '/forgot-password');
 
-        if (code) {
-          supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-            if (!error && data?.user) {
-              refreshUser();
-            }
-          }).catch((err) => console.warn('Global PKCE exchange notice:', err));
-        } else if (tokenHash) {
-          supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: (otpType as any) || 'signup',
-          }).then(({ data, error }) => {
-            if (!error && data?.user) {
-              refreshUser();
-            }
-          }).catch((err) => console.warn('Global verifyOtp notice:', err));
+        if (!isResetPath) {
+          const params = new URLSearchParams(window.location.search);
+          const code = params.get('code');
+          const tokenHash = params.get('token_hash');
+          const otpType = params.get('type') || 'signup';
+
+          if (code) {
+            supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+              if (!error && data?.user) {
+                refreshUser();
+              }
+            }).catch((err) => console.warn('Global PKCE exchange notice:', err));
+          } else if (tokenHash) {
+            supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: (otpType as any) || 'signup',
+            }).then(({ data, error }) => {
+              if (!error && data?.user) {
+                refreshUser();
+              }
+            }).catch((err) => console.warn('Global verifyOtp notice:', err));
+          }
         }
       } catch {
         // ignore
       }
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'PASSWORD_RECOVERY') {
           await refreshUser();
         } else if (event === 'SIGNED_OUT') {
           setUser(null);

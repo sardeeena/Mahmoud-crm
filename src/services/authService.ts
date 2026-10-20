@@ -535,7 +535,7 @@ export async function confirmUserEmail(
  */
 export async function resetPasswordRequest(
   email: string
-): Promise<{ success: boolean; error?: string; message?: string; resetCode?: string }> {
+): Promise<{ success: boolean; error?: string; message?: string }> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) {
     return { success: false, error: 'Please enter your email address.' };
@@ -543,25 +543,24 @@ export async function resetPasswordRequest(
 
   if (isSupabaseConfigured()) {
     try {
+      const redirectOrigin = typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'https://mahmoud-crm-eosin.vercel.app';
+
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${redirectOrigin}/reset-password`,
       });
       if (error) {
-        console.warn('Supabase reset warning:', error);
+        return { success: false, error: formatSupabaseError(error) };
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      return { success: false, error: formatSupabaseError(err) };
     }
   }
 
-  // Generate a friendly 6-digit confirmation recovery code for test verification
-  const testCode = Math.floor(100000 + Math.random() * 900000).toString();
-  sessionStorage.setItem(`rse_reset_${cleanEmail}`, testCode);
-
   return {
     success: true,
-    message: `Password reset instructions have been sent to ${cleanEmail}. Check your inbox.`,
-    resetCode: testCode,
+    message: `If an account exists for ${cleanEmail}, a password recovery link has been sent. Please check your inbox and spam folder.`,
   };
 }
 

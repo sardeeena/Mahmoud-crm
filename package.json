@@ -16,7 +16,8 @@
     "test:security": "tsx scripts/test_admin_security.ts",
     "test:abuse": "tsx scripts/test_abuse_prevention.ts",
     "test:routes": "tsx scripts/test_routes.ts",
-    "test:all": "tsx scripts/test_catalogue_import.ts && tsx scripts/verify_schema_parity.ts && tsx scripts/test_admin_security.ts && tsx scripts/test_abuse_prevention.ts && tsx scripts/test_routes.ts && tsx scripts/test_admin_dashboard_persistence.ts"
+    "test:recovery": "tsx scripts/test_password_recovery.ts",
+    "test:all": "tsx scripts/test_catalogue_import.ts && tsx scripts/verify_schema_parity.ts && tsx scripts/test_admin_security.ts && tsx scripts/test_abuse_prevention.ts && tsx scripts/test_routes.ts && tsx scripts/test_admin_dashboard_persistence.ts && tsx scripts/test_password_recovery.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
