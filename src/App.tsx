@@ -25,11 +25,11 @@ import { RegisterPage } from './pages/RegisterPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AccountPage } from './pages/AccountPage';
 import { ALL_TOURS, CURRENCY_CONFIGS } from './data/toursData';
-import { Tour, CurrencyConfig } from './types';
+import { Tour, CurrencyConfig, Destination, Category } from './types';
 import { Booking } from './types/booking';
 import { bookingRepository } from './services/bookingRepository';
 import { saveBookingDraft, loadBookingDraft } from './services/draftStorage';
-import { getPublishedTours, getTourBySlug } from './services/tourService';
+import { getPublishedTours, getTourBySlug, getPublishedDestinations, getPublishedCategories } from './services/tourService';
 import { isSupabaseConfigured } from './services/supabaseClient';
 import { seoService } from './services/seoService';
 import { getPageSeo } from './services/seoConfig';
@@ -115,6 +115,15 @@ function MainApp() {
   const [liveTours, setLiveTours] = useState<Tour[]>([]);
   const [loadingTours, setLoadingTours] = useState<boolean>(true);
 
+  // Live published destinations & categories loaded dynamically from Supabase
+  const [liveDestinations, setLiveDestinations] = useState<Destination[]>([]);
+  const [loadingDestinations, setLoadingDestinations] = useState<boolean>(true);
+  const [destinationsError, setDestinationsError] = useState<string | null>(null);
+
+  const [liveCategories, setLiveCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState<boolean>(true);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+
   // Drawer / Modal states
   const [isWishlistOpen, setIsWishlistOpen] = useState<boolean>(false);
   const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
@@ -156,9 +165,52 @@ function MainApp() {
     }
   }, []);
 
+  const refreshPublishedDestinations = useCallback(async () => {
+    setLoadingDestinations(true);
+    setDestinationsError(null);
+    try {
+      const data = await getPublishedDestinations();
+      setLiveDestinations(data || []);
+    } catch (err: any) {
+      console.warn('Failed to load published destinations from Supabase:', err);
+      setDestinationsError(err.message || 'Unable to load destinations from database.');
+      setLiveDestinations([]);
+    } finally {
+      setLoadingDestinations(false);
+    }
+  }, []);
+
+  const refreshPublishedCategories = useCallback(async () => {
+    setLoadingCategories(true);
+    setCategoriesError(null);
+    try {
+      const data = await getPublishedCategories();
+      setLiveCategories(data || []);
+    } catch (err: any) {
+      console.warn('Failed to load published categories from Supabase:', err);
+      setCategoriesError(err.message || 'Unable to load categories from database.');
+      setLiveCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, []);
+
   useEffect(() => {
     refreshPublishedTours();
-  }, [refreshPublishedTours]);
+    refreshPublishedDestinations();
+    refreshPublishedCategories();
+  }, [refreshPublishedTours, refreshPublishedDestinations, refreshPublishedCategories]);
+
+  // Synchronize dynamic catalogue when admin mutations occur
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      refreshPublishedTours();
+      refreshPublishedDestinations();
+      refreshPublishedCategories();
+    };
+    window.addEventListener('rse_data_updated', handleDataUpdated);
+    return () => window.removeEventListener('rse_data_updated', handleDataUpdated);
+  }, [refreshPublishedTours, refreshPublishedDestinations, refreshPublishedCategories]);
 
   // Sync browser back/forward buttons
   useEffect(() => {
@@ -1029,6 +1081,8 @@ function MainApp() {
           isLoading={loadingTours}
           initialDestination={initialSearchFilter.destination}
           initialCategory={initialSearchFilter.category}
+          destinations={liveDestinations}
+          categories={liveCategories}
           onNavigateHome={() => navigate('/')}
           onViewTour={handleViewTour}
           onBookTour={handleStartBooking}
@@ -1044,6 +1098,8 @@ function MainApp() {
           <Hero
             onSearch={handleHeroSearch}
             resultCount={liveTours.length}
+            destinations={liveDestinations}
+            categories={liveCategories}
           />
 
           {/* Popular Tours Section with Skeleton Loading */}
@@ -1058,6 +1114,10 @@ function MainApp() {
 
           {/* Experience Categories */}
           <ExperienceCategories
+            categories={liveCategories}
+            isLoading={loadingCategories}
+            error={categoriesError}
+            onRetry={refreshPublishedCategories}
             onSelectCategory={handleSelectHomeCategory}
           />
 
@@ -1066,6 +1126,10 @@ function MainApp() {
 
           {/* Destinations */}
           <DestinationsSection
+            destinations={liveDestinations}
+            isLoading={loadingDestinations}
+            error={destinationsError}
+            onRetry={refreshPublishedDestinations}
             onSelectDestination={handleSelectHomeDestination}
           />
 

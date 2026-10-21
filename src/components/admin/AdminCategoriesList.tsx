@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, Plus, Edit2, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
-import { getCategories } from '../../services/tourService';
+import { getCategories, notifyCatalogueDataChanged } from '../../services/tourService';
 import { DbCategory } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
@@ -98,6 +98,7 @@ export const AdminCategoriesList: React.FC = () => {
       }
 
       await loadData();
+      notifyCatalogueDataChanged('categories');
       showToast('Category saved successfully.', 'success');
       setEditingCategory(null);
     } catch (err: any) {
@@ -113,6 +114,7 @@ export const AdminCategoriesList: React.FC = () => {
 
     if (!isSupabaseConfigured()) {
       setCategories(categories.filter((c) => c.id !== categoryToDelete.id));
+      notifyCatalogueDataChanged('categories');
       showToast(`Category "${categoryToDelete.name}" removed from local state`, 'info');
       setCategoryToDelete(null);
       setIsDeleting(false);
@@ -122,6 +124,7 @@ export const AdminCategoriesList: React.FC = () => {
     try {
       const { error } = await supabase.from('categories').delete().eq('id', categoryToDelete.id);
       if (error) throw error;
+      notifyCatalogueDataChanged('categories');
       showToast(`Category "${categoryToDelete.name}" deleted successfully`, 'success');
       await loadData();
       setCategoryToDelete(null);

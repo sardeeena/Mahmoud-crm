@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Compass, Calendar, Users, X, ChevronDown } from 'lucide-react';
-import { POPULAR_DESTINATIONS, TOUR_CATEGORIES } from '../../data/toursData';
+import { Destination, Category } from '../../types';
+import { getPublishedDestinations, getPublishedCategories } from '../../services/tourService';
 
 interface TourSearchProps {
   searchQuery: string;
@@ -15,6 +16,8 @@ interface TourSearchProps {
   onGuestsChange: (guests: number) => void;
   activeCategoryTab: string;
   onSelectCategoryTab: (category: string) => void;
+  destinations?: Destination[];
+  categories?: Category[];
 }
 
 export const TourSearch: React.FC<TourSearchProps> = ({
@@ -30,18 +33,40 @@ export const TourSearch: React.FC<TourSearchProps> = ({
   onGuestsChange,
   activeCategoryTab,
   onSelectCategoryTab,
+  destinations: propDestinations,
+  categories: propCategories,
 }) => {
-  const categoryTabs = [
-    'All',
-    'Boat Trips',
-    'Snorkeling',
-    'Diving',
-    'Safari',
-    'Water Sports',
-    'Private Tours',
-    'City Tours',
-    'Transfers'
-  ];
+  const [internalDestinations, setInternalDestinations] = useState<Destination[]>([]);
+  const [internalCategories, setInternalCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (!propDestinations) {
+      getPublishedDestinations().then(setInternalDestinations).catch(() => setInternalDestinations([]));
+    }
+  }, [propDestinations]);
+
+  useEffect(() => {
+    if (!propCategories) {
+      getPublishedCategories().then(setInternalCategories).catch(() => setInternalCategories([]));
+    }
+  }, [propCategories]);
+
+  const destinations = propDestinations || internalDestinations;
+  const categories = propCategories || internalCategories;
+
+  const categoryTabs = categories.length > 0 
+    ? ['All', ...categories.map((c) => c.name)]
+    : [
+        'All',
+        'Boat Trips',
+        'Snorkeling',
+        'Diving',
+        'Safari',
+        'Water Sports',
+        'Private Tours',
+        'City Tours',
+        'Transfers'
+      ];
 
   return (
     <div className="w-full space-y-4">
@@ -88,7 +113,7 @@ export const TourSearch: React.FC<TourSearchProps> = ({
                 className="w-full pl-8 pr-6 py-2 rounded-sm border border-stone-200 bg-stone-50/50 text-[#0E1B2A] text-xs focus:outline-none focus:ring-1 focus:ring-[#0A6C74] appearance-none"
               >
                 <option value="All">All Destinations</option>
-                {POPULAR_DESTINATIONS.map((d) => (
+                {destinations.map((d) => (
                   <option key={d.id} value={d.name}>{d.name}</option>
                 ))}
               </select>

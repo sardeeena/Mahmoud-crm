@@ -16,12 +16,15 @@ import {
   Flame
 } from 'lucide-react';
 import { SearchModule } from './SearchModule';
+import { Destination, Category } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface HeroProps {
   onSearch: (filters: { destination: string; category: string; date: string; guests: number }) => void;
   resultCount?: number;
+  destinations?: Destination[];
+  categories?: Category[];
 }
 
 interface TourSlide {
@@ -118,7 +121,7 @@ const CINEMATIC_SLIDES: TourSlide[] = [
   }
 ];
 
-export const Hero: React.FC<HeroProps> = ({ onSearch, resultCount }) => {
+export const Hero: React.FC<HeroProps> = ({ onSearch, resultCount, destinations, categories }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -308,7 +311,7 @@ export const Hero: React.FC<HeroProps> = ({ onSearch, resultCount }) => {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="w-full max-w-5xl mb-8"
         >
-          <SearchModule onSearch={onSearch} resultCount={resultCount} />
+          <SearchModule onSearch={onSearch} resultCount={resultCount} destinations={destinations} categories={categories} />
         </motion.div>
 
         {/* Practical Trust Guarantees */}

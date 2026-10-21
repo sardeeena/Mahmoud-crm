@@ -11,17 +11,41 @@ import {
   Plus, 
   Minus 
 } from 'lucide-react';
-import { SearchFilters } from '../../types';
-import { POPULAR_DESTINATIONS, TOUR_CATEGORIES } from '../../data/toursData';
+import { SearchFilters, Destination, Category } from '../../types';
+import { getPublishedDestinations, getPublishedCategories } from '../../services/tourService';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface SearchModuleProps {
   onSearch: (filters: { destination: string; category: string; date: string; guests: number }) => void;
   resultCount?: number;
+  destinations?: Destination[];
+  categories?: Category[];
 }
 
-export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCount }) => {
+export const SearchModule: React.FC<SearchModuleProps> = ({
+  onSearch,
+  resultCount,
+  destinations: propDestinations,
+  categories: propCategories,
+}) => {
   const { t } = useLanguage();
+  const [internalDestinations, setInternalDestinations] = useState<Destination[]>([]);
+  const [internalCategories, setInternalCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (!propDestinations) {
+      getPublishedDestinations().then(setInternalDestinations).catch(() => setInternalDestinations([]));
+    }
+  }, [propDestinations]);
+
+  useEffect(() => {
+    if (!propCategories) {
+      getPublishedCategories().then(setInternalCategories).catch(() => setInternalCategories([]));
+    }
+  }, [propCategories]);
+
+  const destinations = propDestinations || internalDestinations;
+  const categories = propCategories || internalCategories;
   const [destination, setDestination] = useState<string>('All Destinations');
   const [category, setCategory] = useState<string>('All Activities');
   const [date, setDate] = useState<string>('');
@@ -117,7 +141,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
                     <span className="font-semibold text-stone-900">{t('search.allDestinations')}</span>
                     {destination === 'All Destinations' && <Check className="w-3.5 h-3.5 text-[#0A6C74]" />}
                   </button>
-                  {POPULAR_DESTINATIONS.map((d) => (
+                  {destinations.map((d) => (
                     <button
                       key={d.id}
                       type="button"
@@ -126,7 +150,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
                     >
                       <div>
                         <span className="font-medium text-stone-800">{d.name}</span>
-                        <span className="block text-[10px] text-stone-400">{d.tourCount} excursions</span>
+                        <span className="block text-[10px] text-stone-400">{d.tourCount} {d.tourCount === 1 ? 'excursion' : 'excursions'}</span>
                       </div>
                       {destination === d.name && <Check className="w-3.5 h-3.5 text-[#0A6C74]" />}
                     </button>
@@ -175,7 +199,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
                     <span className="font-semibold text-stone-900">{t('search.allActivities')}</span>
                     {category === 'All Activities' && <Check className="w-3.5 h-3.5 text-[#0A6C74]" />}
                   </button>
-                  {TOUR_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <button
                       key={c.id}
                       type="button"
@@ -184,7 +208,7 @@ export const SearchModule: React.FC<SearchModuleProps> = ({ onSearch, resultCoun
                     >
                       <div>
                         <span className="font-medium text-stone-800">{c.name}</span>
-                        <span className="block text-[10px] text-stone-400">{c.tourCount} options</span>
+                        <span className="block text-[10px] text-stone-400">{c.tourCount} {c.tourCount === 1 ? 'option' : 'options'}</span>
                       </div>
                       {category === c.name && <Check className="w-3.5 h-3.5 text-[#0A6C74]" />}
                     </button>

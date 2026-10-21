@@ -24,7 +24,7 @@ import {
   DbTourAvailability,
   DbSeoMetadata,
 } from '../types/database';
-import { ALL_TOURS, POPULAR_DESTINATIONS, TOUR_CATEGORIES, RECENT_REVIEWS } from '../data/toursData';
+import { ALL_TOURS, RECENT_REVIEWS } from '../data/toursData';
 
 /**
  * Transforms database tour record with related collections into the frontend Tour structure
@@ -115,8 +115,6 @@ export function mapDbTourToFrontendTour(
  * Local store for in-browser changes when running without live Supabase credentials
  */
 let localTours: Tour[] = [...ALL_TOURS];
-let localDestinations: Destination[] = [...POPULAR_DESTINATIONS];
-let localCategories: Category[] = [...TOUR_CATEGORIES];
 
 export interface TourFilterOptions {
   destination?: string;
@@ -988,6 +986,8 @@ async function syncTourRelations(tourId: string, payload: AdminTourPayload): Pro
       updated_at: new Date().toISOString(),
     }, { onConflict: 'entity_type,entity_id' });
   }
+
+  notifyCatalogueDataChanged('tours');
 }
 
 /**
@@ -997,6 +997,7 @@ export async function adminSetTourStatus(id: string, status: 'draft' | 'publishe
   if (!isSupabaseConfigured() || isSchemaMissing()) {
     const t = localTours.find((item) => item.id === id);
     if (t) (t as any).status = status;
+    notifyCatalogueDataChanged('tours');
     return;
   }
 
@@ -1011,10 +1012,12 @@ export async function adminSetTourStatus(id: string, status: 'draft' | 'publishe
         setSchemaMissing(true);
         const t = localTours.find((item) => item.id === id);
         if (t) (t as any).status = status;
+        notifyCatalogueDataChanged('tours');
         return;
       }
       throw new Error(formatSupabaseError(error));
     }
+    notifyCatalogueDataChanged('tours');
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
@@ -1075,14 +1078,17 @@ export async function adminDeleteTour(id: string): Promise<void> {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
         localTours = localTours.filter((t) => t.id !== id);
+        notifyCatalogueDataChanged('tours');
         return;
       }
       throw new Error(formatSupabaseError(error));
     }
+    notifyCatalogueDataChanged('tours');
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
       localTours = localTours.filter((t) => t.id !== id);
+      notifyCatalogueDataChanged('tours');
       return;
     }
     throw err;
@@ -1090,103 +1096,202 @@ export async function adminDeleteTour(id: string): Promise<void> {
 }
 
 // ==============================================================================
-// DESTINATIONS & CATEGORIES SERVICES
+// DESTINATIONS & CATEGORIES SERVICES (GENUINE DATABASE-DRIVEN)
 // ==============================================================================
 
-const getLocalDestinationsList = (): DbDestination[] =>
-  localDestinations.map((d, i) => ({
-    id: d.id,
-    name: d.name,
-    slug: d.slug,
-    tagline: d.tagline,
-    description: d.description,
-    main_image: d.image,
-    gallery: [],
-    distance_from_airport: d.distanceFromAirport,
-    seo_title: `${d.name} Excursions & Boat Trips`,
-    seo_description: d.description,
-    seo_keywords: [d.name.toLowerCase(), 'red sea', 'boat tours'],
-    status: 'published',
-    sort_order: i + 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }));
+export const NEUTRAL_DESTINATION_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'%3E%3Crect width='100%25' height='100%25' fill='%23132235'/%3E%3Ccircle cx='400' cy='240' r='50' fill='%231e334d'/%3E%3Cpath d='M200 480l120-130 90 90 140-150 110 190H200z' fill='%231e334d'/%3E%3C/svg%3E";
 
-export async function getDestinations(): Promise<DbDestination[]> {
-  if (!isSupabaseConfigured() || isSchemaMissing()) {
-    return getLocalDestinationsList();
-  }
+export const NEUTRAL_CATEGORY_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'%3E%3Crect width='100%25' height='100%25' fill='%230f172a'/%3E%3Ccircle cx='400' cy='260' r='48' fill='%231e293b'/%3E%3Cpath d='M300 440c0-60 45-100 100-100s100 40 100 100' fill='%231e293b'/%3E%3C/svg%3E";
 
-  try {
-    const { data, error } = await supabase
-      .from('destinations')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (error) {
-      if (isSchemaMissingError(error)) {
-        setSchemaMissing(true);
-        return getLocalDestinationsList();
-      }
-      console.error('Failed to query destinations from Supabase:', formatSupabaseError(error));
-      return [];
-    }
-    return (data || []) as DbDestination[];
-  } catch (err) {
-    if (isSchemaMissingError(err)) {
-      setSchemaMissing(true);
-      return getLocalDestinationsList();
-    }
-    console.error('Destinations query exception:', err);
-    return [];
+/**
+ * Notifies the frontend when catalogue records (tours, destinations, categories) are mutated in Admin
+ */
+export function notifyCatalogueDataChanged(entity?: 'tours' | 'destinations' | 'categories') {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('rse_data_updated', { detail: { entity } }));
   }
 }
 
-const getLocalCategoriesList = (): DbCategory[] =>
-  localCategories.map((c, i) => ({
+/**
+ * Fetches all published destinations for the public website with real dynamic tour counts
+ */
+export async function getPublishedDestinations(): Promise<Destination[]> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase database credentials are not configured.');
+  }
+
+  // 1. Fetch published destinations ordered by sort_order
+  const { data: dests, error: destError } = await supabase
+    .from('destinations')
+    .select('*')
+    .eq('status', 'published')
+    .order('sort_order', { ascending: true });
+
+  if (destError) {
+    console.error('Failed to query published destinations:', formatSupabaseError(destError));
+    throw new Error(formatSupabaseError(destError));
+  }
+
+  if (!dests || dests.length === 0) {
+    return [];
+  }
+
+  // 2. Fetch published tours to accurately calculate tour counts
+  const { data: toursData, error: toursError } = await supabase
+    .from('tours')
+    .select('id, destination_id')
+    .eq('status', 'published');
+
+  if (toursError) {
+    console.warn('Could not query published tours for destination count:', formatSupabaseError(toursError));
+  }
+
+  const countMap: Record<string, number> = {};
+  if (toursData) {
+    for (const t of toursData) {
+      if (t.destination_id) {
+        countMap[t.destination_id] = (countMap[t.destination_id] || 0) + 1;
+      }
+    }
+  }
+
+  return dests.map((d: DbDestination) => ({
+    id: d.id,
+    name: d.name,
+    slug: d.slug,
+    image: d.main_image || NEUTRAL_DESTINATION_PLACEHOLDER,
+    tagline: d.tagline || '',
+    tourCount: countMap[d.id] || 0,
+    description: d.description || '',
+    highlights: Array.isArray(d.seo_keywords) ? d.seo_keywords : [],
+    distanceFromAirport: d.distance_from_airport || '',
+  }));
+}
+
+/**
+ * Fetches all published categories for the public website with real dynamic tour counts
+ */
+export async function getPublishedCategories(): Promise<Category[]> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase database credentials are not configured.');
+  }
+
+  // 1. Fetch published categories ordered by sort_order
+  const { data: cats, error: catError } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('status', 'published')
+    .order('sort_order', { ascending: true });
+
+  if (catError) {
+    console.error('Failed to query published categories:', formatSupabaseError(catError));
+    throw new Error(formatSupabaseError(catError));
+  }
+
+  if (!cats || cats.length === 0) {
+    return [];
+  }
+
+  // 2. Fetch published tour category relations to calculate real tour counts
+  const countMap: Record<string, number> = {};
+
+  try {
+    const { data: tcData, error: tcError } = await supabase
+      .from('tour_categories')
+      .select('category_id, tours!inner(id, status)')
+      .eq('tours.status', 'published');
+
+    if (!tcError && tcData) {
+      for (const item of tcData as any[]) {
+        if (item.category_id) {
+          countMap[item.category_id] = (countMap[item.category_id] || 0) + 1;
+        }
+      }
+    } else {
+      const { data: toursWithTc } = await supabase
+        .from('tours')
+        .select('id, tour_categories(category_id)')
+        .eq('status', 'published');
+
+      if (toursWithTc) {
+        for (const t of toursWithTc as any[]) {
+          if (Array.isArray(t.tour_categories)) {
+            for (const tc of t.tour_categories) {
+              if (tc.category_id) {
+                countMap[tc.category_id] = (countMap[tc.category_id] || 0) + 1;
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (countErr) {
+    console.warn('Could not calculate category tour counts:', countErr);
+  }
+
+  return cats.map((c: DbCategory) => ({
     id: c.id,
     name: c.name,
     slug: c.slug,
-    description: c.description,
-    image: c.image,
-    icon_name: c.iconName,
-    seo_title: `${c.name} in Red Sea`,
-    seo_description: c.description,
-    seo_keywords: [c.name.toLowerCase()],
-    status: 'published',
-    sort_order: i + 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    iconName: c.icon_name || 'Compass',
+    image: c.image || NEUTRAL_CATEGORY_PLACEHOLDER,
+    tourCount: countMap[c.id] || 0,
+    description: c.description || '',
   }));
+}
 
-export async function getCategories(): Promise<DbCategory[]> {
-  if (!isSupabaseConfigured() || isSchemaMissing()) {
-    return getLocalCategoriesList();
+/**
+ * Lists destinations for admin management or selective filtering
+ */
+export async function getDestinations(options?: { publishedOnly?: boolean }): Promise<DbDestination[]> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase database credentials are not configured.');
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('sort_order', { ascending: true });
+  let query = supabase
+    .from('destinations')
+    .select('*')
+    .order('sort_order', { ascending: true });
 
-    if (error) {
-      if (isSchemaMissingError(error)) {
-        setSchemaMissing(true);
-        return getLocalCategoriesList();
-      }
-      console.error('Failed to query categories from Supabase:', formatSupabaseError(error));
-      return [];
-    }
-    return (data || []) as DbCategory[];
-  } catch (err) {
-    if (isSchemaMissingError(err)) {
-      setSchemaMissing(true);
-      return getLocalCategoriesList();
-    }
-    console.error('Categories query exception:', err);
-    return [];
+  if (options?.publishedOnly) {
+    query = query.eq('status', 'published');
   }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Failed to query destinations from Supabase:', formatSupabaseError(error));
+    throw new Error(formatSupabaseError(error));
+  }
+  return (data || []) as DbDestination[];
+}
+
+/**
+ * Lists categories for admin management or selective filtering
+ */
+export async function getCategories(options?: { publishedOnly?: boolean }): Promise<DbCategory[]> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase database credentials are not configured.');
+  }
+
+  let query = supabase
+    .from('categories')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (options?.publishedOnly) {
+    query = query.eq('status', 'published');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Failed to query categories from Supabase:', formatSupabaseError(error));
+    throw new Error(formatSupabaseError(error));
+  }
+  return (data || []) as DbCategory[];
 }
 
 const DEFAULT_PICKUP_LOCATIONS: DbPickupLocation[] = [

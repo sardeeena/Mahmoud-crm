@@ -31,6 +31,7 @@ import {
   saveProviderConfig,
   renderTemplateVariables,
   getWhatsAppDirectUrl,
+  ProviderConfigurationError,
 } from '../../../services/communicationService';
 import {
   CommunicationMessage,
@@ -185,13 +186,34 @@ export const CommunicationsWhatsApp: React.FC<CommunicationsWhatsAppProps> = ({ 
         setSelectedBookingRef('');
         setSelectedTemplateKey('');
       } else {
-        showToast(res.error || 'WhatsApp dispatch recorded as Failed. Provider not configured.', 'error');
+        showToast(
+          res.error || res.failureReason || 'WhatsApp dispatch recorded as Failed. Provider not configured.',
+          'error',
+          6000
+        );
       }
-
-      await loadData();
     } catch (err: any) {
-      showToast(err?.message || 'Error occurred while sending WhatsApp message', 'error');
+      const isConfigError =
+        err instanceof ProviderConfigurationError ||
+        err?.name === 'ProviderConfigurationError' ||
+        Array.isArray(err?.missingFields);
+
+      if (isConfigError) {
+        const missingFields =
+          Array.isArray(err.missingFields) && err.missingFields.length > 0
+            ? err.missingFields.join(', ')
+            : null;
+
+        const errorToast = missingFields
+          ? `${err.message} (Missing field: ${missingFields})`
+          : err.message || 'WhatsApp provider configuration error. Missing required credentials.';
+
+        showToast(errorToast, 'error', 7000);
+      } else {
+        showToast(err?.message || 'Error occurred while sending WhatsApp message', 'error', 5000);
+      }
     } finally {
+      await loadData();
       setSending(false);
     }
   };
@@ -228,13 +250,14 @@ export const CommunicationsWhatsApp: React.FC<CommunicationsWhatsAppProps> = ({ 
       },
     };
     saveProviderConfig(newConfig);
-    setProviderConfig(getProviderConfig());
+    const updatedConfig = getProviderConfig();
+    setProviderConfig(updatedConfig);
     setIsSettingsOpen(false);
     showToast(
-      newConfig.whatsapp.isConfigured
-        ? `WhatsApp provider connected (${newConfig.whatsapp.provider})`
-        : 'WhatsApp provider set to unconfigured',
-      newConfig.whatsapp.isConfigured ? 'success' : 'info'
+      updatedConfig.whatsapp.isConfigured
+        ? `WhatsApp provider connected (${updatedConfig.whatsapp.provider})`
+        : 'WhatsApp provider set to unconfigured / incomplete credentials',
+      updatedConfig.whatsapp.isConfigured ? 'success' : 'info'
     );
   };
 

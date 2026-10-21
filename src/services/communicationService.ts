@@ -21,21 +21,33 @@ const LOCAL_NOTIFS_KEY = 'rse_staff_notifications';
 const LOCAL_PROVIDER_CONFIG_KEY = 'rse_provider_config';
 const LOCAL_AUTO_EVENTS_KEY = 'rse_automation_events';
 
+const memoryStore = new Map<string, string>();
+
 function getLocal<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(key);
+      if (raw !== null && raw !== undefined) {
+        return JSON.parse(raw);
+      }
+    }
   } catch {
-    return fallback;
+    // fallback to memoryStore
   }
+  const mem = memoryStore.get(key);
+  return mem ? JSON.parse(mem) : fallback;
 }
 
 function setLocal<T>(key: string, data: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(data));
+      return;
+    }
   } catch {
-    // ignore
+    // fallback to memoryStore
   }
+  memoryStore.set(key, JSON.stringify(data));
 }
 
 // ------------------------------------------------------------------------------

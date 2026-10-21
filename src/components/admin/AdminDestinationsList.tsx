@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Plus, Edit2, Trash2, CheckCircle, ExternalLink, AlertTriangle } from 'lucide-react';
-import { getDestinations } from '../../services/tourService';
+import { getDestinations, notifyCatalogueDataChanged } from '../../services/tourService';
 import { DbDestination } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
@@ -107,6 +107,7 @@ export const AdminDestinationsList: React.FC = () => {
       }
 
       await loadData();
+      notifyCatalogueDataChanged('destinations');
       showToast('Destination saved successfully.', 'success');
       setEditingDest(null);
     } catch (err: any) {
@@ -122,6 +123,7 @@ export const AdminDestinationsList: React.FC = () => {
 
     if (!isSupabaseConfigured()) {
       setDestinations(destinations.filter((d) => d.id !== destinationToDelete.id));
+      notifyCatalogueDataChanged('destinations');
       showToast(`Destination "${destinationToDelete.name}" removed from local state`, 'info');
       setDestinationToDelete(null);
       setIsDeleting(false);
@@ -131,6 +133,7 @@ export const AdminDestinationsList: React.FC = () => {
     try {
       const { error } = await supabase.from('destinations').delete().eq('id', destinationToDelete.id);
       if (error) throw error;
+      notifyCatalogueDataChanged('destinations');
       showToast(`Destination "${destinationToDelete.name}" permanently deleted`, 'success');
       await loadData();
       setDestinationToDelete(null);

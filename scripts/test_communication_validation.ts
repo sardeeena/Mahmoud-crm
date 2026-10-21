@@ -199,7 +199,70 @@ async function runTests() {
   } catch {
     passWhatsApp = false;
   }
-  assert(passWhatsApp, 'Valid WhatsApp Meta Cloud configuration passes validation without error');
+  // Test 11: sendWhatsAppMessage surfacing specific missing phoneNumberId on Meta Cloud
+  console.log('\nTest 11: sendWhatsAppMessage Surfacing Meta Cloud Missing phoneNumberId');
+  saveProviderConfig({
+    ...DEFAULT_PROVIDER_CONFIG,
+    whatsapp: {
+      provider: 'meta_cloud',
+      apiKey: 'EAABwz1234567890abcdef',
+      phoneNumberId: '',
+      isConfigured: false,
+    },
+  });
+  let err11: any = null;
+  try {
+    await sendWhatsAppMessage({
+      recipientPhone: '+201004567890',
+      customerName: 'Guest Tester',
+      content: 'Test WhatsApp message for Meta Cloud',
+    });
+  } catch (err: any) {
+    err11 = err;
+  }
+  assert(err11 instanceof ProviderConfigurationError, 'Throws ProviderConfigurationError for Meta Cloud missing phoneNumberId');
+  assert(
+    Array.isArray(err11?.missingFields) && err11.missingFields.some((f: string) => f.includes('phoneNumberId')),
+    `missingFields array contains phoneNumberId: "${err11?.missingFields?.join(', ')}"`
+  );
+  assert(
+    err11?.message.includes('phoneNumberId'),
+    `Error message explicitly specifies missing phoneNumberId: "${err11?.message}"`
+  );
+
+  // Test 12: sendWhatsAppMessage surfacing specific missing fromNumber on Twilio
+  console.log('\nTest 12: sendWhatsAppMessage Surfacing Twilio Missing fromNumber');
+  saveProviderConfig({
+    ...DEFAULT_PROVIDER_CONFIG,
+    whatsapp: {
+      provider: 'twilio',
+      apiKey: 'AC1234567890abcdef12345',
+      fromNumber: '',
+      isConfigured: false,
+    },
+  });
+  let err12: any = null;
+  try {
+    await sendWhatsAppMessage({
+      recipientPhone: '+201004567890',
+      customerName: 'Guest Tester',
+      content: 'Test WhatsApp message for Twilio',
+    });
+  } catch (err: any) {
+    err12 = err;
+  }
+  assert(err12 instanceof ProviderConfigurationError, 'Throws ProviderConfigurationError for Twilio missing fromNumber');
+  assert(
+    Array.isArray(err12?.missingFields) && err12.missingFields.some((f: string) => f.includes('fromNumber')),
+    `missingFields array contains fromNumber: "${err12?.missingFields?.join(', ')}"`
+  );
+  assert(
+    err12?.message.includes('fromNumber'),
+    `Error message explicitly specifies missing fromNumber: "${err12?.message}"`
+  );
+
+  // Reset provider config back to default
+  saveProviderConfig(DEFAULT_PROVIDER_CONFIG);
 
   console.log('\n================================================================');
   console.log(`Results: ${passed} passed, ${failed} failed.`);

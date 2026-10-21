@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Tour, CurrencyConfig } from '../types';
+import { Tour, CurrencyConfig, Destination, Category } from '../types';
 import { TourSearch } from '../components/tours/TourSearch';
 import { TourFilters, FilterState, INITIAL_FILTERS } from '../components/tours/TourFilters';
 import { TourSort, SortOption } from '../components/tours/TourSort';
@@ -52,6 +52,8 @@ interface ExcursionsPageProps {
   isLoading?: boolean;
   initialDestination?: string;
   initialCategory?: string;
+  destinations?: Destination[];
+  categories?: Category[];
   onNavigateHome: () => void;
   onViewTour: (tour: Tour) => void;
   onBookTour: (tour: Tour) => void;
@@ -63,6 +65,8 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
   isLoading = false,
   initialDestination,
   initialCategory,
+  destinations,
+  categories,
   onNavigateHome,
   onViewTour,
   onBookTour,
@@ -338,6 +342,8 @@ export const ExcursionsPage: React.FC<ExcursionsPageProps> = ({
           onGuestsChange={setGuests}
           activeCategoryTab={activeCategoryTab}
           onSelectCategoryTab={handleCategoryTabSelect}
+          destinations={destinations}
+          categories={categories}
         />
       </div>
 
