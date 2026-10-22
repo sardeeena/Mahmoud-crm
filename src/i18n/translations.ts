@@ -32,7 +32,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // Hero Section
     'hero.badge': 'Direct Tour Operator in Hurghada & El Gouna',
-    'hero.guestsHosted': 'Over 45,000+ Guests',
+    'hero.guestsHosted': 'Daily Verified Departures',
     'hero.title1': 'Explore the Red Sea',
     'hero.title2': 'with Local Captains',
     'hero.subtitle':
@@ -141,7 +141,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // Hero Section
     'hero.badge': 'Direkter Bootsveranstalter in Hurghada & El Gouna',
-    'hero.guestsHosted': 'Über 45.000+ betreute Gäste',
+    'hero.guestsHosted': 'Tägliche verifizierte Abfahrten',
     'hero.title1': 'Erkunden Sie das Rote Meer',
     'hero.title2': 'mit erfahrenen Kapitänen',
     'hero.subtitle':
@@ -250,7 +250,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // Hero Section
     'hero.badge': 'Прямой оператор в Хургаде и Эль-Гуне',
-    'hero.guestsHosted': 'Более 45 000+ гостей',
+    'hero.guestsHosted': 'Ежедневные гарантированные отправления',
     'hero.title1': 'Откройте Красное море',
     'hero.title2': 'с местными капитанами',
     'hero.subtitle':
@@ -359,7 +359,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // Hero Section
     'hero.badge': 'Operatore Diretto a Hurghada & El Gouna',
-    'hero.guestsHosted': 'Oltre 45.000+ Ospiti Soddisfatti',
+    'hero.guestsHosted': 'Partenze Giornaliere Garantite',
     'hero.title1': 'Esplora il Mar Rosso',
     'hero.title2': 'con Capitani Locali',
     'hero.subtitle':
@@ -468,7 +468,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // Hero Section
     'hero.badge': 'Operator Direct în Hurghada & El Gouna',
-    'hero.guestsHosted': 'Peste 45.000+ Turiști Încântați',
+    'hero.guestsHosted': 'Plecări Zilnice Verificate',
     'hero.title1': 'Explorează Marea Roșie',
     'hero.title2': 'cu Căpitani Locali',
     'hero.subtitle':

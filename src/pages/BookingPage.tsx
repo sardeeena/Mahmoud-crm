@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Tour, CurrencyConfig } from '../types';
-import { GuestCounts, BookingExtra, CustomerInfo, Booking } from '../types/booking';
+import { GuestCounts, BookingExtra, CustomerInfo, Booking, PickupLocation } from '../types/booking';
 import { STANDARD_PICKUP_LOCATIONS, GLOBAL_BOOKING_EXTRAS } from '../data/bookingData';
+import { getPublishedPickupLocations, getPublishedTourExtras } from '../services/tourService';
 import { calculateBookingPrice } from '../services/pricingService';
 import { bookingRepository, generateBookingReference } from '../services/bookingRepository';
 import { notificationService } from '../services/notificationService';
@@ -83,6 +84,42 @@ export const BookingPage: React.FC<BookingPageProps> = ({
   const [termsAccepted, setTermsAccepted] = useState<boolean>(initialDraft.termsAccepted || false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // Dynamic database-backed pickup locations & extras
+  const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>(STANDARD_PICKUP_LOCATIONS);
+  const [availableExtras, setAvailableExtras] = useState<BookingExtra[]>(GLOBAL_BOOKING_EXTRAS);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadEntities() {
+      try {
+        const [locs, exts] = await Promise.all([
+          getPublishedPickupLocations(),
+          getPublishedTourExtras(),
+        ]);
+        if (isMounted) {
+          if (locs.length > 0) setPickupLocations(locs);
+          if (exts.length > 0) setAvailableExtras(exts);
+        }
+      } catch (err) {
+        console.warn('Could not load dynamic booking locations/extras:', err);
+      }
+    }
+    loadEntities();
+
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const entity = customEvent.detail?.entity;
+      if (!entity || entity === 'locations' || entity === 'extras') {
+        loadEntities();
+      }
+    };
+    window.addEventListener('rse_data_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('rse_data_updated', handleUpdate);
+    };
+  }, []);
+
   // Synchronize draft to sessionStorage
   useEffect(() => {
     if (!currentTour) return;
@@ -116,13 +153,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
   // Selected pickup object
   const selectedPickup = useMemo(() => {
-    return STANDARD_PICKUP_LOCATIONS.find((p) => p.id === pickupLocationId) || STANDARD_PICKUP_LOCATIONS[0];
-  }, [pickupLocationId]);
+    return pickupLocations.find((p) => p.id === pickupLocationId) || pickupLocations[0];
+  }, [pickupLocations, pickupLocationId]);
 
   // Selected extras objects
   const selectedExtras = useMemo(() => {
-    return GLOBAL_BOOKING_EXTRAS.filter((e) => selectedExtraIds.includes(e.id));
-  }, [selectedExtraIds]);
+    return availableExtras.filter((e) => selectedExtraIds.includes(e.id));
+  }, [availableExtras, selectedExtraIds]);
 
   // Pricing calculation via dedicated engine
   const pricing = useMemo(() => {
@@ -317,6 +354,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                     hotelName={hotelName}
                     onHotelNameChange={setHotelName}
                     currency={currency}
+                    locations={pickupLocations}
                     onNext={() => setCurrentStep(3)}
                     onBack={() => setCurrentStep(1)}
                   />
@@ -328,6 +366,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                     selectedExtraIds={selectedExtraIds}
                     onToggleExtra={handleToggleExtra}
                     currency={currency}
+                    extras={availableExtras}
                     onNext={() => setCurrentStep(4)}
                     onBack={() => setCurrentStep(2)}
                   />

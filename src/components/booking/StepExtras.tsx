@@ -11,6 +11,7 @@ interface StepExtrasProps {
   currency: CurrencyConfig;
   onNext: () => void;
   onBack: () => void;
+  extras?: BookingExtra[];
 }
 
 export const StepExtras: React.FC<StepExtrasProps> = ({
@@ -19,7 +20,10 @@ export const StepExtras: React.FC<StepExtrasProps> = ({
   currency,
   onNext,
   onBack,
+  extras,
 }) => {
+  const extrasList = extras && extras.length > 0 ? extras : GLOBAL_BOOKING_EXTRAS;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       
@@ -37,7 +41,7 @@ export const StepExtras: React.FC<StepExtrasProps> = ({
 
         {/* Extras Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          {GLOBAL_BOOKING_EXTRAS.map((extra) => {
+          {extrasList.map((extra) => {
             const isSelected = selectedExtraIds.includes(extra.id);
 
             return (

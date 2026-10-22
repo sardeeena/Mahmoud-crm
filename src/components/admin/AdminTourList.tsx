@@ -22,7 +22,8 @@ import {
   adminDeleteTour,
   adminCheckTourBookingsCount,
   adminCreateTour,
-  adminGetTourById
+  adminGetTourById,
+  notifyCatalogueDataChanged
 } from '../../services/tourService';
 import { DbTour } from '../../types/database';
 import { AdminTab } from './AdminLayout';
@@ -74,6 +75,7 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
       await adminSetTourStatus(tour.id, nextStatus);
       showToast(`Tour status updated to ${nextStatus}`, 'success');
       await loadTours();
+      notifyCatalogueDataChanged('tours');
     } catch (err: any) {
       showToast(err.message || 'Failed to update status', 'error');
     }
@@ -84,6 +86,7 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
       await adminSetTourStatus(tour.id, 'archived');
       showToast('Tour archived successfully', 'info');
       await loadTours();
+      notifyCatalogueDataChanged('tours');
     } catch (err: any) {
       showToast(err.message || 'Failed to archive', 'error');
     }
@@ -117,6 +120,7 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
 
       showToast(`Tour duplicated as "${newTitle}"`, 'success');
       await loadTours();
+      notifyCatalogueDataChanged('tours');
     } catch (err: any) {
       showToast(err.message || 'Failed to duplicate tour', 'error');
     } finally {
@@ -139,6 +143,7 @@ export const AdminTourList: React.FC<AdminTourListProps> = ({
       await adminDeleteTour(deleteModalTour.id);
       setDeleteModalTour(null);
       await loadTours();
+      notifyCatalogueDataChanged('tours');
     } catch (err: any) {
       setDeleteError(err.message || 'Deletion failed');
     } finally {

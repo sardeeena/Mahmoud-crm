@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Car, Plus, Edit2, Trash2, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
-import { getPickupLocations } from '../../services/tourService';
+import { getPickupLocations, notifyCatalogueDataChanged } from '../../services/tourService';
 import { DbPickupLocation } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
@@ -62,6 +62,7 @@ export const AdminPickupList: React.FC = () => {
       }
       setSaving(false);
       setEditingLoc(null);
+      notifyCatalogueDataChanged('locations');
       return;
     }
 
@@ -98,6 +99,7 @@ export const AdminPickupList: React.FC = () => {
       await loadData();
       showToast('Pickup location saved successfully.', 'success');
       setEditingLoc(null);
+      notifyCatalogueDataChanged('locations');
     } catch (err: any) {
       setErrorMsg(formatSupabaseError(err));
     } finally {
@@ -114,6 +116,7 @@ export const AdminPickupList: React.FC = () => {
       showToast(`Pickup zone "${locationToDelete.name}" removed from local state.`, 'info');
       setLocationToDelete(null);
       setIsDeleting(false);
+      notifyCatalogueDataChanged('locations');
       return;
     }
 
@@ -123,6 +126,7 @@ export const AdminPickupList: React.FC = () => {
       showToast(`Pickup zone "${locationToDelete.name}" permanently deleted.`, 'success');
       await loadData();
       setLocationToDelete(null);
+      notifyCatalogueDataChanged('locations');
     } catch (err: any) {
       showToast(formatSupabaseError(err), 'error');
     } finally {

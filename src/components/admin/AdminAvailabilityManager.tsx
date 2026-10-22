@@ -13,7 +13,7 @@ import {
   Check
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
-import { adminListTours } from '../../services/tourService';
+import { adminListTours, notifyCatalogueDataChanged } from '../../services/tourService';
 import { DbTour, DbTourAvailability } from '../../types/database';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -188,6 +188,7 @@ export const AdminAvailabilityManager: React.FC = () => {
 
     setSaving(false);
     setActionMessage('Availability slots and daily capacities synchronized successfully.');
+    notifyCatalogueDataChanged('tours');
     setTimeout(() => setActionMessage(null), 3500);
   };
 

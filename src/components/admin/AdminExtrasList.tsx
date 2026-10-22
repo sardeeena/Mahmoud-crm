@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
-import { getTourExtras } from '../../services/tourService';
+import { getTourExtras, notifyCatalogueDataChanged } from '../../services/tourService';
 import { DbTourExtra } from '../../types/database';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
@@ -55,6 +55,7 @@ export const AdminExtrasList: React.FC = () => {
       }
       setSaving(false);
       setEditingExtra(null);
+      notifyCatalogueDataChanged('extras');
       return;
     }
 
@@ -84,6 +85,7 @@ export const AdminExtrasList: React.FC = () => {
       await loadData();
       showToast('Tour extra saved successfully', 'success');
       setEditingExtra(null);
+      notifyCatalogueDataChanged('extras');
     } catch (err) {
       showToast(formatSupabaseError(err), 'error');
     } finally {
@@ -100,6 +102,7 @@ export const AdminExtrasList: React.FC = () => {
       showToast(`Tour extra "${extraToDelete.name}" removed from local state.`, 'info');
       setExtraToDelete(null);
       setIsDeleting(false);
+      notifyCatalogueDataChanged('extras');
       return;
     }
 
@@ -109,6 +112,7 @@ export const AdminExtrasList: React.FC = () => {
       showToast(`Tour extra "${extraToDelete.name}" deleted successfully.`, 'success');
       await loadData();
       setExtraToDelete(null);
+      notifyCatalogueDataChanged('extras');
     } catch (err: any) {
       showToast(formatSupabaseError(err), 'error');
     } finally {

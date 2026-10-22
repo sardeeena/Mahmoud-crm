@@ -24,7 +24,8 @@ import {
   DbTourAvailability,
   DbSeoMetadata,
 } from '../types/database';
-import { ALL_TOURS, RECENT_REVIEWS } from '../data/toursData';
+import { PickupLocation, BookingExtra } from '../types/booking';
+import { ALL_TOURS } from '../data/toursData';
 
 /**
  * Transforms database tour record with related collections into the frontend Tour structure
@@ -310,7 +311,7 @@ export async function getTourBySlug(slug: string, allowDraft: boolean = false): 
       inclusions: data.tour_inclusions || [],
       exclusions: data.tour_exclusions || [],
       faqs: data.tour_faqs || [],
-      reviews: reviews.length > 0 ? reviews : RECENT_REVIEWS.filter((r) => r.tourSlug === slug),
+      reviews: reviews,
     });
   } catch (err) {
     console.warn('Error fetching tour by slug:', err);
@@ -1108,7 +1109,9 @@ export const NEUTRAL_CATEGORY_PLACEHOLDER =
 /**
  * Notifies the frontend when catalogue records (tours, destinations, categories) are mutated in Admin
  */
-export function notifyCatalogueDataChanged(entity?: 'tours' | 'destinations' | 'categories') {
+export function notifyCatalogueDataChanged(
+  entity?: 'tours' | 'destinations' | 'categories' | 'reviews' | 'locations' | 'extras'
+) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('rse_data_updated', { detail: { entity } }));
   }
@@ -1380,16 +1383,19 @@ export async function getPickupLocations(): Promise<DbPickupLocation[]> {
         return DEFAULT_PICKUP_LOCATIONS;
       }
       console.error('Failed to query pickup locations from Supabase:', formatSupabaseError(error));
-      return [];
+      return DEFAULT_PICKUP_LOCATIONS;
     }
-    return (data || []) as DbPickupLocation[];
+    if (!data || data.length === 0) {
+      return DEFAULT_PICKUP_LOCATIONS;
+    }
+    return data as DbPickupLocation[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
       return DEFAULT_PICKUP_LOCATIONS;
     }
     console.error('Pickup locations query exception:', err);
-    return [];
+    return DEFAULT_PICKUP_LOCATIONS;
   }
 }
 
@@ -1462,15 +1468,204 @@ export async function getTourExtras(): Promise<DbTourExtra[]> {
         return DEFAULT_TOUR_EXTRAS;
       }
       console.error('Failed to query tour extras from Supabase:', formatSupabaseError(error));
-      return [];
+      return DEFAULT_TOUR_EXTRAS;
     }
-    return (data || []) as DbTourExtra[];
+    if (!data || data.length === 0) {
+      return DEFAULT_TOUR_EXTRAS;
+    }
+    return data as DbTourExtra[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
       return DEFAULT_TOUR_EXTRAS;
     }
     console.error('Tour extras query exception:', err);
-    return [];
+    return DEFAULT_TOUR_EXTRAS;
   }
+}
+
+/**
+ * Fetches active pickup locations formatted for client checkout selection
+ */
+export async function getPublishedPickupLocations(): Promise<PickupLocation[]> {
+  const dbLocations = await getPickupLocations();
+  return dbLocations.map((l) => ({
+    id: l.code || l.id,
+    name: l.name,
+    area: l.area,
+    feeEurPerPerson: Number(l.fee_eur_per_person) || 0,
+    feeEurFlat: Number(l.fee_eur_flat) || 0,
+    note: l.description || undefined,
+    isPopular: l.code === 'hurghada' || l.sort_order === 1,
+  }));
+}
+
+/**
+ * Fetches active tour extras formatted for client checkout selection
+ */
+export async function getPublishedTourExtras(): Promise<BookingExtra[]> {
+  const dbExtras = await getTourExtras();
+  return dbExtras.map((e) => ({
+    id: e.id,
+    name: e.name,
+    description: e.description || '',
+    priceEur: Number(e.price_eur) || 0,
+    pricingType: e.pricing_type === 'per_person' ? 'per_person' : 'per_booking',
+  }));
+}
+
+// ==============================================================================
+// DYNAMIC REVIEWS SERVICE (GENUINE DATABASE-DRIVEN)
+// ==============================================================================
+
+export interface PublishedReviewsResult {
+  reviews: Review[];
+  averageRating: number;
+  totalCount: number;
+  recommendationRate: number;
+  breakdown: { 5: number; 4: number; 3: number; 2: number; 1: number };
+}
+
+/**
+ * Fetches all published customer reviews directly from Supabase public.reviews
+ * No static mock testimonials or fabricated metrics are returned.
+ */
+export async function getPublishedReviews(tourSlug?: string): Promise<PublishedReviewsResult> {
+  const emptyResult: PublishedReviewsResult = {
+    reviews: [],
+    averageRating: 0,
+    totalCount: 0,
+    recommendationRate: 0,
+    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+  };
+
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return emptyResult;
+  }
+
+  try {
+    const query = supabase
+      .from('reviews')
+      .select(`
+        id,
+        author_name,
+        country,
+        country_code,
+        rating,
+        comment,
+        date,
+        traveler_type,
+        verified_booking,
+        is_published,
+        tours (id, title, slug)
+      `)
+      .eq('is_published', true)
+      .order('date', { ascending: false });
+
+    const { data, error } = await query;
+
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+      }
+      console.error('Failed to query published reviews:', formatSupabaseError(error));
+      return emptyResult;
+    }
+
+    if (!data || data.length === 0) {
+      return emptyResult;
+    }
+
+    let rawList = data;
+    if (tourSlug) {
+      rawList = rawList.filter((r: any) => r.tours?.slug === tourSlug);
+    }
+
+    const reviews: Review[] = rawList.map((r: any) => ({
+      id: r.id,
+      authorName: r.author_name,
+      country: r.country || 'International',
+      countryCode: r.country_code || 'DE',
+      rating: Number(r.rating) || 5,
+      date: r.date,
+      tourTitle: r.tours?.title || 'Red Sea Excursion',
+      tourSlug: r.tours?.slug || '',
+      comment: r.comment || '',
+      travelerType: r.traveler_type || 'Couple',
+      verifiedBooking: !!r.verified_booking,
+    }));
+
+    const totalCount = reviews.length;
+    const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    let sumRating = 0;
+    let recommendedCount = 0;
+
+    for (const rev of reviews) {
+      const star = Math.min(5, Math.max(1, Math.round(rev.rating))) as 1 | 2 | 3 | 4 | 5;
+      breakdown[star] = (breakdown[star] || 0) + 1;
+      sumRating += rev.rating;
+      if (rev.rating >= 4) {
+        recommendedCount++;
+      }
+    }
+
+    const averageRating = totalCount > 0 ? Number((sumRating / totalCount).toFixed(1)) : 0;
+    const recommendationRate = totalCount > 0 ? Math.round((recommendedCount / totalCount) * 100) : 0;
+
+    return {
+      reviews,
+      averageRating,
+      totalCount,
+      recommendationRate,
+      breakdown,
+    };
+  } catch (err) {
+    console.error('Published reviews exception:', err);
+    return emptyResult;
+  }
+}
+
+/**
+ * Submits a new user review to public.reviews (saved as is_published: false for admin moderation)
+ */
+export async function submitTourReview(payload: {
+  tourId?: string;
+  tourSlug?: string;
+  authorName: string;
+  country?: string;
+  countryCode?: string;
+  rating: number;
+  comment: string;
+  travelerType?: 'Couple' | 'Family' | 'Solo' | 'Friends';
+}): Promise<void> {
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return;
+  }
+
+  let resolvedTourId = payload.tourId;
+  if (!resolvedTourId && payload.tourSlug) {
+    const { data } = await supabase.from('tours').select('id').eq('slug', payload.tourSlug).maybeSingle();
+    if (data?.id) {
+      resolvedTourId = data.id;
+    }
+  }
+
+  const { error } = await supabase.from('reviews').insert({
+    tour_id: resolvedTourId || null,
+    author_name: payload.authorName,
+    country: payload.country || 'International',
+    country_code: payload.countryCode || 'DE',
+    rating: payload.rating,
+    comment: payload.comment,
+    traveler_type: payload.travelerType || 'Couple',
+    verified_booking: false,
+    is_published: false,
+    date: new Date().toISOString().split('T')[0],
+  });
+
+  if (error) {
+    throw new Error(formatSupabaseError(error));
+  }
+
+  notifyCatalogueDataChanged('reviews');
 }

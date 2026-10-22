@@ -14,6 +14,7 @@ interface StepPickupProps {
   currency: CurrencyConfig;
   onNext: () => void;
   onBack: () => void;
+  locations?: PickupLocation[];
 }
 
 export const StepPickup: React.FC<StepPickupProps> = ({
@@ -24,8 +25,10 @@ export const StepPickup: React.FC<StepPickupProps> = ({
   currency,
   onNext,
   onBack,
+  locations,
 }) => {
-  const selectedLocation = STANDARD_PICKUP_LOCATIONS.find((l) => l.id === selectedPickupId) || STANDARD_PICKUP_LOCATIONS[0];
+  const pickupList = locations && locations.length > 0 ? locations : STANDARD_PICKUP_LOCATIONS;
+  const selectedLocation = pickupList.find((l) => l.id === selectedPickupId) || pickupList[0];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -44,7 +47,7 @@ export const StepPickup: React.FC<StepPickupProps> = ({
 
         {/* Pickup Location Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          {STANDARD_PICKUP_LOCATIONS.map((loc) => {
+          {pickupList.map((loc) => {
             const isSelected = selectedPickupId === loc.id;
             return (
               <div

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowRight, 
@@ -41,18 +41,27 @@ export const PopularTours: React.FC<PopularToursProps> = ({
   const [previewTour, setPreviewTour] = useState<Tour | null>(null);
   const [quickBookTargetTour, setQuickBookTargetTour] = useState<Tour | null>(null);
 
-  const categories = [
-    'All',
-    'Boat & Yacht Cruises',
-    'Snorkeling Excursions',
-    'Scuba Diving (PADI)',
-    'Desert Quad & Buggy Safaris',
-    'Historical Day Trips (Luxor & Cairo)',
-  ];
+  // Dynamically derive category tabs from genuine loaded tours
+  const dynamicCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tours) {
+      if (t.category) set.add(t.category);
+      if (Array.isArray(t.categories)) {
+        for (const c of t.categories) {
+          if (c) set.add(c);
+        }
+      }
+    }
+    return ['All', ...Array.from(set)];
+  }, [tours]);
 
   const filteredTours = selectedCategoryTab === 'All' 
     ? tours 
-    : tours.filter((t) => t.category === selectedCategoryTab);
+    : tours.filter(
+        (t) =>
+          t.category === selectedCategoryTab ||
+          (Array.isArray(t.categories) && t.categories.includes(selectedCategoryTab))
+      );
 
   return (
     <section id="tours-section" className="py-16 sm:py-24 bg-[#FAF8F5] dark:bg-[#0A1118] border-b border-[#E8E3DA] dark:border-slate-800 transition-colors">
@@ -92,7 +101,7 @@ export const PopularTours: React.FC<PopularToursProps> = ({
 
         {/* Animated Category Tabs */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-3 mb-8 no-scrollbar text-xs sm:text-sm font-medium">
-          {categories.map((cat) => {
+          {dynamicCategories.map((cat) => {
             const isSelected = selectedCategoryTab === cat;
             return (
               <button

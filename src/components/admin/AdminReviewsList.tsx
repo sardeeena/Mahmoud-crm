@@ -18,9 +18,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
-import { adminListTours } from '../../services/tourService';
+import { adminListTours, notifyCatalogueDataChanged } from '../../services/tourService';
 import { DbTour, DbReview } from '../../types/database';
-import { RECENT_REVIEWS } from '../../data/toursData';
 import { useToast } from '../../contexts/ToastContext';
 
 const LOCAL_REVIEWS_KEY = 'rse_admin_reviews_cache';
@@ -88,28 +87,8 @@ export const AdminReviewsList: React.FC = () => {
           }
         }
 
-        // Transform verified guest reviews from toursData
-        const initialDbReviews: DbReview[] = RECENT_REVIEWS.map((r, idx) => {
-          const matchedTour = loadedTours.find((t) => t.slug === r.tourSlug);
-          return {
-            id: `rev-${idx + 1}-${r.id}`,
-            tour_id: matchedTour ? matchedTour.id : (loadedTours[0]?.id || 'tour-1'),
-            author_name: r.authorName,
-            country: r.country,
-            country_code: r.countryCode,
-            rating: r.rating,
-            comment: r.comment,
-            date: r.date,
-            traveler_type: r.travelerType || 'Couple',
-            verified_booking: true,
-            is_published: true,
-            created_at: new Date(Date.now() - idx * 86400000 * 3).toISOString(),
-          };
-        });
-
         if (!isCancelled) {
-          setReviews(initialDbReviews);
-          localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(initialDbReviews));
+          setReviews([]);
         }
       } catch (err) {
         console.error('Failed to load reviews:', err);
@@ -148,6 +127,7 @@ export const AdminReviewsList: React.FC = () => {
 
     setActionMessage(shouldPublish ? 'Review published to website.' : 'Review hidden from website.');
     showToast(shouldPublish ? 'Review approved and published.' : 'Review unlisted from website.', 'success');
+    notifyCatalogueDataChanged('reviews');
     setTimeout(() => setActionMessage(null), 3000);
   };
 
@@ -179,6 +159,7 @@ export const AdminReviewsList: React.FC = () => {
       }
     }
 
+    notifyCatalogueDataChanged('reviews');
     showToast(`Guest review by "${reviewToDelete.author_name}" permanently deleted.`, 'info');
     setReviewToDelete(null);
     setIsDeleting(false);
@@ -264,6 +245,7 @@ export const AdminReviewsList: React.FC = () => {
     setIsAddModalOpen(false);
     setNewAuthorName('');
     setNewComment('');
+    notifyCatalogueDataChanged('reviews');
     showToast('New verified guest review published successfully.', 'success');
   };
 
