@@ -30,7 +30,9 @@ import {
   WeatherInfo,
 } from '../../../types/operations';
 import { DbVessel, DbGuide } from '../../../types/database';
+import { Tour } from '../../../types';
 import { ALL_TOURS } from '../../../data/toursData';
+import { getPublishedTours } from '../../../services/tourService';
 import { useToast } from '../../../contexts/ToastContext';
 
 interface OperationsDeparturesProps {
@@ -46,6 +48,7 @@ export const OperationsDepartures: React.FC<OperationsDeparturesProps> = ({ onNa
   const [weather, setWeather] = useState<WeatherInfo | null>(null);
   const [vessels, setVessels] = useState<DbVessel[]>([]);
   const [guides, setGuides] = useState<DbGuide[]>([]);
+  const [tours, setTours] = useState<Tour[]>(ALL_TOURS);
   const [loading, setLoading] = useState(true);
 
   // New Departure Modal
@@ -64,16 +67,21 @@ export const OperationsDepartures: React.FC<OperationsDeparturesProps> = ({ onNa
   const loadData = async () => {
     setLoading(true);
     try {
-      const [deps, wea, ves, gui] = await Promise.all([
+      const [deps, wea, ves, gui, loadedTours] = await Promise.all([
         getTodayDepartures(selectedDate),
         getMaritimeWeather(selectedDate),
         listVessels(),
         listGuides(),
+        getPublishedTours().catch(() => []),
       ]);
       setDepartures(deps);
       setWeather(wea);
       setVessels(ves);
       setGuides(gui);
+      if (loadedTours && loadedTours.length > 0) {
+        setTours(loadedTours);
+        if (!newTourId) setNewTourId(loadedTours[0].id);
+      }
     } catch (err) {
       console.warn('Failed to load departures:', err);
     } finally {
@@ -98,7 +106,7 @@ export const OperationsDepartures: React.FC<OperationsDeparturesProps> = ({ onNa
     if (!newTourId || !selectedDate) return;
 
     setSubmitting(true);
-    const selectedTour = ALL_TOURS.find((t) => t.id === newTourId);
+    const selectedTour = tours.find((t) => t.id === newTourId) || ALL_TOURS.find((t) => t.id === newTourId);
 
     const res = await createDeparture({
       tour_id: newTourId,
@@ -454,7 +462,7 @@ export const OperationsDepartures: React.FC<OperationsDeparturesProps> = ({ onNa
                   className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded text-stone-200"
                   required
                 >
-                  {ALL_TOURS.map((t) => (
+                  {tours.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.title}
                     </option>

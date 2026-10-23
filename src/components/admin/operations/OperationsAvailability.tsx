@@ -22,12 +22,15 @@ import {
   setBlackoutDate,
 } from '../../../services/operationsService';
 import { AvailabilitySlot } from '../../../types/operations';
+import { Tour } from '../../../types';
 import { ALL_TOURS } from '../../../data/toursData';
+import { getPublishedTours } from '../../../services/tourService';
 import { useToast } from '../../../contexts/ToastContext';
 
 export const OperationsAvailability: React.FC = () => {
   const { showToast } = useToast();
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [tours, setTours] = useState<Tour[]>(ALL_TOURS);
   const [loading, setLoading] = useState(true);
   const [tourFilter, setTourFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -48,8 +51,15 @@ export const OperationsAvailability: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await listAvailabilitySlots();
+      const [data, loadedTours] = await Promise.all([
+        listAvailabilitySlots(),
+        getPublishedTours().catch(() => []),
+      ]);
       setSlots(data);
+      if (loadedTours && loadedTours.length > 0) {
+        setTours(loadedTours);
+        if (!blackoutTourId) setBlackoutTourId(loadedTours[0].id);
+      }
     } catch (err) {
       console.warn('Failed to load availability slots:', err);
     } finally {
@@ -195,8 +205,8 @@ export const OperationsAvailability: React.FC = () => {
             onChange={(e) => setTourFilter(e.target.value)}
             className="px-2.5 py-1.5 bg-stone-900 border border-stone-800 rounded text-stone-300 focus:outline-none max-w-xs"
           >
-            <option value="all">All Tours ({ALL_TOURS.length})</option>
-            {ALL_TOURS.map((t) => (
+            <option value="all">All Tours ({tours.length})</option>
+            {tours.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.title}
               </option>
@@ -424,7 +434,7 @@ export const OperationsAvailability: React.FC = () => {
                   onChange={(e) => setBlackoutTourId(e.target.value)}
                   className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
                 >
-                  {ALL_TOURS.map((t) => (
+                  {tours.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.title}
                     </option>

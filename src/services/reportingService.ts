@@ -26,6 +26,7 @@ import { listPayments, listRefunds } from './financeService';
 import { listVessels, listAssignments, listGuides, getMaritimeWeather } from './operationsService';
 import { listInquiries } from './inquiryService';
 import { listLeads } from './crmService';
+import { getPublishedTours } from './tourService';
 import { ALL_TOURS } from '../data/toursData';
 
 /**
@@ -551,10 +552,11 @@ export async function fetchSalesReport(interval: DateRangeInterval): Promise<Sal
 // ------------------------------------------------------------------------------
 
 export async function fetchCustomerReport(interval: DateRangeInterval): Promise<CustomerMetrics> {
-  const [allCustomers, allBookings, inquiries] = await Promise.all([
+  const [allCustomers, allBookings, inquiries, dynamicTours] = await Promise.all([
     listUnifiedCustomers(),
     bookingRepository.listBookings(),
     listInquiries(),
+    getPublishedTours().catch(() => ALL_TOURS),
   ]);
 
   const activeBookings = filterBookingsByInterval(allBookings, interval);
@@ -658,7 +660,7 @@ export async function fetchCustomerReport(interval: DateRangeInterval): Promise<
 
   // Popular Tour Interests
   const tourInterestMap = new Map<string, { inquiries: number; bookings: number; guests: number }>();
-  ALL_TOURS.slice(0, 10).forEach((t) => {
+  (dynamicTours && dynamicTours.length > 0 ? dynamicTours : ALL_TOURS).slice(0, 15).forEach((t) => {
     tourInterestMap.set(t.title, { inquiries: 0, bookings: 0, guests: 0 });
   });
 
@@ -671,7 +673,7 @@ export async function fetchCustomerReport(interval: DateRangeInterval): Promise<
   });
 
   inquiries.forEach((inq) => {
-    const matchedTour = ALL_TOURS.find((t) => t.id === inq.tour_id);
+    const matchedTour = (dynamicTours && dynamicTours.find((t) => t.id === inq.tour_id)) || ALL_TOURS.find((t) => t.id === inq.tour_id);
     const title = matchedTour?.title || inq.subject || 'Excursion';
     const cur = tourInterestMap.get(title) || { inquiries: 0, bookings: 0, guests: 0 };
     cur.inquiries += 1;
@@ -1125,9 +1127,10 @@ export async function runReportBuilder(filters: ReportBuilderFilters): Promise<R
   }
 
   // Repository-based filter engine
-  const [allBookings, leads] = await Promise.all([
+  const [allBookings, leads, dynamicTours] = await Promise.all([
     bookingRepository.listBookings(),
     listLeads(),
+    getPublishedTours().catch(() => ALL_TOURS),
   ]);
 
   const leadCustomerMap = new Map<string, { source: string; staff: string }>();
@@ -1150,7 +1153,8 @@ export async function runReportBuilder(filters: ReportBuilderFilters): Promise<R
       // 2. Tour
       if (filters.tourId !== 'all') {
         const matchId = b.tourId === filters.tourId || b.tourSlug === filters.tourId;
-        const matchTitle = ALL_TOURS.find((t) => t.id === filters.tourId)?.title === b.tourTitle;
+        const matchingTour = (dynamicTours && dynamicTours.find((t) => t.id === filters.tourId)) || ALL_TOURS.find((t) => t.id === filters.tourId);
+        const matchTitle = matchingTour?.title === b.tourTitle;
         if (!matchId && !matchTitle) return false;
       }
 

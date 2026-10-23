@@ -19,6 +19,8 @@ import {
 import { ReportBuilderFilters, ReportBuilderRow } from '../../../types/reporting';
 import { runReportBuilder, exportReportToCsv } from '../../../services/reportingService';
 import { ALL_TOURS } from '../../../data/toursData';
+import { Tour } from '../../../types';
+import { getPublishedTours } from '../../../services/tourService';
 import { useToast } from '../../../contexts/ToastContext';
 
 interface ReportBuilderViewProps {
@@ -44,15 +46,32 @@ export const ReportBuilderView: React.FC<ReportBuilderViewProps> = ({ onNavigate
   const [rows, setRows] = useState<ReportBuilderRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [tours, setTours] = useState<Tour[]>(ALL_TOURS);
+
+  useEffect(() => {
+    let isMounted = true;
+    getPublishedTours()
+      .then((res) => {
+        if (isMounted && res && res.length > 0) {
+          setTours(res);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load dynamic tours for ReportBuilder, falling back to static list:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Available unique options for dropdowns
   const availableDestinations = useMemo(() => {
     const set = new Set<string>();
-    ALL_TOURS.forEach((t) => {
+    (tours.length > 0 ? tours : ALL_TOURS).forEach((t) => {
       if (t.destination) set.add(t.destination);
     });
     return Array.from(set);
-  }, []);
+  }, [tours]);
 
   const availableStaff = ['Ahmed Hassan', 'Mariam Youssef', 'Karim Adel', 'Sara Mostafa'];
   const availableLeadSources = ['Website', 'WhatsApp', 'Hotel', 'Referral', 'Walk-in', 'Phone', 'Social Media'];
@@ -265,7 +284,7 @@ export const ReportBuilderView: React.FC<ReportBuilderViewProps> = ({ onNavigate
               className="w-full bg-stone-950 border border-stone-800 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-teal-500"
             >
               <option value="all">All Tours &amp; Excursions</option>
-              {ALL_TOURS.map((t) => (
+              {(tours.length > 0 ? tours : ALL_TOURS).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.title}
                 </option>

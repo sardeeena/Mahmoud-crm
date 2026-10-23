@@ -86,6 +86,38 @@ export const AdminBookingsList: React.FC = () => {
     }
   };
 
+  const handleUpdatePaymentStatus = async (ref: string, newPaymentStatus: 'paid' | 'pending' | 'refunded') => {
+    const existing = bookings.find((b) => b.bookingReference === ref);
+    if (!existing) return;
+
+    const updated: Booking = {
+      ...existing,
+      paymentStatus: newPaymentStatus,
+      updatedAt: new Date().toISOString(),
+      timeline: [
+        ...(existing.timeline || []),
+        {
+          id: `ev-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          title: `Payment Status Changed to ${newPaymentStatus.toUpperCase()}`,
+          description: `Updated by administrator`,
+          type: 'modification',
+        },
+      ],
+    };
+
+    try {
+      await bookingRepository.updateBooking(updated);
+      showToast(`Payment status for ${ref} updated to ${newPaymentStatus.toUpperCase()}`, 'success');
+      if (selectedBooking?.bookingReference === ref) {
+        setSelectedBooking(updated);
+      }
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update payment status', 'error');
+    }
+  };
+
   const confirmCancelBooking = async () => {
     if (!bookingToCancel) return;
     const ref = bookingToCancel.bookingReference;
@@ -340,37 +372,81 @@ export const AdminBookingsList: React.FC = () => {
               </button>
             </div>
 
-            {/* Quick Status Control */}
-            <div className="bg-stone-950 p-3 rounded border border-stone-800 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] text-stone-400 block">Current Status:</span>
-                <span className="text-xs font-bold text-white capitalize">
-                  {selectedBooking.status.replace('_', ' ')}
-                </span>
+            {/* Quick Status & Payment Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-stone-950 p-3 rounded border border-stone-800 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-stone-400 block">Booking Status:</span>
+                  <span className="text-xs font-bold text-white capitalize">
+                    {selectedBooking.status.replace('_', ' ')}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedBooking.bookingReference, 'confirmed')}
+                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium text-[10px]"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedBooking.bookingReference, 'completed')}
+                    className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded font-medium text-[10px]"
+                  >
+                    Complete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedBooking.bookingReference, 'cancelled')}
+                    className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded font-medium text-[10px]"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center space-x-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedBooking.bookingReference, 'confirmed')}
-                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium text-[11px]"
-                >
-                  Confirm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedBooking.bookingReference, 'completed')}
-                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded font-medium text-[11px]"
-                >
-                  Complete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedBooking.bookingReference, 'cancelled')}
-                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded font-medium text-[11px]"
-                >
-                  Cancel
-                </button>
+              <div className="bg-stone-950 p-3 rounded border border-stone-800 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-stone-400 block">Payment Status:</span>
+                  <span className={`text-xs font-bold uppercase ${
+                    selectedBooking.paymentStatus === 'paid' ? 'text-emerald-400' :
+                    selectedBooking.paymentStatus === 'refunded' ? 'text-red-400' : 'text-amber-400'
+                  }`}>
+                    {selectedBooking.paymentStatus || 'pending'}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  {selectedBooking.paymentStatus !== 'paid' && (
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePaymentStatus(selectedBooking.bookingReference, 'paid')}
+                      className="px-2 py-1 bg-teal-600 hover:bg-teal-500 text-white rounded font-medium text-[10px]"
+                    >
+                      Mark Paid
+                    </button>
+                  )}
+                  {selectedBooking.paymentStatus === 'paid' && (
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePaymentStatus(selectedBooking.bookingReference, 'refunded')}
+                      className="px-2 py-1 bg-stone-700 hover:bg-stone-600 text-stone-200 rounded font-medium text-[10px]"
+                    >
+                      Refund
+                    </button>
+                  )}
+                  {selectedBooking.paymentStatus !== 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePaymentStatus(selectedBooking.bookingReference, 'pending')}
+                      className="px-2 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium text-[10px]"
+                    >
+                      Reset Pending
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -224,13 +224,15 @@ async function runPhase63VerificationSuite() {
     slug: 'giftun-island-snorkeling',
     title: 'Giftun Island VIP Snorkeling',
     category: 'Boat & Yacht Cruises',
+    categories: ['Boat Trip', 'Snorkeling'],
     destination: 'Hurghada',
+    tourType: 'Shared',
     priceEur: 50,
     childPriceEur: 25,
     privatePriceEur: 250,
     durationHours: 7,
     durationLabel: '7 Hours',
-    durationCategory: 'full_day',
+    durationCategory: 'Full Day',
     rating: 4.8,
     reviewCount: 12,
     badge: 'Popular',
@@ -239,12 +241,17 @@ async function runPhase63VerificationSuite() {
     shortDescription: 'VIP snorkeling trip',
     fullDescription: 'Full description test',
     highlights: ['Coral reefs', 'Lunch on board'],
-    inclusions: ['Snorkel gear', 'Buffet lunch'],
-    exclusions: ['Gratuities'],
+    included: ['Snorkel gear', 'Buffet lunch'],
+    excluded: ['Gratuities'],
+    whatToBring: ['Sunscreen', 'Swimwear'],
+    importantInformation: ['Passport required'],
     itinerary: [],
     departureTime: '08:30 AM',
     availableDays: ['Everyday'],
     pickupAvailable: true,
+    pickupInfo: 'Complimentary lobby pickup and return',
+    cancellationPolicy: 'Free cancellation up to 24 hours prior to departure',
+    maxGuests: 25,
     languages: ['English', 'German'],
   };
 
@@ -332,10 +339,14 @@ async function runPhase63VerificationSuite() {
   assert(ref.startsWith('RST-'), `Generated reference starts with RST- prefix: ${ref}`);
 
   const validBookingPayload: Booking = {
+    bookingId: 'test-booking-id-1',
     bookingReference: ref,
     tourId: 'test-tour-1',
     tourTitle: 'Giftun Island VIP Snorkeling',
     tourSlug: 'giftun-island-snorkeling',
+    tourImage: 'https://images.unsplash.com/test',
+    tourDestination: 'Hurghada',
+    tourDuration: '7 Hours',
     date: '2026-11-15T00:00:00.000Z',
     guests: { adults: 2, children: 0, infants: 0 },
     customer: {
@@ -348,15 +359,19 @@ async function runPhase63VerificationSuite() {
     },
     pickup: {
       locationId: 'hurghada',
+      locationName: 'Hurghada Central',
+      area: 'Hurghada Hotels',
+      feeEur: 0,
       hotelName: 'Steigenberger ALDAU Beach Hotel',
       roomNumber: '1402',
     },
-    selectedExtras: [],
+    extras: [],
     pricing: pricingResult,
     paymentMethod: 'pay_at_pickup',
     paymentStatus: 'pending',
     status: 'confirmed',
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   const validCheck = validateBookingPayload(validBookingPayload);

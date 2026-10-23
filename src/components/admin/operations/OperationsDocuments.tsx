@@ -31,7 +31,9 @@ import {
   PickupScheduleItem,
 } from '../../../types/operations';
 import { DbVessel, DbGuide, DbWeatherBulletin } from '../../../types/database';
+import { Tour } from '../../../types';
 import { ALL_TOURS } from '../../../data/toursData';
+import { getPublishedTours } from '../../../services/tourService';
 import { useToast } from '../../../contexts/ToastContext';
 
 type DocumentType =
@@ -51,6 +53,7 @@ export const OperationsDocuments: React.FC<OperationsDocumentsProps> = ({ onNavi
   );
   const [docType, setDocType] = useState<DocumentType>('coast_guard_manifest');
   const [selectedTourId, setSelectedTourId] = useState<string>('all');
+  const [tours, setTours] = useState<Tour[]>(ALL_TOURS);
   const [loading, setLoading] = useState(true);
 
   // Data states
@@ -64,13 +67,14 @@ export const OperationsDocuments: React.FC<OperationsDocumentsProps> = ({ onNavi
   const loadData = async () => {
     setLoading(true);
     try {
-      const [deps, pass, picks, ves, gui, wea] = await Promise.all([
+      const [deps, pass, picks, ves, gui, wea, loadedTours] = await Promise.all([
         getTodayDepartures(selectedDate),
         getPassengerManifest(selectedDate),
         getDailyPickupSchedule(selectedDate),
         listVessels(),
         listGuides(),
         getLatestWeatherBulletin(),
+        getPublishedTours().catch(() => []),
       ]);
       setDepartures(deps);
       setPassengers(pass);
@@ -78,6 +82,9 @@ export const OperationsDocuments: React.FC<OperationsDocumentsProps> = ({ onNavi
       setVessels(ves);
       setGuides(gui);
       setWeather(wea);
+      if (loadedTours && loadedTours.length > 0) {
+        setTours(loadedTours);
+      }
     } catch (err) {
       console.warn('Failed to load document data:', err);
     } finally {
@@ -102,10 +109,10 @@ export const OperationsDocuments: React.FC<OperationsDocumentsProps> = ({ onNavi
 
   const filteredPickups = useMemo(() => {
     if (selectedTourId === 'all') return pickups;
-    const tourTitle = ALL_TOURS.find((t) => t.id === selectedTourId)?.title;
+    const tourTitle = tours.find((t) => t.id === selectedTourId)?.title || ALL_TOURS.find((t) => t.id === selectedTourId)?.title;
     if (!tourTitle) return pickups;
     return pickups.filter((p) => p.tourTitle.toLowerCase().includes(tourTitle.toLowerCase()));
-  }, [pickups, selectedTourId]);
+  }, [pickups, selectedTourId, tours]);
 
   const activeDeparture = filteredDepartures[0] || departures[0] || null;
   const activeVessel = vessels.find((v) => v.id === activeDeparture?.vesselId) || vessels[0];
@@ -292,7 +299,7 @@ export const OperationsDocuments: React.FC<OperationsDocumentsProps> = ({ onNavi
                 className="px-2.5 py-1 bg-stone-900 border border-stone-800 rounded text-stone-200 text-xs max-w-[200px]"
               >
                 <option value="all">All Excursions ({departures.length})</option>
-                {ALL_TOURS.map((t) => (
+                {tours.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.title}
                   </option>

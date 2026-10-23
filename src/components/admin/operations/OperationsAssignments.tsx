@@ -30,7 +30,9 @@ import {
   AssignmentConflict,
 } from '../../../types/operations';
 import { DbVessel, DbGuide } from '../../../types/database';
+import { Tour } from '../../../types';
 import { ALL_TOURS } from '../../../data/toursData';
+import { getPublishedTours } from '../../../services/tourService';
 import { useToast } from '../../../contexts/ToastContext';
 
 export const OperationsAssignments: React.FC = () => {
@@ -41,6 +43,7 @@ export const OperationsAssignments: React.FC = () => {
   const [assignments, setAssignments] = useState<OperationalAssignment[]>([]);
   const [vessels, setVessels] = useState<DbVessel[]>([]);
   const [guides, setGuides] = useState<DbGuide[]>([]);
+  const [tours, setTours] = useState<Tour[]>(ALL_TOURS);
   const [loading, setLoading] = useState(true);
 
   // Assignment Modal
@@ -60,14 +63,19 @@ export const OperationsAssignments: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [assigns, ves, gui] = await Promise.all([
+      const [assigns, ves, gui, loadedTours] = await Promise.all([
         listAssignments(selectedDate),
         listVessels(),
         listGuides(),
+        getPublishedTours().catch(() => []),
       ]);
       setAssignments(assigns);
       setVessels(ves);
       setGuides(gui);
+      if (loadedTours && loadedTours.length > 0) {
+        setTours(loadedTours);
+        if (!tourId) setTourId(loadedTours[0].id);
+      }
     } catch (err) {
       console.warn('Failed to load assignments:', err);
     } finally {
@@ -399,7 +407,7 @@ export const OperationsAssignments: React.FC = () => {
                   className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded text-stone-200"
                   required
                 >
-                  {ALL_TOURS.map((t) => (
+                  {tours.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.title}
                     </option>

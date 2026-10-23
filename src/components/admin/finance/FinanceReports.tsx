@@ -21,7 +21,9 @@ import {
   listPayments,
 } from '../../../services/financeService';
 import { FinancialReportData, OutstandingBalanceItem, FinanceRefund, FinancePayment } from '../../../types/finance';
+import { Tour } from '../../../types';
 import { ALL_TOURS } from '../../../data/toursData';
+import { getPublishedTours } from '../../../services/tourService';
 import { useToast } from '../../../contexts/ToastContext';
 
 type ReportTab =
@@ -46,22 +48,27 @@ export const FinanceReports: React.FC = () => {
   const [report, setReport] = useState<FinancialReportData | null>(null);
   const [balances, setBalances] = useState<OutstandingBalanceItem[]>([]);
   const [payments, setPayments] = useState<FinancePayment[]>([]);
+  const [tours, setTours] = useState<Tour[]>(ALL_TOURS);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [rData, bData, pData] = await Promise.all([
+      const [rData, bData, pData, loadedTours] = await Promise.all([
         getFinancialReports(
           selectedCurrency,
           startDate && endDate ? { start: startDate, end: endDate } : undefined
         ),
         getOutstandingBalances(),
         listPayments(),
+        getPublishedTours().catch(() => []),
       ]);
       setReport(rData);
       setBalances(bData);
       setPayments(pData);
+      if (loadedTours && loadedTours.length > 0) {
+        setTours(loadedTours);
+      }
     } catch (err) {
       console.warn('Failed to load financial reports:', err);
     } finally {
@@ -107,12 +114,12 @@ export const FinanceReports: React.FC = () => {
     return balances.filter((b) => {
       if (statusFilter !== 'all' && b.status !== statusFilter) return false;
       if (tourFilter !== 'all') {
-        const matchingTour = ALL_TOURS.find((t) => t.id === tourFilter);
+        const matchingTour = tours.find((t) => t.id === tourFilter) || ALL_TOURS.find((t) => t.id === tourFilter);
         if (matchingTour && !b.tourTitle.toLowerCase().includes(matchingTour.title.toLowerCase())) return false;
       }
       return true;
     });
-  }, [balances, statusFilter, tourFilter]);
+  }, [balances, statusFilter, tourFilter, tours]);
 
   const filteredRefunds = useMemo(() => {
     if (!report?.refundsList) return [];
@@ -282,7 +289,7 @@ export const FinanceReports: React.FC = () => {
               className="w-full bg-stone-900 border border-stone-800 rounded px-2.5 py-1.5 text-stone-200 focus:outline-hidden truncate"
             >
               <option value="all">All Excursions</option>
-              {ALL_TOURS.map((t) => (
+              {(tours.length > 0 ? tours : ALL_TOURS).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.title}
                 </option>

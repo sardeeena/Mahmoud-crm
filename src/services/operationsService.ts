@@ -228,10 +228,11 @@ function setLocal<T>(key: string, data: T) {
 export async function getTodayDepartures(dateTarget?: string): Promise<OperationalDeparture[]> {
   const date = dateTarget || new Date().toISOString().split('T')[0];
 
-  const [allBookings, vessels, guides] = await Promise.all([
+  const [allBookings, vessels, guides, dynamicTours] = await Promise.all([
     bookingRepository.listBookings(),
     listVessels(),
     listGuides(),
+    getPublishedTours().catch(() => ALL_TOURS),
   ]);
 
   // Try fetching departures directly from database
@@ -280,9 +281,9 @@ export async function getTodayDepartures(dateTarget?: string): Promise<Operation
     const key = `${dbDep.tour_id}_${dbDep.start_time || '08:30'}`;
     processedKeys.add(key);
 
-    const tour = ALL_TOURS.find((t) => t.id === dbDep.tour_id) || {
+    const tour = (dynamicTours && dynamicTours.find((t) => t.id === dbDep.tour_id)) || ALL_TOURS.find((t) => t.id === dbDep.tour_id) || {
       id: dbDep.tour_id,
-      title: 'Red Sea Excursion',
+      title: bookingsForDep[0]?.tourTitle || 'Red Sea Excursion',
       slug: 'red-sea-tour',
     };
 
@@ -376,7 +377,7 @@ export async function getTodayDepartures(dateTarget?: string): Promise<Operation
     if (processedKeys.has(key)) return;
 
     const [tId, depTime] = key.split('_');
-    const tour = ALL_TOURS.find((t) => t.id === tId) || {
+    const tour = (dynamicTours && dynamicTours.find((t) => t.id === tId)) || ALL_TOURS.find((t) => t.id === tId) || {
       id: tId,
       title: bookings[0]?.tourTitle || 'Red Sea Excursion',
       slug: 'red-sea-tour',

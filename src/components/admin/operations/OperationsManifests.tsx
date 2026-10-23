@@ -26,7 +26,9 @@ import {
   updateManifestPassenger,
 } from '../../../services/operationsService';
 import { PassengerManifestItem } from '../../../types/operations';
+import { Tour } from '../../../types';
 import { ALL_TOURS } from '../../../data/toursData';
+import { getPublishedTours } from '../../../services/tourService';
 import { useToast } from '../../../contexts/ToastContext';
 
 export const OperationsManifests: React.FC = () => {
@@ -35,6 +37,7 @@ export const OperationsManifests: React.FC = () => {
     () => new Date().toISOString().split('T')[0]
   );
   const [tourFilter, setTourFilter] = useState<string>('all');
+  const [tours, setTours] = useState<Tour[]>(ALL_TOURS);
   const [searchQuery, setSearchQuery] = useState('');
   const [passengers, setPassengers] = useState<PassengerManifestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,11 +55,17 @@ export const OperationsManifests: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getPassengerManifest(
-        selectedDate,
-        tourFilter === 'all' ? undefined : tourFilter
-      );
+      const [data, loadedTours] = await Promise.all([
+        getPassengerManifest(
+          selectedDate,
+          tourFilter === 'all' ? undefined : tourFilter
+        ),
+        getPublishedTours().catch(() => []),
+      ]);
       setPassengers(data);
+      if (loadedTours && loadedTours.length > 0) {
+        setTours(loadedTours);
+      }
     } catch (err) {
       console.warn('Failed to load passenger manifest:', err);
     } finally {
@@ -288,7 +297,7 @@ export const OperationsManifests: React.FC = () => {
             className="px-2.5 py-1.5 bg-stone-900 border border-stone-800 rounded text-stone-300 focus:outline-none max-w-xs"
           >
             <option value="all">All Excursions</option>
-            {ALL_TOURS.map((t) => (
+            {tours.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.title}
               </option>
