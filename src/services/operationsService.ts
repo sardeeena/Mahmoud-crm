@@ -108,6 +108,25 @@ const INITIAL_VESSELS: DbVessel[] = [
     created_at: '2026-03-10T11:00:00Z',
     updated_at: '2026-03-10T11:00:00Z',
   },
+  {
+    id: 'c0000001-0000-0000-0000-000000000005',
+    name: 'Red Sea Explorer (Drydock)',
+    vessel_type: 'motor_yacht',
+    registration_number: 'HUR-9901-DRY',
+    port_marina: 'Hurghada Shipyard',
+    passenger_capacity: 40,
+    crew_capacity: 4,
+    year_built: 2018,
+    safety_inspection_expiry: '2026-06-01',
+    amenities: ['Life Vests'],
+    is_active: false,
+    status: 'maintenance',
+    maintenance_notes: 'Scheduled drydock overhaul and hull repainting.',
+    next_maintenance: '2026-11-30',
+    crew: 'Shipyard Team',
+    created_at: '2026-01-01T08:00:00Z',
+    updated_at: '2026-01-01T08:00:00Z',
+  },
 ];
 
 // Initial operational staff profiles (fallback seed)
@@ -198,23 +217,34 @@ const INITIAL_GUIDES: DbGuide[] = [
   },
 ];
 
-// Helper storage cache
+// Helper storage cache with headless memory fallback
+const memoryStore = new Map<string, string>();
+
 function getLocal<T>(key: string, defaultValue: T): T {
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return defaultValue;
-    return JSON.parse(raw);
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(key);
+      if (raw !== null && raw !== undefined) {
+        return JSON.parse(raw);
+      }
+    }
   } catch {
-    return defaultValue;
+    // fallback to memoryStore
   }
+  const mem = memoryStore.get(key);
+  return mem ? JSON.parse(mem) : defaultValue;
 }
 
-function setLocal<T>(key: string, data: T) {
+function setLocal<T>(key: string, data: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(data));
+      return;
+    }
   } catch {
-    // ignore
+    // fallback to memoryStore
   }
+  memoryStore.set(key, JSON.stringify(data));
 }
 
 // ==============================================================================
@@ -573,6 +603,24 @@ export async function updateDepartureStatus(
 // 2. ASSIGNMENT CONFLICT DETECTION (PRE-SAVE VALIDATION)
 // ==============================================================================
 
+function isTimeConflicting(startA: string, endA?: string, startB?: string, endB?: string): boolean {
+  if (!startA || !startB) return false;
+  if (startA.trim() === startB.trim()) return true;
+
+  const toMins = (t?: string, defaultMins?: number) => {
+    if (!t) return defaultMins ?? 0;
+    const parts = t.split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+  };
+
+  const sA = toMins(startA, 510);
+  const eA = toMins(endA, sA + 480);
+  const sB = toMins(startB, 510);
+  const eB = toMins(endB, sB + 480);
+
+  return Math.max(sA, sB) < Math.min(eA, eB);
+}
+
 /**
  * Deep conflict detector: checks if vessel, guide, captain, or driver
  * is double-booked on overlapping departures, or if vessel capacity is exceeded.
@@ -631,7 +679,7 @@ export async function detectAssignmentConflicts(params: {
           d.id !== params.departureId &&
           d.vesselId === params.vesselId &&
           d.status !== 'cancelled' &&
-          d.departureTime === params.startTime
+          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
       );
       if (busyDep) {
         conflicts.push({
@@ -655,7 +703,7 @@ export async function detectAssignmentConflicts(params: {
           d.id !== params.departureId &&
           d.guideId === params.guideId &&
           d.status !== 'cancelled' &&
-          d.departureTime === params.startTime
+          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
       );
       if (busyDep) {
         conflicts.push({
@@ -679,7 +727,7 @@ export async function detectAssignmentConflicts(params: {
           d.id !== params.departureId &&
           (d.captainId === params.captainId || d.guideId === params.captainId) &&
           d.status !== 'cancelled' &&
-          d.departureTime === params.startTime
+          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
       );
       if (busyDep) {
         conflicts.push({
@@ -703,7 +751,7 @@ export async function detectAssignmentConflicts(params: {
           d.id !== params.departureId &&
           d.driverId === params.driverId &&
           d.status !== 'cancelled' &&
-          d.departureTime === params.startTime
+          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
       );
       if (busyDep) {
         conflicts.push({
@@ -1076,10 +1124,13 @@ export async function listVessels(): Promise<DbVessel[]> {
     try {
       const { data, error } = await supabase.from('vessels').select('*').order('name');
       if (!error && data && data.length > 0) {
-        vessels = data.map((d: any) => ({
+        const dbVessels: DbVessel[] = data.map((d: any) => ({
           ...d,
           status: d.status || (d.is_active ? 'active' : 'inactive'),
         }));
+        const dbIds = new Set(dbVessels.map((v) => v.id));
+        const unsynced = vessels.filter((v) => !dbIds.has(v.id));
+        vessels = [...dbVessels, ...unsynced];
         setLocal(LOCAL_VESSELS_KEY, vessels);
       }
     } catch {

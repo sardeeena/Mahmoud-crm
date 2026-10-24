@@ -381,11 +381,11 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={handleLogoClick}
             className="flex items-center group focus:outline-hidden"
             id="brand-logo-link"
-            aria-label="Red Sea Excursions Home"
+            aria-label="Awesome Adventure Tours Home"
           >
             <img 
               src="/logo.png" 
-              alt="Red Sea Excursions" 
+              alt="Awesome Adventure Tours" 
               className="h-14 sm:h-16 md:h-20 w-auto object-contain drop-shadow-xs group-hover:scale-105 transition-transform duration-300"
             />
           </a>
@@ -412,13 +412,6 @@ export const Header: React.FC<HeaderProps> = ({
               className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
             >
               {t('nav.experiences')}
-            </button>
-            <button 
-              type="button"
-              onClick={() => handleNavClick('why-us-section')} 
-              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
-            >
-              {t('nav.whyChooseUs')}
             </button>
             <button 
               type="button"
@@ -896,13 +889,6 @@ export const Header: React.FC<HeaderProps> = ({
                 className="text-left py-2 px-3 rounded hover:bg-stone-100"
               >
                 {t('mobile.categories')}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavClick('why-us-section')}
-                className="text-left py-2 px-3 rounded hover:bg-stone-100"
-              >
-                {t('mobile.safety')}
               </button>
               <button
                 type="button"

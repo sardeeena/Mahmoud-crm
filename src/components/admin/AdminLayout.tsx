@@ -36,6 +36,14 @@ import {
   MessageSquare,
   Bell,
   History,
+  Menu,
+  X,
+  ChevronLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Monitor,
+  Tablet,
+  Smartphone,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured, isSchemaMissing, subscribeSchemaMissing } from '../../services/supabaseClient';
@@ -115,6 +123,38 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const supabaseConnected = isSupabaseConfigured();
   const [schemaMissing, setSchemaMissingState] = React.useState(isSchemaMissing());
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = React.useState(false);
+
+  // Sidebar open/close state (default open on desktop, auto-closed on small screens)
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+
+  // Device mode & screen viewport detection (PC, Tablet, Phone)
+  type DeviceMode = 'auto' | 'pc' | 'tablet' | 'phone';
+  const [deviceMode, setDeviceMode] = React.useState<DeviceMode>('auto');
+  const [screenDevice, setScreenDevice] = React.useState<'pc' | 'tablet' | 'phone'>('pc');
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      const w = window.innerWidth;
+      if (w < 768) {
+        setScreenDevice('phone');
+      } else if (w < 1024) {
+        setScreenDevice('tablet');
+      } else {
+        setScreenDevice('pc');
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleNavSelect = (tabId: AdminTab) => {
+    onSelectTab(tabId);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  };
 
   React.useEffect(() => {
     return subscribeSchemaMissing((missing) => {
@@ -256,38 +296,62 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         </div>
       ) : null}
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile/Tablet Backdrop when sidebar is open */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="w-64 bg-stone-950 border-r border-stone-800 flex flex-col justify-between shrink-0">
+        <aside
+          className={`
+            fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] bg-stone-950 border-r border-stone-800 flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out
+            lg:static lg:z-10
+            ${isSidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:w-0 lg:overflow-hidden lg:border-r-0'}
+          `}
+        >
           <div>
-            {/* Brand Header */}
-            <div className="p-4 border-b border-stone-800 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+            {/* Brand Header with Close/Collapse Button */}
+            <div className="p-4 border-b border-stone-800 flex items-center justify-between gap-2">
+              <div className="flex items-center space-x-3 min-w-0">
                 <img 
                   src="/logo.png" 
-                  alt="Red Sea Logo" 
+                  alt="Awesome Adventure Tours Logo" 
                   className="h-10 w-auto object-contain shrink-0 drop-shadow-xs"
                 />
-                <div>
+                <div className="min-w-0">
                   <span className="text-[9px] uppercase tracking-widest text-[#0A6C74] font-bold block">
                     Admin Portal
                   </span>
-                  <h1 className="font-display font-bold text-sm text-white tracking-wide">
-                    Red Sea Voyages
+                  <h1 className="font-display font-bold text-sm text-white tracking-wide truncate">
+                    Awesome Adventure Tours
                   </h1>
                 </div>
               </div>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#0A6C74]/20 text-[#2dd4bf] border border-[#0A6C74]/30">
-                CMS v4.0
-              </span>
+
+              {/* Close/Collapse Button */}
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-1.5 text-stone-400 hover:text-white hover:bg-stone-800 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Close / Collapse Sidebar"
+                aria-label="Close sidebar"
+              >
+                <ChevronLeft className="w-5 h-5 hidden lg:block" />
+                <X className="w-5 h-5 lg:hidden" />
+              </button>
             </div>
 
             {/* Quick Action: New Tour */}
             <div className="p-3">
               <button
                 type="button"
-                onClick={() => onSelectTab('tour_new')}
-                className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded-md text-xs font-semibold shadow transition-colors"
+                onClick={() => handleNavSelect('tour_new')}
+                className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded-md text-xs font-semibold shadow transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Create New Tour</span>
@@ -315,8 +379,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   <div key={item.id} className="space-y-0.5">
                     <button
                       type="button"
-                      onClick={() => onSelectTab(item.id as AdminTab)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition-colors ${
+                      onClick={() => handleNavSelect(item.id as AdminTab)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition-colors cursor-pointer ${
                         isCurrent
                           ? 'bg-stone-800/90 text-white font-semibold'
                           : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900'
@@ -329,15 +393,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       {isCurrent && <ChevronRight className="w-3.5 h-3.5 text-stone-500" />}
                     </button>
 
-                    {/* Sub-items for Tours */}
+                    {/* Sub-items */}
                     {item.children && isCurrent && (
                       <div className="ml-7 pl-2 border-l border-stone-800 space-y-0.5 py-1">
                         {item.children.map((sub) => (
                           <button
                             key={sub.id}
                             type="button"
-                            onClick={() => onSelectTab(sub.id as AdminTab)}
-                            className={`w-full text-left py-1 px-2 rounded text-[11px] transition-colors ${
+                            onClick={() => handleNavSelect(sub.id as AdminTab)}
+                            className={`w-full text-left py-1 px-2 rounded text-[11px] transition-colors cursor-pointer ${
                               activeTab === sub.id
                                 ? 'text-[#2dd4bf] font-medium bg-stone-800/40'
                                 : 'text-stone-400 hover:text-stone-200'
@@ -362,7 +426,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-stone-200 truncate">{user?.fullName || 'Admin Officer'}</p>
-                <p className="text-[10px] text-stone-400 truncate">{user?.email || 'admin@redsea.com'}</p>
+                <p className="text-[10px] text-stone-400 truncate">{user?.email || 'admin@awesomeadventuretours.com'}</p>
               </div>
               <span className="text-[9px] px-1.5 py-0.5 uppercase tracking-wide bg-stone-800 text-stone-300 rounded font-semibold">
                 {user?.role || 'admin'}
@@ -382,7 +446,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               <button
                 type="button"
                 onClick={onNavigateSite}
-                className="flex items-center justify-center space-x-1 py-1.5 px-2 bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white rounded text-[11px] transition-colors"
+                className="flex items-center justify-center space-x-1 py-1.5 px-2 bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white rounded text-[11px] transition-colors cursor-pointer"
                 title="View Live Website"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -392,7 +456,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               <button
                 type="button"
                 onClick={() => signOut()}
-                className="flex items-center justify-center space-x-1 py-1.5 px-2 bg-stone-900 hover:bg-red-950/40 text-stone-400 hover:text-red-300 rounded text-[11px] transition-colors"
+                className="flex items-center justify-center space-x-1 py-1.5 px-2 bg-stone-900 hover:bg-red-950/40 text-stone-400 hover:text-red-300 rounded text-[11px] transition-colors cursor-pointer"
                 title="Sign out of CMS"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -403,9 +467,158 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto bg-stone-900">
-          <div className="max-w-7xl mx-auto p-6 md:p-8">
-            {children}
+        <main className="flex-1 overflow-y-auto bg-stone-900 flex flex-col min-w-0">
+          {/* Top Admin Bar with Sidebar Open/Close Button & Device Controls */}
+          <header className="sticky top-0 z-20 bg-stone-950/95 backdrop-blur-md border-b border-stone-800 px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            {/* Left: Open/Close Sidebar button & Active Tab */}
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen((prev) => !prev)}
+                className="flex items-center space-x-2 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-stone-200 hover:text-white rounded-lg text-xs font-medium border border-stone-700/80 transition-colors shadow-2xs cursor-pointer"
+                title={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+                aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+              >
+                {isSidebarOpen ? (
+                  <>
+                    <PanelLeftClose className="w-4 h-4 text-[#2dd4bf]" />
+                    <span className="hidden sm:inline">Close Sidebar</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelLeftOpen className="w-4 h-4 text-[#2dd4bf]" />
+                    <span>Open Sidebar</span>
+                  </>
+                )}
+              </button>
+
+              <div className="hidden sm:flex items-center space-x-1.5 text-xs text-stone-400">
+                <span className="text-stone-500">Awesome Adventure Tours</span>
+                <span>/</span>
+                <span className="text-white font-medium capitalize">
+                  {activeTab.replace(/^(dash_|crm_|ops_|fin_|comm_)/, '').replace(/_/g, ' ')}
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Device Detection & Viewport Switcher */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Current Device Live Indicator */}
+              <div 
+                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-stone-900 border border-stone-800 text-xs shadow-2xs"
+                title={`Active detected device: ${screenDevice.toUpperCase()}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-stone-400 text-[11px] hidden md:inline">Current Device:</span>
+                <span className="text-stone-200 font-semibold text-[11px] uppercase flex items-center gap-1">
+                  {screenDevice === 'phone' ? (
+                    <>
+                      <Smartphone className="w-3.5 h-3.5 text-sky-400" />
+                      Phone
+                    </>
+                  ) : screenDevice === 'tablet' ? (
+                    <>
+                      <Tablet className="w-3.5 h-3.5 text-amber-400" />
+                      Tablet
+                    </>
+                  ) : (
+                    <>
+                      <Monitor className="w-3.5 h-3.5 text-emerald-400" />
+                      PC
+                    </>
+                  )}
+                </span>
+              </div>
+
+              {/* Device Viewport Mode Switcher (PC, Tablet, Phone) */}
+              <div className="flex items-center bg-stone-900 rounded-lg p-0.5 border border-stone-800 text-xs shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setDeviceMode('auto')}
+                  className={`px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                    deviceMode === 'auto'
+                      ? 'bg-[#0A6C74] text-white shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                  title="Auto responsive mode based on browser window"
+                >
+                  Auto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeviceMode('pc')}
+                  className={`flex items-center space-x-1 px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                    deviceMode === 'pc'
+                      ? 'bg-[#0A6C74] text-white shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                  title="Desktop PC mode (Full Width)"
+                >
+                  <Monitor className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">PC</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeviceMode('tablet')}
+                  className={`flex items-center space-x-1 px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                    deviceMode === 'tablet'
+                      ? 'bg-[#0A6C74] text-white shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                  title="Tablet mode (768px layout)"
+                >
+                  <Tablet className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Tablet</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeviceMode('phone')}
+                  className={`flex items-center space-x-1 px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                    deviceMode === 'phone'
+                      ? 'bg-[#0A6C74] text-white shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                  title="Phone mode (390px mobile layout)"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Phone</span>
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Active Device Mode Banner when simulated */}
+          {deviceMode !== 'auto' && (
+            <div className="bg-[#0A6C74]/15 border-b border-[#0A6C74]/30 px-4 py-1.5 text-xs text-teal-200 flex items-center justify-between">
+              <span className="flex items-center space-x-1.5">
+                <span className="font-semibold uppercase tracking-wider text-[10px] bg-[#0A6C74] text-white px-1.5 py-0.5 rounded">
+                  {deviceMode.toUpperCase()} VIEWPORT MODE
+                </span>
+                <span>Inspecting and fixing admin dashboard layout in {deviceMode} viewport.</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setDeviceMode('auto')}
+                className="text-[11px] underline hover:text-white cursor-pointer"
+              >
+                Reset to Auto
+              </button>
+            </div>
+          )}
+
+          {/* Main View Container with device container sizing */}
+          <div className="flex-1 p-3 sm:p-5 md:p-8 overflow-x-auto flex justify-center">
+            <div
+              className={`w-full transition-all duration-300 ${
+                deviceMode === 'phone'
+                  ? 'max-w-[390px] bg-stone-950/80 rounded-3xl border-4 border-stone-700 shadow-2xl p-3 sm:p-4 my-2'
+                  : deviceMode === 'tablet'
+                  ? 'max-w-[768px] bg-stone-950/80 rounded-2xl border-4 border-stone-700 shadow-2xl p-4 sm:p-6 my-2'
+                  : 'max-w-7xl'
+              }`}
+            >
+              {children}
+            </div>
           </div>
         </main>
       </div>

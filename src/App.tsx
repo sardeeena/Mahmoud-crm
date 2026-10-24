@@ -11,7 +11,6 @@ import { Hero } from './components/home/Hero';
 import { PopularTours } from './components/home/PopularTours';
 import { ExperienceCategories } from './components/home/ExperienceCategories';
 import { DestinationsSection } from './components/home/DestinationsSection';
-import { WhyChooseUs } from './components/home/WhyChooseUs';
 import { ReviewsSection } from './components/home/ReviewsSection';
 import { FinalCTA } from './components/home/FinalCTA';
 import { NotFoundPage } from './components/common/NotFoundPage';
@@ -333,7 +332,7 @@ function MainApp() {
   useEffect(() => {
     if (currentPath.startsWith('/admin')) {
       seoService.apply({
-        title: 'Staff & Admin CMS | Red Sea Voyages',
+        title: 'Staff & Admin CMS | Awesome Adventure Tours',
         description: 'Administrative portal for tour management, booking verification, and fleet operations.',
       });
       return;
@@ -342,9 +341,9 @@ function MainApp() {
     if (currentPath.startsWith('/booking/confirmation')) {
       seoService.apply({
         title: confirmationReference
-          ? `Booking Confirmed (${confirmationReference}) | Red Sea Excursions`
-          : 'Booking Confirmation | Red Sea Excursions',
-        description: 'Your Red Sea excursion booking voucher and confirmed hotel pickup transfer itinerary.',
+          ? `Booking Confirmed (${confirmationReference}) | Awesome Adventure Tours`
+          : 'Booking Confirmation | Awesome Adventure Tours',
+        description: 'Your excursion booking voucher and confirmed hotel pickup transfer itinerary.',
         canonicalUrl: typeof window !== 'undefined' ? `${window.location.origin}${currentPath}` : undefined,
       });
       return;
@@ -1120,9 +1119,6 @@ function MainApp() {
             onRetry={refreshPublishedCategories}
             onSelectCategory={handleSelectHomeCategory}
           />
-
-          {/* Why Choose Us */}
-          <WhyChooseUs />
 
           {/* Destinations */}
           <DestinationsSection

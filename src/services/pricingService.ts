@@ -41,9 +41,16 @@ export interface CalculateBookingPriceParams {
     extra: BookingExtra;
     quantity?: number;
   }>;
-  currency: CurrencyConfig;
+  currency?: CurrencyConfig;
   discountEur?: number;
 }
+
+const DEFAULT_CURRENCY: CurrencyConfig = {
+  code: 'EUR',
+  symbol: '€',
+  name: 'Euro',
+  rateToEur: 1,
+};
 
 /**
  * Pure Pricing Calculation Engine
@@ -55,7 +62,7 @@ export function calculateBookingPrice({
   guests,
   pickupLocation,
   selectedExtras = [],
-  currency,
+  currency = DEFAULT_CURRENCY,
   discountEur = 0,
 }: CalculateBookingPriceParams): BookingPricing {
   const adults = Math.max(1, guests.adults || 1);
@@ -137,6 +144,7 @@ export function calculateBookingPrice({
     discountEur: validDiscount,
     subtotalEur,
     totalEur,
+    currency: currency.code,
     formattedTotal: formatCurrencyAmount(totalEur, currency),
     formattedSubtotal: formatCurrencyAmount(subtotalEur, currency),
   };

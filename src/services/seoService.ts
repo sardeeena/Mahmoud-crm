@@ -12,10 +12,10 @@ export interface SeoMetadata {
   schemaJsonLd?: Record<string, unknown>;
 }
 
-const DEFAULT_TITLE = 'Red Sea Excursions & Tours | Verified Red Sea Boat Trips & Safaris';
-const DEFAULT_DESCRIPTION = 'Professional Red Sea tour operator and excursion booking platform specializing in boat trips, coral snorkeling, diving, and desert safaris.';
+const DEFAULT_TITLE = 'Awesome Adventure Tours | Verified Excursions, Boat Trips & Safaris';
+const DEFAULT_DESCRIPTION = 'Awesome Adventure Tours - Professional tour operator and excursion booking platform specializing in boat trips, coral snorkeling, diving, and desert safaris.';
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80';
-const SITE_NAME = 'Red Sea Excursions & Tours';
+const SITE_NAME = 'Awesome Adventure Tours';
 
 /**
  * Updates or creates a <meta> element in the document head
@@ -273,7 +273,7 @@ export const seoService = {
       '@context': 'https://schema.org',
       '@type': 'TravelAgency',
       name: SITE_NAME,
-      alternateName: 'Red Sea Voyages',
+      alternateName: 'Awesome Adventure Tours',
       description: DEFAULT_DESCRIPTION,
       url: origin,
       telephone: '+201023456789',

@@ -60,6 +60,7 @@ export interface BookingPricing {
   discountEur: number;
   subtotalEur?: number;
   totalEur: number;
+  currency?: string;
   // Formatted representations in active currency
   formattedTotal: string;
   formattedSubtotal?: string;

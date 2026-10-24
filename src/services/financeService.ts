@@ -87,21 +87,33 @@ export const DEFAULT_PROVIDERS: PaymentProvider[] = [
   },
 ];
 
+const memoryStore = new Map<string, string>();
+
 function getLocal<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(key);
+      if (raw !== null && raw !== undefined) {
+        return JSON.parse(raw);
+      }
+    }
   } catch {
-    return fallback;
+    // fallback to memoryStore
   }
+  const mem = memoryStore.get(key);
+  return mem ? JSON.parse(mem) : fallback;
 }
 
 function setLocal<T>(key: string, data: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(data));
+      return;
+    }
   } catch {
-    // ignore
+    // fallback to memoryStore
   }
+  memoryStore.set(key, JSON.stringify(data));
 }
 
 // ------------------------------------------------------------------------------
@@ -223,7 +235,7 @@ export async function listPayments(filter?: {
         .order('payment_date', { ascending: false });
 
       if (!error && data) {
-        payments = data.map((d: any) => ({
+        const dbPayments: FinancePayment[] = data.map((d: any) => ({
           id: d.id,
           bookingId: d.booking_id,
           bookingReference: d.booking_reference || d.booking_id,
@@ -244,6 +256,12 @@ export async function listPayments(filter?: {
           createdAt: d.created_at,
           updatedAt: d.updated_at,
         }));
+        const dbTxRefs = new Set(dbPayments.map((p) => p.transactionReference?.toLowerCase()));
+        const dbIds = new Set(dbPayments.map((p) => p.id));
+        const unsynced = payments.filter(
+          (p) => !dbIds.has(p.id) && (!p.transactionReference || !dbTxRefs.has(p.transactionReference.toLowerCase()))
+        );
+        payments = [...dbPayments, ...unsynced];
         setLocal(LOCAL_PAYMENTS_KEY, payments);
       }
     } catch {
@@ -311,6 +329,16 @@ export async function recordPayment(paymentData: {
 
   const allPayments = await listPayments();
   const paymentDate = paymentData.paymentDate || new Date().toISOString();
+
+  if (paymentData.transactionReference?.trim()) {
+    const existingTx = allPayments.find(
+      (p) => p.transactionReference?.trim().toLowerCase() === paymentData.transactionReference?.trim().toLowerCase()
+    );
+    if (existingTx) {
+      throw new Error(`Duplicate transaction reference: Transaction "${paymentData.transactionReference.trim()}" has already been recorded.`);
+    }
+  }
+
   const txRef =
     paymentData.transactionReference?.trim() ||
     `TXN-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -818,7 +846,7 @@ export async function listRefunds(filter?: {
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        refunds = data.map((d: any) => ({
+        const dbRefunds: FinanceRefund[] = data.map((d: any) => ({
           id: d.id,
           bookingId: d.booking_id,
           bookingReference: d.booking_reference || d.booking_id,
@@ -842,6 +870,12 @@ export async function listRefunds(filter?: {
           createdAt: d.created_at,
           updatedAt: d.updated_at,
         }));
+        const dbIds = new Set(dbRefunds.map((r) => r.id));
+        const dbTxRefs = new Set(dbRefunds.map((r) => r.transactionReference?.toLowerCase()));
+        const unsynced = refunds.filter(
+          (r) => !dbIds.has(r.id) && (!r.transactionReference || !dbTxRefs.has(r.transactionReference.toLowerCase()))
+        );
+        refunds = [...dbRefunds, ...unsynced];
         setLocal(LOCAL_REFUNDS_KEY, refunds);
       }
     } catch {
@@ -889,9 +923,31 @@ export async function requestRefund(refundData: {
     .reduce((sum, p) => sum + p.amount, 0);
 
   const existingRefunds = await listRefunds({ bookingId: refundData.bookingReference });
-  const processedRefunds = existingRefunds.filter((r) => r.status === 'processed');
-  const totalAlreadyRefunded = processedRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
-  const maxAvailableToRefund = Math.max(0, totalPaid - totalAlreadyRefunded);
+
+  // Prevent duplicate concurrent requests with identical parameters
+  const duplicatePending = existingRefunds.find(
+    (r) =>
+      r.status === 'pending_approval' &&
+      r.bookingReference === refundData.bookingReference &&
+      Math.abs(r.requestedAmount - refundData.requestedAmount) < 0.01 &&
+      r.reason === refundData.reason.trim()
+  );
+  if (duplicatePending) {
+    return {
+      success: false,
+      error: `A duplicate refund request for €${refundData.requestedAmount} is already pending approval (Ref: ${duplicatePending.transactionReference}).`,
+    };
+  }
+
+  // Audit Check: Count all committed refunds (processed, approved, pending) so in-flight requests cannot exceed net balance
+  const activeRefunds = existingRefunds.filter(
+    (r) => r.status === 'processed' || r.status === 'approved' || r.status === 'pending_approval'
+  );
+  const totalCommittedRefunds = activeRefunds.reduce(
+    (sum, r) => sum + (r.approvedAmount || r.requestedAmount || r.amount),
+    0
+  );
+  const maxAvailableToRefund = Math.max(0, totalPaid - totalCommittedRefunds);
 
   if (refundData.requestedAmount <= 0) {
     return { success: false, error: 'Refund requested amount must be greater than zero.' };
@@ -900,7 +956,7 @@ export async function requestRefund(refundData: {
   if (refundData.requestedAmount > maxAvailableToRefund) {
     return {
       success: false,
-      error: `Cannot request €${refundData.requestedAmount}. Maximum refundable balance is €${maxAvailableToRefund} (€${totalPaid} paid minus €${totalAlreadyRefunded} processed refunds).`,
+      error: `Cannot request €${refundData.requestedAmount}. Maximum refundable balance is €${maxAvailableToRefund.toFixed(2)} (€${totalPaid.toFixed(2)} paid minus €${totalCommittedRefunds.toFixed(2)} committed/processed refunds).`,
     };
   }
 

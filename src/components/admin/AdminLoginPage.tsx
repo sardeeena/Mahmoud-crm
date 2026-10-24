@@ -136,7 +136,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
             <div className="flex items-center justify-center mx-auto mb-3">
               <img 
                 src="/logo.png" 
-                alt="Red Sea Voyages Logo" 
+                alt="Awesome Adventure Tours Logo" 
                 className="h-16 w-auto object-contain drop-shadow-md"
               />
             </div>
@@ -264,7 +264,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
 
       {/* Footer */}
       <div className="text-center text-[11px] text-stone-500">
-        Red Sea Voyages CMS • Supabase Database & Auth Protected
+        Awesome Adventure Tours CMS • Supabase Database & Auth Protected
       </div>
     </div>
   );

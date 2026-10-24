@@ -101,11 +101,11 @@ export const Footer: React.FC<FooterProps> = ({
             <div className="flex items-center space-x-3 mb-3.5">
               <img 
                 src="/logo.png" 
-                alt="Red Sea Excursions Logo" 
+                alt="Awesome Adventure Tours Logo" 
                 className="h-12 w-auto object-contain shrink-0 drop-shadow-xs"
               />
               <span className="font-display font-semibold text-stone-900 dark:text-white text-lg tracking-wide">
-                RED SEA <span className="text-[#0A6C74] dark:text-[#60C3CC]">EXCURSIONS</span>
+                AWESOME <span className="text-[#0A6C74] dark:text-[#60C3CC]">ADVENTURES</span>
               </span>
             </div>
             <p className="text-xs text-stone-600 dark:text-slate-400 leading-relaxed mb-5 max-w-sm">
@@ -338,7 +338,7 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Payment Methods & Bottom Bar */}
         <div className="mt-12 pt-6 border-t border-[#E8E3DA] dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-stone-500 dark:text-slate-500">
           <div className="flex items-center space-x-3">
-            <span>© {new Date().getFullYear()} Red Sea Excursions & Maritime Services S.A.E.</span>
+            <span>© {new Date().getFullYear()} Awesome Adventure Tours S.A.E.</span>
             <span className="text-stone-300 dark:text-slate-700">|</span>
             {/* Footer Theme Toggle */}
             <button
