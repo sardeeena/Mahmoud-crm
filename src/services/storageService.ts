@@ -343,7 +343,7 @@ export async function listStorageMedia(folder: string = 'tours'): Promise<Storag
       .order('created_at', { ascending: false });
 
     if (!dbError && dbAssets && dbAssets.length > 0) {
-      return dbAssets.map((asset: DbMediaAsset) => ({
+      const dbMapped: StorageFileItem[] = dbAssets.map((asset: DbMediaAsset) => ({
         id: asset.id,
         name: asset.file_name,
         url: asset.public_url,
@@ -355,6 +355,15 @@ export async function listStorageMedia(folder: string = 'tours'): Promise<Storag
         tourId: asset.tour_id,
         createdAt: asset.created_at,
       }));
+
+      const localAssets = getLocalAssets();
+      const existingUrls = new Set(dbMapped.map((i) => i.url));
+      const existingPaths = new Set(dbMapped.map((i) => i.storagePath));
+      const unsynced = localAssets.filter(
+        (item) => !existingUrls.has(item.url) && !existingPaths.has(item.storagePath)
+      );
+
+      return [...dbMapped, ...unsynced];
     }
 
     // 2. Fallback: List directly from Supabase Storage bucket if table is empty or pending migration
