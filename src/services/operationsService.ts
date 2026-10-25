@@ -311,13 +311,13 @@ export async function getTodayDepartures(dateTarget?: string): Promise<Operation
     const key = `${dbDep.tour_id}_${dbDep.start_time || '08:30'}`;
     processedKeys.add(key);
 
+    const bookingsForDep = groupedBookings.get(key) || [];
+
     const tour = (dynamicTours && dynamicTours.find((t) => t.id === dbDep.tour_id)) || ALL_TOURS.find((t) => t.id === dbDep.tour_id) || {
       id: dbDep.tour_id,
       title: bookingsForDep[0]?.tourTitle || 'Red Sea Excursion',
       slug: 'red-sea-tour',
     };
-
-    const bookingsForDep = groupedBookings.get(key) || [];
     const paxCount = bookingsForDep.reduce(
       (sum, b) => sum + (b.guests.adults || 1) + (b.guests.children || 0) + (b.guests.infants || 0),
       0

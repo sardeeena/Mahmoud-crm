@@ -3,6 +3,7 @@ export type CurrencyCode = 'EUR' | 'USD' | 'GBP' | 'EGP';
 export interface CurrencyConfig {
   code: CurrencyCode;
   symbol: string;
+  name?: string;
   rateToEur: number;
 }
 
