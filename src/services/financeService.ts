@@ -364,53 +364,7 @@ export async function recordPayment(paymentData: {
     createdAt: new Date().toISOString(),
   };
 
-  const updatedPayments = [newPayment, ...allPayments];
-  setLocal(LOCAL_PAYMENTS_KEY, updatedPayments);
-
-  // Recalculate booking payment status server/service side
-  try {
-    const allBookings = await bookingRepository.listBookings();
-    const targetBooking = allBookings.find(
-      (b) => b.bookingReference === paymentData.bookingReference || b.bookingId === paymentData.bookingId
-    );
-
-    if (targetBooking) {
-      const bookingPayments = updatedPayments.filter(
-        (p) =>
-          (p.bookingReference === targetBooking.bookingReference || p.bookingId === targetBooking.bookingId) &&
-          (p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
-      );
-      const totalPaid = bookingPayments.reduce((sum, p) => sum + p.amount, 0);
-
-      // Subtract processed refunds
-      const allRefunds = await listRefunds();
-      const processedRefunds = allRefunds.filter(
-        (r) =>
-          (r.bookingReference === targetBooking.bookingReference || r.bookingId === targetBooking.bookingId) &&
-          r.status === 'processed'
-      );
-      const totalRefunded = processedRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
-      const netPaid = Math.max(0, totalPaid - totalRefunded);
-      const bookingTotal = targetBooking.pricing?.totalEur || 0;
-
-      let nextStatus: any = 'pending';
-      if (netPaid >= bookingTotal) {
-        nextStatus = 'paid';
-      } else if (netPaid > 0) {
-        nextStatus = 'partially_paid';
-      }
-
-      await bookingRepository.updateBooking({
-        ...targetBooking,
-        paymentStatus: nextStatus,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-  } catch (err) {
-    console.warn('Failed to update booking status after payment:', err);
-  }
-
-  // Sync with Supabase if configured
+  // Sync with Supabase if configured (Authoritative Database First)
   if (isSupabaseConfigured()) {
     try {
       let resolvedBookingUuid = newPayment.bookingId;
@@ -467,6 +421,53 @@ export async function recordPayment(paymentData: {
       console.error('Error inserting payment transaction in Supabase:', err);
       throw err;
     }
+  }
+
+  // Only commit to local state after authoritative write succeeds
+  const updatedPayments = [newPayment, ...allPayments];
+  setLocal(LOCAL_PAYMENTS_KEY, updatedPayments);
+
+  // Recalculate booking payment status server/service side
+  try {
+    const allBookings = await bookingRepository.listBookings();
+    const targetBooking = allBookings.find(
+      (b) => b.bookingReference === paymentData.bookingReference || b.bookingId === paymentData.bookingId
+    );
+
+    if (targetBooking) {
+      const bookingPayments = updatedPayments.filter(
+        (p) =>
+          (p.bookingReference === targetBooking.bookingReference || p.bookingId === targetBooking.bookingId) &&
+          (p.paymentStatus === 'Paid' || p.paymentStatus === 'paid')
+      );
+      const totalPaid = bookingPayments.reduce((sum, p) => sum + p.amount, 0);
+
+      // Subtract processed refunds
+      const allRefunds = await listRefunds();
+      const processedRefunds = allRefunds.filter(
+        (r) =>
+          (r.bookingReference === targetBooking.bookingReference || r.bookingId === targetBooking.bookingId) &&
+          r.status === 'processed'
+      );
+      const totalRefunded = processedRefunds.reduce((sum, r) => sum + (r.approvedAmount || r.amount), 0);
+      const netPaid = Math.max(0, totalPaid - totalRefunded);
+      const bookingTotal = targetBooking.pricing?.totalEur || 0;
+
+      let nextStatus: any = 'pending';
+      if (netPaid >= bookingTotal) {
+        nextStatus = 'paid';
+      } else if (netPaid > 0) {
+        nextStatus = 'partially_paid';
+      }
+
+      await bookingRepository.updateBooking({
+        ...targetBooking,
+        paymentStatus: nextStatus,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to update booking status after payment:', err);
   }
 
   // CRM Activity Timeline Event
@@ -987,34 +988,86 @@ export async function requestRefund(refundData: {
     updatedAt: new Date().toISOString(),
   };
 
-  const allRefunds = await listRefunds();
-  setLocal(LOCAL_REFUNDS_KEY, [newRefund, ...allRefunds]);
-
+  // Authoritative Database Sync First
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('refund_records').insert({
-        id: newRefund.id.startsWith('ref-') ? undefined : newRefund.id,
-        booking_id: newRefund.bookingId,
-        booking_reference: newRefund.bookingReference,
-        payment_id: newRefund.paymentId,
-        customer_id: newRefund.customerId,
-        customer_name: newRefund.customerName,
-        customer_email: newRefund.customerEmail,
-        amount: newRefund.amount,
-        requested_amount: newRefund.requestedAmount,
-        currency: newRefund.currency,
-        reason: newRefund.reason,
-        status: newRefund.status,
-        requested_by: newRefund.requestedBy,
-        refund_method: newRefund.refundMethod,
-        transaction_reference: newRefund.transactionReference,
-        processed_by: newRefund.processedBy,
-        notes: newRefund.notes,
-      });
-    } catch {
-      // ignore
+      let resolvedBookingUuid = newRefund.bookingId;
+      let resolvedCustomerUuid = newRefund.customerId;
+
+      if (!resolvedBookingUuid?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const { data: bRow } = await supabase
+          .from('bookings')
+          .select('id, customer_id')
+          .eq('booking_reference', newRefund.bookingReference)
+          .maybeSingle();
+
+        if (bRow) {
+          resolvedBookingUuid = bRow.id;
+          if (!resolvedCustomerUuid && bRow.customer_id) {
+            resolvedCustomerUuid = bRow.customer_id;
+          }
+        }
+      }
+
+      if (resolvedBookingUuid?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        // Map UI method to DB CHECK constraint: ('Original Payment Method', 'Cash', 'Credit Card', 'Bank Wire', 'Credit Voucher')
+        const dbMethod =
+          newRefund.refundMethod === 'Card Reversal'
+            ? 'Credit Card'
+            : newRefund.refundMethod === 'Cash Return'
+            ? 'Cash'
+            : newRefund.refundMethod === 'Bank Wire'
+            ? 'Bank Wire'
+            : newRefund.refundMethod === 'Store Credit / Voucher'
+            ? 'Credit Voucher'
+            : 'Original Payment Method';
+
+        const refundPayload: Record<string, any> = {
+          booking_id: resolvedBookingUuid,
+          booking_reference: newRefund.bookingReference,
+          payment_id: newRefund.paymentId && newRefund.paymentId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ? newRefund.paymentId : null,
+          customer_name: newRefund.customerName,
+          customer_email: newRefund.customerEmail,
+          amount: newRefund.amount,
+          requested_amount: newRefund.requestedAmount,
+          currency: newRefund.currency || 'EUR',
+          reason: newRefund.reason,
+          status: newRefund.status,
+          requested_by: newRefund.requestedBy,
+          refund_method: dbMethod,
+          transaction_reference: newRefund.transactionReference,
+          processed_by: newRefund.processedBy,
+          notes: newRefund.notes,
+        };
+
+        if (resolvedCustomerUuid?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          refundPayload.customer_id = resolvedCustomerUuid;
+        }
+
+        const { data: insRefund, error: refError } = await supabase
+          .from('refund_records')
+          .insert(refundPayload)
+          .select('id')
+          .maybeSingle();
+
+        if (refError) {
+          console.error('Supabase refund insert error:', refError);
+          return { success: false, error: formatSupabaseError(refError) };
+        }
+
+        if (insRefund?.id) {
+          newRefund.id = insRefund.id;
+        }
+      }
+    } catch (err: any) {
+      console.error('Error inserting refund record in Supabase:', err);
+      return { success: false, error: err.message || 'Database error recording refund.' };
     }
   }
+
+  // Only commit to local state after authoritative database operation succeeds
+  const allRefunds = await listRefunds();
+  setLocal(LOCAL_REFUNDS_KEY, [newRefund, ...allRefunds]);
 
   return { success: true, refund: newRefund };
 }
@@ -1035,17 +1088,9 @@ export async function approveRefund(
     return { success: false, error: 'Approved amount must be greater than zero.' };
   }
 
-  target.approvedAmount = approvedAmount;
-  target.amount = approvedAmount;
-  target.status = 'approved';
-  target.approvedBy = approvedBy;
-  target.updatedAt = new Date().toISOString();
-
-  setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
-
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && refundId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
     try {
-      await supabase
+      const { error: updErr } = await supabase
         .from('refund_records')
         .update({
           approved_amount: approvedAmount,
@@ -1055,11 +1100,22 @@ export async function approveRefund(
           updated_at: new Date().toISOString(),
         })
         .eq('id', refundId);
-    } catch {
-      // ignore
+
+      if (updErr) {
+        return { success: false, error: formatSupabaseError(updErr) };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Database error approving refund.' };
     }
   }
 
+  target.approvedAmount = approvedAmount;
+  target.amount = approvedAmount;
+  target.status = 'approved';
+  target.approvedBy = approvedBy;
+  target.updatedAt = new Date().toISOString();
+
+  setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
   return { success: true, refund: target };
 }
 
@@ -1076,14 +1132,36 @@ export async function processRefund(
   if (!target) return { success: false, error: 'Refund record not found.' };
 
   const finalAmount = target.approvedAmount || target.requestedAmount;
+  const processedDate = new Date().toISOString();
+  const txRef = transactionReference?.trim() || target.transactionReference;
+
+  if (isSupabaseConfigured() && refundId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    try {
+      const { error: procErr } = await supabase
+        .from('refund_records')
+        .update({
+          status: 'processed',
+          processed_date: processedDate,
+          processed_by: processedBy,
+          transaction_reference: txRef,
+          amount: finalAmount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', refundId);
+
+      if (procErr) {
+        return { success: false, error: formatSupabaseError(procErr) };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Database error processing refund.' };
+    }
+  }
 
   target.status = 'processed';
-  target.processedDate = new Date().toISOString();
+  target.processedDate = processedDate;
   target.processedBy = processedBy;
   target.amount = finalAmount;
-  if (transactionReference?.trim()) {
-    target.transactionReference = transactionReference.trim();
-  }
+  target.transactionReference = txRef;
   target.updatedAt = new Date().toISOString();
 
   setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
@@ -1120,24 +1198,6 @@ export async function processRefund(
     }
   } catch (err) {
     console.warn('Failed to update booking status after refund processing:', err);
-  }
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabase
-        .from('refund_records')
-        .update({
-          status: 'processed',
-          processed_date: target.processedDate,
-          processed_by: processedBy,
-          transaction_reference: target.transactionReference,
-          amount: finalAmount,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', refundId);
-    } catch {
-      // ignore
-    }
   }
 
   return { success: true, refund: target };

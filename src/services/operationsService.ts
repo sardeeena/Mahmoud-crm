@@ -603,7 +603,24 @@ export async function updateDepartureStatus(
 // 2. ASSIGNMENT CONFLICT DETECTION (PRE-SAVE VALIDATION)
 // ==============================================================================
 
-function isTimeConflicting(startA: string, endA?: string, startB?: string, endB?: string): boolean {
+function computeEndTime(startTime: string, durationHours?: number): string {
+  const parts = (startTime || '08:30').split(':').map(Number);
+  const dur = durationHours && durationHours > 0 ? durationHours : 8;
+  const startMins = (parts[0] || 0) * 60 + (parts[1] || 0);
+  const totalMins = startMins + Math.round(dur * 60);
+  const endH = Math.min(23, Math.floor(totalMins / 60));
+  const endM = totalMins % 60;
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+}
+
+function isTimeConflicting(
+  startA: string,
+  endA?: string,
+  startB?: string,
+  endB?: string,
+  durA?: number,
+  durB?: number
+): boolean {
   if (!startA || !startB) return false;
   if (startA.trim() === startB.trim()) return true;
 
@@ -614,9 +631,12 @@ function isTimeConflicting(startA: string, endA?: string, startB?: string, endB?
   };
 
   const sA = toMins(startA, 510);
-  const eA = toMins(endA, sA + 480);
+  const durMinsA = durA && durA > 0 ? Math.round(durA * 60) : 480;
+  const eA = endA ? toMins(endA, sA + durMinsA) : sA + durMinsA;
+
   const sB = toMins(startB, 510);
-  const eB = toMins(endB, sB + 480);
+  const durMinsB = durB && durB > 0 ? Math.round(durB * 60) : 480;
+  const eB = endB ? toMins(endB, sB + durMinsB) : sB + durMinsB;
 
   return Math.max(sA, sB) < Math.min(eA, eB);
 }
@@ -647,6 +667,10 @@ export async function detectAssignmentConflicts(params: {
   const targetDeparture = departures.find(
     (d) => d.id === params.departureId || (d.tourId === params.tourId && d.departureTime === params.startTime)
   );
+  const targetTour = ALL_TOURS.find((t) => t.id === params.tourId);
+  const targetDuration = targetTour?.durationHours;
+  const targetEndTime = targetDeparture?.endTime || computeEndTime(params.startTime, targetDuration);
+
   const passengerCount = params.bookedPassengers ?? targetDeparture?.passengerCount ?? 0;
 
   // 1. Vessel Checks
@@ -674,13 +698,23 @@ export async function detectAssignmentConflicts(params: {
       }
 
       // Check double booking
-      const busyDep = departures.find(
-        (d) =>
-          d.id !== params.departureId &&
-          d.vesselId === params.vesselId &&
-          d.status !== 'cancelled' &&
-          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
-      );
+      const busyDep = departures.find((d) => {
+        if (d.id === params.departureId || d.vesselId !== params.vesselId || d.status === 'cancelled') {
+          return false;
+        }
+        const busyTour = ALL_TOURS.find((t) => t.id === d.tourId);
+        const busyDuration = busyTour?.durationHours;
+        const busyEndTime = d.endTime || computeEndTime(d.startTime || d.departureTime, busyDuration);
+        return isTimeConflicting(
+          d.startTime || d.departureTime,
+          busyEndTime,
+          params.startTime,
+          targetEndTime,
+          busyDuration,
+          targetDuration
+        );
+      });
+
       if (busyDep) {
         conflicts.push({
           type: 'vessel_double_booked',
@@ -698,13 +732,23 @@ export async function detectAssignmentConflicts(params: {
   if (params.guideId) {
     const guide = guides.find((g) => g.id === params.guideId);
     if (guide) {
-      const busyDep = departures.find(
-        (d) =>
-          d.id !== params.departureId &&
-          d.guideId === params.guideId &&
-          d.status !== 'cancelled' &&
-          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
-      );
+      const busyDep = departures.find((d) => {
+        if (d.id === params.departureId || d.guideId !== params.guideId || d.status === 'cancelled') {
+          return false;
+        }
+        const busyTour = ALL_TOURS.find((t) => t.id === d.tourId);
+        const busyDuration = busyTour?.durationHours;
+        const busyEndTime = d.endTime || computeEndTime(d.startTime || d.departureTime, busyDuration);
+        return isTimeConflicting(
+          d.startTime || d.departureTime,
+          busyEndTime,
+          params.startTime,
+          targetEndTime,
+          busyDuration,
+          targetDuration
+        );
+      });
+
       if (busyDep) {
         conflicts.push({
           type: 'guide_double_booked',
@@ -722,13 +766,27 @@ export async function detectAssignmentConflicts(params: {
   if (params.captainId) {
     const captain = guides.find((g) => g.id === params.captainId);
     if (captain) {
-      const busyDep = departures.find(
-        (d) =>
-          d.id !== params.departureId &&
-          (d.captainId === params.captainId || d.guideId === params.captainId) &&
-          d.status !== 'cancelled' &&
-          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
-      );
+      const busyDep = departures.find((d) => {
+        if (
+          d.id === params.departureId ||
+          (d.captainId !== params.captainId && d.guideId !== params.captainId) ||
+          d.status === 'cancelled'
+        ) {
+          return false;
+        }
+        const busyTour = ALL_TOURS.find((t) => t.id === d.tourId);
+        const busyDuration = busyTour?.durationHours;
+        const busyEndTime = d.endTime || computeEndTime(d.startTime || d.departureTime, busyDuration);
+        return isTimeConflicting(
+          d.startTime || d.departureTime,
+          busyEndTime,
+          params.startTime,
+          targetEndTime,
+          busyDuration,
+          targetDuration
+        );
+      });
+
       if (busyDep) {
         conflicts.push({
           type: 'captain_double_booked',
@@ -746,13 +804,23 @@ export async function detectAssignmentConflicts(params: {
   if (params.driverId) {
     const driver = guides.find((g) => g.id === params.driverId);
     if (driver) {
-      const busyDep = departures.find(
-        (d) =>
-          d.id !== params.departureId &&
-          d.driverId === params.driverId &&
-          d.status !== 'cancelled' &&
-          isTimeConflicting(d.startTime || d.departureTime, d.endTime, params.startTime, targetDeparture?.endTime)
-      );
+      const busyDep = departures.find((d) => {
+        if (d.id === params.departureId || d.driverId !== params.driverId || d.status === 'cancelled') {
+          return false;
+        }
+        const busyTour = ALL_TOURS.find((t) => t.id === d.tourId);
+        const busyDuration = busyTour?.durationHours;
+        const busyEndTime = d.endTime || computeEndTime(d.startTime || d.departureTime, busyDuration);
+        return isTimeConflicting(
+          d.startTime || d.departureTime,
+          busyEndTime,
+          params.startTime,
+          targetEndTime,
+          busyDuration,
+          targetDuration
+        );
+      });
+
       if (busyDep) {
         conflicts.push({
           type: 'driver_double_booked',

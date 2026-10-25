@@ -11,6 +11,7 @@ import { Hero } from './components/home/Hero';
 import { PopularTours } from './components/home/PopularTours';
 import { ExperienceCategories } from './components/home/ExperienceCategories';
 import { DestinationsSection } from './components/home/DestinationsSection';
+import { WhyChooseUs } from './components/home/WhyChooseUs';
 import { ReviewsSection } from './components/home/ReviewsSection';
 import { FinalCTA } from './components/home/FinalCTA';
 import { NotFoundPage } from './components/common/NotFoundPage';
@@ -1128,6 +1129,9 @@ function MainApp() {
             onRetry={refreshPublishedDestinations}
             onSelectDestination={handleSelectHomeDestination}
           />
+
+          {/* Why Choose Us Trust Pillars */}
+          <WhyChooseUs />
 
           {/* Reviews */}
           <ReviewsSection />

@@ -415,6 +415,13 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button 
               type="button"
+              onClick={() => handleNavClick('why-us-section')} 
+              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+            >
+              Why Choose Us
+            </button>
+            <button 
+              type="button"
               onClick={() => handleNavClick('reviews-section')} 
               className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
             >
@@ -889,6 +896,13 @@ export const Header: React.FC<HeaderProps> = ({
                 className="text-left py-2 px-3 rounded hover:bg-stone-100"
               >
                 {t('mobile.categories')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavClick('why-us-section')}
+                className="text-left py-2 px-3 rounded hover:bg-stone-100"
+              >
+                Why Choose Us
               </button>
               <button
                 type="button"
