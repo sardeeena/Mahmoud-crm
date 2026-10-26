@@ -75,7 +75,7 @@ export function getAppOrigin(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
-  return 'https://redseavoyages.com';
+  return 'https://awesomeadventure.tours';
 }
 
 /**

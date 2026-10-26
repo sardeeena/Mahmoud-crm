@@ -267,7 +267,7 @@ Welcome to Red Sea Voyages! We are delighted to be your trusted marine operator 
 
 Whether you are seeking pristine coral reefs at Ras Mohammed, dolphin encounters in Hurghada, or luxury sunset yacht cruises, our team ensures the highest safety and hospitality standards.
 
-Explore our curated tours: https://www.redseavoyages.com/tours
+Explore our curated tours: https://awesomeadventure.tours/excursions
 
 Warm regards,
 Red Sea Voyages Guest Relations`,
@@ -286,7 +286,7 @@ We hope you had a fantastic voyage on {{tour_name}}!
 
 Your feedback means the world to our local captains, marine biologists, and crew. Would you mind taking 60 seconds to share your review?
 
-Review Link: https://www.redseavoyages.com/review?ref={{booking_reference}}
+Review Link: https://awesomeadventure.tours/review?ref={{booking_reference}}
 
 Thank you for sailing with us,
 Captain & Crew - Red Sea Voyages`,
