@@ -212,7 +212,8 @@ async function runSecurityTests() {
   // ----------------------------------------------------------------------------
   // TEST 7: Live Supabase Database Connection & RLS Policy Tests (if configured)
   // ----------------------------------------------------------------------------
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const getValidUrl = (url?: string) => (url && (url.startsWith('https://') || url.startsWith('http://'))) ? url : null;
+  const supabaseUrl = getValidUrl(process.env.VITE_SUPABASE_URL) || getValidUrl(process.env.SUPABASE_URL) || 'https://cyifhjqqvtiguitrziqs.supabase.co';
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
   if (supabaseUrl && anonKey && anonKey.length > 20) {

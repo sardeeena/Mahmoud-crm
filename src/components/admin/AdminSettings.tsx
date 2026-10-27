@@ -800,21 +800,24 @@ export const AdminSettings: React.FC = () => {
 
               <div>
                 <label className="block text-stone-300 font-semibold mb-1">
-                  Supabase Anon Public API Key (VITE_SUPABASE_ANON_KEY)
+                  Supabase Public Anon / Publishable Key (VITE_SUPABASE_ANON_KEY)
                 </label>
                 <input
                   type="password"
                   value={supabaseAnonKey}
                   onChange={(e) => setSupabaseAnonKey(e.target.value)}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  placeholder="sb_publishable_... or eyJhbGciOi..."
                   className="w-full px-3 py-2 bg-stone-900 border border-stone-800 rounded text-white font-mono text-xs focus:outline-none focus:border-[#0A6C74]"
                 />
+                <p className="text-[10px] text-stone-500 mt-1">
+                  Secret/service-role keys are strictly blocked from browser storage.
+                </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stone-800">
               <span className="text-stone-500 text-[11px]">
-                Credentials stored securely in client runtime memory and environment configs.
+                Strict secret isolation enforced. Private credentials reside solely on the Hostinger server runtime.
               </span>
               <div className="flex items-center space-x-2">
                 <button

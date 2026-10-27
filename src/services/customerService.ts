@@ -201,6 +201,32 @@ export async function updateCustomerRole(
 
   if (isSupabaseConfigured() && isUuid) {
     try {
+      // Authorization check: Verify caller is an authenticated administrator
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Authentication required: You must be signed in as an administrator to change user roles.');
+      }
+      const { data: callerProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const callerRole = callerProfile?.role;
+      if (callerRole !== 'admin' && callerRole !== 'super_admin' && callerRole !== 'manager') {
+        throw new Error('Permission denied: Only system administrators have authorization to modify account roles.');
+      }
+
+      // Privilege escalation protection: Users cannot self-promote to admin/super_admin
+      if (user.id === userId && (newRole === 'admin' || newRole === 'super_admin')) {
+        throw new Error('Permission denied: Self-promotion to administrative roles is strictly prohibited.');
+      }
+
+      // Only existing super_admin can delegate super_admin privileges
+      if (newRole === 'super_admin' && callerRole !== 'super_admin') {
+        throw new Error('Permission denied: Only super administrators can grant the super_admin role.');
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({ role: newRole, updated_at: new Date().toISOString() })

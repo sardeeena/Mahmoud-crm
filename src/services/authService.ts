@@ -25,7 +25,6 @@ export interface AuthState {
 
 interface StoredLocalUser {
   user: AppUser;
-  passwordHash: string;
   isConfirmed?: boolean;
   confirmationToken?: string;
   confirmationSentAt?: string;
@@ -56,7 +55,7 @@ export function saveStoredLocalUsers(users: StoredLocalUser[]) {
  */
 export async function getProfileRole(userId: string): Promise<UserRole | null> {
   if (!isSupabaseConfigured()) {
-    return 'admin';
+    return null;
   }
 
   try {
@@ -192,16 +191,6 @@ export async function signInUser(
         (error as any)?.code === 'email_not_confirmed';
 
       if (isNotConfirmed) {
-        // Check if the user was confirmed locally
-        const localUsers = getStoredLocalUsers();
-        const matchedLocal = localUsers.find(
-          (u) => u.user.email.toLowerCase() === cleanEmail && u.passwordHash === password
-        );
-        if (matchedLocal && matchedLocal.isConfirmed === true) {
-          localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(matchedLocal.user));
-          return { user: matchedLocal.user };
-        }
-
         return {
           user: null,
           error: 'Your account has not been confirmed yet. Please check your inbox for the confirmation email from Supabase and click the verification link.',
@@ -210,56 +199,21 @@ export async function signInUser(
         };
       }
 
-      // If Supabase returned another error (e.g. invalid credentials or network/schema error),
-      // check if user registered in local registry fallback
-      const localUsers = getStoredLocalUsers();
-      const matchedLocal = localUsers.find(
-        (u) => u.user.email.toLowerCase() === cleanEmail && u.passwordHash === password
-      );
-      if (matchedLocal) {
-        if (matchedLocal.isConfirmed === false) {
-          return {
-            user: null,
-            error: 'Your account is pending email confirmation. Please check the email sent from Supabase and click the confirmation link to activate your account.',
-            requiresEmailConfirmation: true,
-            unconfirmedEmail: cleanEmail,
-          };
-        }
-        localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(matchedLocal.user));
-        return { user: matchedLocal.user };
-      }
-
       return {
         user: null,
         error: errorMsg || 'Invalid email or password. Please verify your credentials.',
       };
-    } catch (err) {
-      console.warn('Supabase sign-in failed, checking local registry:', err);
-    }
-  }
-
-  // 4. Fallback: Check Local Registered Users (when Supabase is offline or unconfigured)
-  const localUsers = getStoredLocalUsers();
-  const matchedLocal = localUsers.find(
-    (u) => u.user.email.toLowerCase() === cleanEmail && u.passwordHash === password
-  );
-  if (matchedLocal) {
-    if (matchedLocal.isConfirmed === false) {
+    } catch (err: any) {
       return {
         user: null,
-        error: 'Your account is pending email confirmation. Please check the email sent from Supabase and click the confirmation link to activate your account.',
-        requiresEmailConfirmation: true,
-        unconfirmedEmail: cleanEmail,
+        error: err?.message || 'Authentication service error. Please try again later.',
       };
     }
-
-    localStorage.setItem(LOCAL_ACTIVE_USER_KEY, JSON.stringify(matchedLocal.user));
-    return { user: matchedLocal.user };
   }
 
   return {
     user: null,
-    error: 'Invalid email or password. Please verify your credentials or register a new account.',
+    error: 'Invalid email or password. Please verify your credentials.',
   };
 }
 
@@ -376,7 +330,6 @@ export async function signUpUser(data: {
   if (existingIdx >= 0) {
     localUsers[existingIdx] = {
       user: newUser,
-      passwordHash: data.password,
       isConfirmed: false,
       confirmationToken: generatedToken,
       confirmationSentAt: new Date().toISOString(),
@@ -384,7 +337,6 @@ export async function signUpUser(data: {
   } else {
     localUsers.push({
       user: newUser,
-      passwordHash: data.password,
       isConfirmed: false,
       confirmationToken: generatedToken,
       confirmationSentAt: new Date().toISOString(),
@@ -590,13 +542,12 @@ export async function updateUserPassword(
     }
   }
 
-  // Update in local registered users
+  // Local cache update without storing passwords
   if (email) {
     const cleanEmail = email.trim().toLowerCase();
     const localUsers = getStoredLocalUsers();
     const matched = localUsers.find((u) => u.user.email.toLowerCase() === cleanEmail);
     if (matched) {
-      matched.passwordHash = newPassword;
       saveStoredLocalUsers(localUsers);
       return { success: true };
     }

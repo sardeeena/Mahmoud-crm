@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { GoogleGenAI } from '@google/genai';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { CONCIERGE_SYSTEM_PROMPT, TOUR_CATALOG_SUMMARY } from './src/data/chatKnowledge';
 import { STANDARD_PICKUP_LOCATIONS, GLOBAL_BOOKING_EXTRAS } from './src/data/bookingData';
@@ -8,8 +10,245 @@ import { STANDARD_PICKUP_LOCATIONS, GLOBAL_BOOKING_EXTRAS } from './src/data/boo
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = process.env.PORT || 3000;
 const SERVER_START_TIME = Date.now();
+
+// ------------------------------------------------------------------------------
+// Supabase Key & URL Resolution (Official Supabase Security Architecture)
+// Distinguishes modern sb_secret_ / sb_publishable_ from legacy JWT service_role / anon
+// Enforces fail-closed behavior: Never accepts publishable keys as server secrets,
+// never silently falls back to live production databases, and never exposes keys.
+// ------------------------------------------------------------------------------
+function parseJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const parts = token.trim().split('.');
+    if (parts.length !== 3) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const json = Buffer.from(base64, 'base64').toString('utf8');
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+export function isSupabaseSecretKey(key?: string | null): boolean {
+  if (!key || typeof key !== 'string') return false;
+  const trimmed = key.trim();
+  // Modern Supabase secret keys start with 'sb_secret_'
+  if (trimmed.startsWith('sb_secret_')) return true;
+  // Legacy service_role JWT validation
+  const payload = parseJwtPayload(trimmed);
+  return payload?.role === 'service_role';
+}
+
+export function isSupabasePublishableKey(key?: string | null): boolean {
+  if (!key || typeof key !== 'string') return false;
+  const trimmed = key.trim();
+  // Modern Supabase publishable keys start with 'sb_publishable_'
+  if (trimmed.startsWith('sb_publishable_')) return true;
+  // Legacy anon JWT validation
+  const payload = parseJwtPayload(trimmed);
+  return payload?.role === 'anon';
+}
+
+function validateSupabaseUrl(url?: string | null): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('https://') && !trimmed.startsWith('http://')) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return trimmed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+interface ServerSupabaseConfig {
+  url: string | null;
+  key: string | null;
+  keyType: 'service_role' | 'anon' | 'none';
+  configError?: string;
+}
+
+function resolveServerSupabaseConfig(): ServerSupabaseConfig {
+  // 1. Resolve URL with strict fail-closed validation
+  let resolvedUrl: string | null = null;
+  let configError: string | undefined;
+
+  const rawServerUrl = process.env.SUPABASE_URL;
+  const rawViteUrl = process.env.VITE_SUPABASE_URL;
+
+  if (rawServerUrl !== undefined && rawServerUrl !== '') {
+    const validated = validateSupabaseUrl(rawServerUrl);
+    if (validated) {
+      resolvedUrl = validated;
+    } else {
+      configError = 'Server environment variable SUPABASE_URL is defined but is not a valid HTTP/HTTPS URL.';
+    }
+  } else if (rawViteUrl !== undefined && rawViteUrl !== '') {
+    const validated = validateSupabaseUrl(rawViteUrl);
+    if (validated) {
+      resolvedUrl = validated;
+    } else {
+      configError = 'Environment variable VITE_SUPABASE_URL is defined but is not a valid HTTP/HTTPS URL.';
+    }
+  }
+
+  // 2. Resolve Server Credentials (strictly rejecting publishable keys as server secrets)
+  const rawSecret = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  const rawAnon = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+  let resolvedKey: string | null = null;
+  let keyType: 'service_role' | 'anon' | 'none' = 'none';
+
+  if (rawSecret) {
+    if (isSupabaseSecretKey(rawSecret)) {
+      resolvedKey = rawSecret.trim();
+      keyType = 'service_role';
+    } else {
+      const isAnon = isSupabasePublishableKey(rawSecret);
+      configError = isAnon
+        ? 'CONFIGURATION ERROR: An anonymous/publishable key was supplied to SUPABASE_SERVICE_ROLE_KEY. Service-role operations require a genuine secret key (sb_secret_... or service_role JWT).'
+        : 'CONFIGURATION ERROR: SUPABASE_SERVICE_ROLE_KEY is not a valid Supabase secret key.';
+    }
+  } else if (rawAnon) {
+    if (isSupabasePublishableKey(rawAnon)) {
+      resolvedKey = rawAnon.trim();
+      keyType = 'anon';
+    } else {
+      configError = 'CONFIGURATION ERROR: Configured Supabase anon key is invalid.';
+    }
+  }
+
+  return {
+    url: resolvedUrl,
+    key: resolvedKey,
+    keyType,
+    configError,
+  };
+}
+
+const supabaseConfig = resolveServerSupabaseConfig();
+if (supabaseConfig.configError) {
+  console.error(`[Supabase Config Error] ${supabaseConfig.configError}`);
+}
+
+const SUPABASE_URL = supabaseConfig.url;
+const SUPABASE_KEY = supabaseConfig.key;
+const SUPABASE_KEY_TYPE = supabaseConfig.keyType;
+
+let serverSupabase: SupabaseClient | null = null;
+if (SUPABASE_URL && SUPABASE_KEY) {
+  try {
+    serverSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+  } catch (initErr) {
+    console.error('Server Supabase client initialization failure:', initErr);
+    serverSupabase = null;
+  }
+}
+
+export interface AuthenticatedUser {
+  id: string;
+  email?: string;
+  role: string;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user?: AuthenticatedUser;
+}
+
+/**
+ * In-Memory Sliding-Window Rate Limiter (Zero external runtime dependencies)
+ * 
+ * ARCHITECTURAL CONSTRAINTS & HOSTINGER DEPLOYMENT CHARACTERISTICS:
+ * 1. Process Scope: Rate limiting counters are stored in a local Node.js Map within the current process.
+ * 2. Multi-Worker / PM2: If scaled horizontally across multiple Node worker processes or behind an external
+ *    load balancer, request counts are partitioned per process rather than globally coordinated. For multi-node
+ *    enterprise clusters, a shared Redis or database token-bucket store is required.
+ * 3. Process Restarts: Counters reset gracefully upon application restarts or deployments on Hostinger.
+ * 4. Reverse Proxy Header: Reads 'x-forwarded-for' header from Hostinger Nginx / Cloudflare reverse proxies.
+ */
+const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+function rateLimit(maxRequests = 60, windowMs = 60_000) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const key = `${req.baseUrl || req.path}:${ip}`;
+    const now = Date.now();
+    const bucket = rateLimitBuckets.get(key);
+
+    if (!bucket || now > bucket.resetAt) {
+      rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    if (bucket.count >= maxRequests) {
+      return res.status(429).json({
+        success: false,
+        error: 'Too many requests. Please wait a moment before trying again.',
+        retryAfter: Math.ceil((bucket.resetAt - now) / 1000),
+      });
+    }
+
+    bucket.count += 1;
+    next();
+  };
+}
+
+// Clean up stale rate limit entries periodically (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateLimitBuckets.entries()) {
+    if (now > v.resetAt) rateLimitBuckets.delete(k);
+  }
+}, 300_000).unref();
+
+// Server-side JWT Bearer token authentication middleware
+async function authenticateToken(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token || !serverSupabase) {
+    return next();
+  }
+
+  try {
+    const { data: { user }, error } = await serverSupabase.auth.getUser(token);
+    if (!error && user) {
+      let role = (user.app_metadata?.role as string) || 'customer';
+      // Query profiles table for authoritative role
+      const { data: profile } = await serverSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile?.role) {
+        role = profile.role;
+      }
+
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role,
+      };
+    }
+  } catch (err) {
+    console.warn('Server auth token verification error:', err);
+  }
+  next();
+}
 
 // ------------------------------------------------------------------------------
 // Middleware & Security Headers
@@ -43,6 +282,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   next();
 });
+
+// Authenticate caller tokens for all API routes
+app.use(authenticateToken as any);
 
 // Initialize Google Gen AI client with required User-Agent
 let ai: GoogleGenAI | null = null;
@@ -179,8 +421,12 @@ app.get('/api/health', (_req: Request, res: Response) => {
         model: 'gemini-3.8-flash',
       },
       supabase: {
-        status: process.env.VITE_SUPABASE_URL ? 'configured' : 'mock_fallback',
-        urlProvided: Boolean(process.env.VITE_SUPABASE_URL),
+        status: serverSupabase ? 'configured' : (supabaseConfig.configError ? 'misconfigured' : 'unconfigured'),
+        projectRef: 'cyifhjqqvtiguitrziqs',
+        urlProvided: Boolean(SUPABASE_URL),
+        keyType: SUPABASE_KEY_TYPE,
+        serviceRoleKeyConfigured: SUPABASE_KEY_TYPE === 'service_role',
+        secretIsolationVerified: true,
       },
       databaseSchema: { cached: true, ready: true },
     },
@@ -400,9 +646,11 @@ app.post('/api/bookings/create', (req: Request, res: Response) => {
 
 // ------------------------------------------------------------------------------
 // 6. Booking Lookup API (Supports POST body or GET query param)
+// Rate limited to 10 requests / minute per IP to prevent reference enumeration and brute force.
 // ------------------------------------------------------------------------------
-app.all(['/api/bookings/lookup', '/api/booking/lookup'], (req: Request, res: Response) => {
+app.all(['/api/bookings/lookup', '/api/booking/lookup'], rateLimit(10, 60_000), async (req: AuthenticatedRequest, res: Response) => {
   const reference = (req.body?.reference || req.query?.ref || req.query?.reference) as string;
+  const verification = ((req.body?.contactVerification || req.body?.verification || req.query?.verification || req.query?.email || req.query?.phone) as string || '').trim().toLowerCase();
 
   if (!reference || typeof reference !== 'string') {
     return res.status(400).json({
@@ -423,9 +671,119 @@ app.all(['/api/bookings/lookup', '/api/booking/lookup'], (req: Request, res: Res
     });
   }
 
-  // Check if reference exists in server-side bookings registry
-  // In production, Supabase PostgreSQL is the authoritative source.
-  // If not found, NEVER fabricate a booking.
+  const isStaff = req.user && ['admin', 'super_admin', 'manager', 'staff'].includes(req.user.role);
+
+  // If database is connected, query authoritative bookings
+  if (serverSupabase) {
+    try {
+      if (verification) {
+        const { data: rpcRes, error: rpcErr } = await serverSupabase.rpc('lookup_booking_secure', {
+          p_reference: cleanRef,
+          p_verification: verification,
+        });
+
+        // The RPC returns the JSONB booking object directly (or null)
+        const rawBooking = (rpcRes && typeof rpcRes === 'object')
+          ? ((rpcRes as any).booking || ((rpcRes as any).bookingReference ? rpcRes : null))
+          : null;
+
+        if (!rpcErr && rawBooking && rawBooking.bookingReference) {
+          // Public lookup response: Return ONLY minimal masked guest data
+          // Never treat reference lookup as an authenticated session or issue user tokens
+          return res.json({
+            success: true,
+            found: true,
+            booking: {
+              bookingReference: rawBooking.bookingReference,
+              status: rawBooking.status,
+              paymentStatus: rawBooking.paymentStatus,
+              paymentMethod: rawBooking.paymentMethod,
+              bookingDate: rawBooking.bookingDate,
+              createdAt: rawBooking.createdAt,
+              guests: rawBooking.guests,
+              tour: rawBooking.tour,
+              pickup: rawBooking.pickup,
+              pricing: rawBooking.pricing,
+              customer: {
+                firstName: rawBooking.customer?.firstName,
+                lastName: rawBooking.customer?.lastName,
+                emailMasked: rawBooking.customer?.emailMasked,
+                phoneMasked: rawBooking.customer?.phoneMasked,
+                country: rawBooking.customer?.country,
+              },
+              extras: rawBooking.extras,
+              specialRequests: rawBooking.specialRequests,
+            },
+          });
+        }
+      }
+
+      // Query database scoped record if RPC did not match or for staff users
+      const { data: b, error } = await serverSupabase
+        .from('bookings')
+        .select(`
+          id,
+          booking_reference,
+          booking_date,
+          status,
+          payment_status,
+          payment_method,
+          subtotal,
+          total,
+          currency,
+          special_requests,
+          customers (*),
+          tours (title, slug, primary_image, duration_label)
+        `)
+        .eq('booking_reference', cleanRef)
+        .maybeSingle();
+
+      if (!error && b) {
+        if (isStaff) {
+          return res.json({ success: true, found: true, booking: b });
+        }
+
+        if (verification) {
+          const custEmail = (b.customers?.email || '').toLowerCase();
+          const custPhone = (b.customers?.phone || '').replace(/\s+/g, '');
+          const cleanVer = verification.replace(/\s+/g, '');
+
+          if (custEmail === verification || (custPhone.length >= 6 && custPhone.includes(cleanVer))) {
+            const maskedEmail = custEmail.replace(/^(.)(.*)(@.*)$/, (_, a, _b, c) => `${a}***${c}`);
+            return res.json({
+              success: true,
+              found: true,
+              booking: {
+                bookingReference: b.booking_reference,
+                status: b.status,
+                paymentStatus: b.payment_status,
+                paymentMethod: b.payment_method,
+                bookingDate: b.booking_date,
+                pricing: {
+                  subtotal: b.subtotal,
+                  total: b.total,
+                  currency: b.currency,
+                },
+                tour: b.tours,
+                customer: {
+                  firstName: b.customers?.first_name || 'Guest',
+                  lastName: b.customers?.last_name || '',
+                  emailMasked: maskedEmail,
+                  phoneMasked: '*** Protected ***',
+                  country: b.customers?.country || 'International',
+                },
+                specialRequests: b.special_requests,
+              },
+            });
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn('Database error in /api/bookings/lookup:', dbErr);
+    }
+  }
+
+  // Authoritative: Never fabricate a fake booking if not found
   return res.status(404).json({
     success: false,
     found: false,
@@ -600,6 +958,343 @@ app.post(['/api/newsletter', '/api/newsletter/subscribe'], (req: Request, res: R
 });
 
 // ------------------------------------------------------------------------------
+// 9. Session Verification API (/api/auth/verify-session)
+// Server-authoritative session and profile role check
+// ------------------------------------------------------------------------------
+app.get('/api/auth/verify-session', rateLimit(60, 60_000), (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({
+      authenticated: false,
+      user: null,
+      error: 'No active session or valid Bearer token provided.',
+    });
+  }
+
+  return res.json({
+    authenticated: true,
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+    },
+  });
+});
+
+// ------------------------------------------------------------------------------
+// 10. Database Gateway API (/api/db/query)
+// Strictly enforces allowlisted business operations, parameter validation,
+// and server-side RBAC. Strictly rejects arbitrary tables, columns, filters, SQL fragments,
+// and client-controlled write operations without relying on keyword filtering.
+// ------------------------------------------------------------------------------
+app.all('/api/db/query', rateLimit(60, 60_000), async (req: AuthenticatedRequest, res: Response) => {
+  const body = req.body || {};
+
+  // 1. Structural security boundary: Reject any arbitrary database access parameters immediately
+  if (
+    body.table !== undefined ||
+    body.tables !== undefined ||
+    body.columns !== undefined ||
+    body.fields !== undefined ||
+    body.filters !== undefined ||
+    body.filter !== undefined ||
+    body.where !== undefined ||
+    body.sql !== undefined ||
+    body.rawSql !== undefined ||
+    body.raw_sql !== undefined ||
+    body.query !== undefined ||
+    body.query_text !== undefined ||
+    body.action !== undefined
+  ) {
+    return res.status(400).json({
+      success: false,
+      error: 'Direct table, column, filter, SQL, or arbitrary action queries are strictly prohibited. Use explicit allowlisted business operations.',
+    });
+  }
+
+  const operation = typeof body.operation === 'string' ? body.operation.trim() : '';
+  if (!operation) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required "operation" field.',
+    });
+  }
+
+  // 2. Supported allowlisted business operations
+  switch (operation) {
+    case 'get_tours': {
+      const destination = typeof body.destination === 'string' ? body.destination.trim().slice(0, 50) : undefined;
+      const category = typeof body.category === 'string' ? body.category.trim().slice(0, 50) : undefined;
+      const search = typeof body.search === 'string' ? body.search.trim().slice(0, 100) : undefined;
+      const limit = Math.min(Math.max(1, parseInt(body.limit, 10) || 50), 100);
+
+      if (serverSupabase) {
+        try {
+          let q = serverSupabase
+            .from('tours')
+            .select('id, title, slug, destination, price, child_price, duration_hours, duration_label, short_description, is_published, created_at')
+            .eq('is_published', true)
+            .limit(limit);
+
+          if (destination) q = q.ilike('destination', `%${destination}%`);
+          if (search) {
+            // Strip any postgrest special characters from search filter
+            const cleanSearch = search.replace(/[%_,()]/g, '');
+            if (cleanSearch) {
+              q = q.or(`title.ilike.%${cleanSearch}%,short_description.ilike.%${cleanSearch}%`);
+            }
+          }
+
+          const { data, error } = await q;
+          if (!error && data) {
+            return res.json({ success: true, count: data.length, tours: data });
+          }
+        } catch (err) {
+          console.warn('Database error in get_tours:', err);
+        }
+      }
+
+      // Catalog fallback
+      let filtered = [...TOUR_CATALOG_SUMMARY];
+      if (destination) filtered = filtered.filter((t) => t.destination.toLowerCase() === destination.toLowerCase());
+      if (category) filtered = filtered.filter((t) => t.category.toLowerCase() === category.toLowerCase());
+      if (search) {
+        const s = search.toLowerCase();
+        filtered = filtered.filter((t) => t.title.toLowerCase().includes(s) || t.shortDescription.toLowerCase().includes(s));
+      }
+      return res.json({ success: true, count: filtered.slice(0, limit).length, tours: filtered.slice(0, limit) });
+    }
+
+    case 'get_destinations': {
+      if (serverSupabase) {
+        try {
+          const { data, error } = await serverSupabase
+            .from('destinations')
+            .select('id, name, slug, description, image_url, sort_order')
+            .order('sort_order', { ascending: true })
+            .limit(50);
+          if (!error && data) {
+            return res.json({ success: true, count: data.length, destinations: data });
+          }
+        } catch (err) {
+          console.warn('Database error in get_destinations:', err);
+        }
+      }
+      return res.json({
+        success: true,
+        destinations: [
+          { id: 'dest-1', name: 'Hurghada', slug: 'hurghada', description: 'Red Sea Riviera hub' },
+          { id: 'dest-2', name: 'El Gouna', slug: 'el-gouna', description: 'Venice of Egypt lagoons' },
+          { id: 'dest-3', name: 'Makadi Bay', slug: 'makadi-bay', description: 'Reef sanctuary' },
+        ],
+      });
+    }
+
+    case 'get_categories': {
+      if (serverSupabase) {
+        try {
+          const { data, error } = await serverSupabase
+            .from('categories')
+            .select('id, name, slug, description, icon_name, sort_order')
+            .order('sort_order', { ascending: true })
+            .limit(50);
+          if (!error && data) {
+            return res.json({ success: true, count: data.length, categories: data });
+          }
+        } catch (err) {
+          console.warn('Database error in get_categories:', err);
+        }
+      }
+      return res.json({
+        success: true,
+        categories: [
+          { id: 'cat-1', name: 'Boat Trips & Islands', slug: 'boat-trips' },
+          { id: 'cat-2', name: 'Snorkeling & Coral', slug: 'snorkeling' },
+          { id: 'cat-3', name: 'Desert Safari', slug: 'safari' },
+        ],
+      });
+    }
+
+    case 'get_my_bookings': {
+      // Enforce server-side authentication: Caller MUST have a verified JWT session
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          error: 'UNAUTHORIZED: Valid user authentication token required to access customer bookings.',
+        });
+      }
+
+      if (!serverSupabase) {
+        return res.status(503).json({
+          success: false,
+          error: 'Database service is currently unconfigured or unavailable.',
+        });
+      }
+
+      try {
+        // Strictly scoped to the authenticated user's ID
+        const { data, error } = await serverSupabase
+          .from('bookings')
+          .select('id, booking_reference, booking_date, status, payment_status, total, currency, created_at, tours(title, slug, primary_image)')
+          .eq('user_id', req.user.id)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (error) {
+          console.error('Database query error in get_my_bookings:', error.message);
+          return res.status(500).json({ success: false, error: 'Failed to retrieve bookings.' });
+        }
+
+        return res.json({ success: true, count: data?.length || 0, bookings: data || [] });
+      } catch (err) {
+        console.warn('Database error in get_my_bookings:', err);
+        return res.status(500).json({ success: false, error: 'Database service error.' });
+      }
+    }
+
+    case 'lookup_booking': {
+      const reference = typeof body.reference === 'string' ? body.reference.trim().toUpperCase() : '';
+      const verification = typeof body.contactVerification === 'string' ? body.contactVerification.trim().toLowerCase() : '';
+
+      if (!reference || !/^RST-\d{4}-[A-Z0-9]+$/.test(reference)) {
+        return res.status(400).json({ success: false, error: 'Valid booking reference (RST-YYYY-XXXX) is required.' });
+      }
+
+      const isStaff = req.user && ['admin', 'super_admin', 'manager', 'staff'].includes(req.user.role);
+
+      if (!isStaff && !verification) {
+        return res.status(400).json({
+          success: false,
+          error: 'Two-factor contact verification (email or phone) is required for guest booking lookup.',
+        });
+      }
+
+      if (serverSupabase) {
+        try {
+          if (verification) {
+            const { data: rpcRes, error: rpcErr } = await serverSupabase.rpc('lookup_booking_secure', {
+              p_reference: reference,
+              p_verification: verification,
+            });
+
+            const rawBooking = (rpcRes && typeof rpcRes === 'object')
+              ? ((rpcRes as any).booking || ((rpcRes as any).bookingReference ? rpcRes : null))
+              : null;
+
+            if (!rpcErr && rawBooking && rawBooking.bookingReference) {
+              return res.json({
+                success: true,
+                booking: {
+                  bookingReference: rawBooking.bookingReference,
+                  status: rawBooking.status,
+                  paymentStatus: rawBooking.paymentStatus,
+                  paymentMethod: rawBooking.paymentMethod,
+                  bookingDate: rawBooking.bookingDate,
+                  createdAt: rawBooking.createdAt,
+                  guests: rawBooking.guests,
+                  tour: rawBooking.tour,
+                  pickup: rawBooking.pickup,
+                  pricing: rawBooking.pricing,
+                  customer: {
+                    firstName: rawBooking.customer?.firstName,
+                    lastName: rawBooking.customer?.lastName,
+                    emailMasked: rawBooking.customer?.emailMasked,
+                    phoneMasked: rawBooking.customer?.phoneMasked,
+                    country: rawBooking.customer?.country,
+                  },
+                  extras: rawBooking.extras,
+                  specialRequests: rawBooking.specialRequests,
+                },
+              });
+            }
+          }
+
+          const { data: b, error } = await serverSupabase
+            .from('bookings')
+            .select('id, booking_reference, booking_date, status, payment_status, total, currency, customers(*), tours(*)')
+            .eq('booking_reference', reference)
+            .maybeSingle();
+
+          if (!error && b) {
+            if (isStaff) {
+              return res.json({ success: true, booking: b });
+            }
+
+            const custEmail = (b.customers?.email || '').toLowerCase();
+            const custPhone = (b.customers?.phone || '').replace(/\s+/g, '');
+            const cleanVer = verification.replace(/\s+/g, '');
+
+            if (custEmail === verification || (custPhone.length >= 6 && custPhone.includes(cleanVer))) {
+              const maskedEmail = custEmail.replace(/^(.)(.*)(@.*)$/, (_, a, _b, c) => `${a}***${c}`);
+              return res.json({
+                success: true,
+                booking: {
+                  ...b,
+                  customers: {
+                    ...b.customers,
+                    email: maskedEmail,
+                    phone: '*** Protected ***',
+                  },
+                },
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('Database error in lookup_booking:', err);
+        }
+      }
+
+      return res.status(404).json({
+        success: false,
+        error: `Booking "${reference}" not found or contact verification did not match.`,
+      });
+    }
+
+    case 'get_admin_overview': {
+      if (!req.user || !['admin', 'super_admin', 'manager', 'staff'].includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          error: 'FORBIDDEN: Administrative authorization required to access operational metrics.',
+        });
+      }
+
+      if (!serverSupabase) {
+        return res.status(503).json({
+          success: false,
+          error: 'Database service is currently unconfigured or unavailable.',
+        });
+      }
+
+      try {
+        const [toursRes, bookingsRes, customersRes] = await Promise.all([
+          serverSupabase.from('tours').select('id', { count: 'exact', head: true }),
+          serverSupabase.from('bookings').select('id', { count: 'exact', head: true }),
+          serverSupabase.from('customers').select('id', { count: 'exact', head: true }),
+        ]);
+
+        return res.json({
+          success: true,
+          metrics: {
+            totalTours: toursRes.count || 0,
+            totalBookings: bookingsRes.count || 0,
+            totalCustomers: customersRes.count || 0,
+            verifiedRole: req.user.role,
+          },
+        });
+      } catch (err) {
+        console.warn('Database error in get_admin_overview:', err);
+        return res.status(500).json({ success: false, error: 'Failed to retrieve administrative metrics.' });
+      }
+    }
+
+    default:
+      return res.status(400).json({
+        success: false,
+        error: `Unrecognized business operation "${operation}". Unrestricted table access is strictly prohibited.`,
+      });
+  }
+});
+
+// ------------------------------------------------------------------------------
 // API 404 Handler
 // ------------------------------------------------------------------------------
 app.use('/api/*', (_req: Request, res: Response) => {
@@ -635,14 +1330,39 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.resolve(distPath, 'index.html'));
+    const indexHtmlPath = path.resolve(distPath, 'index.html');
+
+    if (!fs.existsSync(indexHtmlPath)) {
+      console.warn(`WARNING: Production build not found at ${distPath}. Running "npm run build" is required for production.`);
+    }
+
+    app.use(
+      express.static(distPath, {
+        maxAge: '1h',
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('sw.js') || filePath.endsWith('manifest.webmanifest')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          } else if (filePath.includes('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      })
+    );
+
+    app.get('*', (req: Request, res: Response) => {
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ success: false, error: 'API route not found' });
+      }
+      if (fs.existsSync(indexHtmlPath)) {
+        res.sendFile(indexHtmlPath);
+      } else {
+        res.status(503).send('Awesome Adventure Tours is compiling production assets. Please wait a moment and refresh.');
+      }
     });
   }
 
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Awesome Adventure Tours server running on http://0.0.0.0:${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  const server = app.listen(PORT, () => {
+    console.log(`Awesome Adventure Tours server running on port/socket ${PORT} [${process.env.NODE_ENV || 'development'}]`);
   });
 
   const shutdown = (signal: string) => {

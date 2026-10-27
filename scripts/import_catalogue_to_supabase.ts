@@ -228,8 +228,9 @@ export async function runCatalogueDryRun(options?: {
   console.log('================================================================\n');
 
   // 1. Supabase Client Setup (Read-Only when dry-run)
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const getValidUrl = (url?: string) => (url && (url.startsWith('https://') || url.startsWith('http://'))) ? url : null;
+  const supabaseUrl = getValidUrl(process.env.SUPABASE_URL) || getValidUrl(process.env.VITE_SUPABASE_URL) || 'https://cyifhjqqvtiguitrziqs.supabase.co';
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   let supabase: SupabaseClient | null = null;
 
   if (supabaseUrl && supabaseKey) {

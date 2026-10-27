@@ -503,16 +503,89 @@ class SupabaseBookingRepository implements IBookingRepository {
   }
 
   async findBooking(bookingReference: string, emailOrPhone: string): Promise<Booking | null> {
+    const cleanRef = (bookingReference || '').trim().toUpperCase();
+    const cleanContact = (emailOrPhone || '').trim();
+
+    if (!cleanRef) return null;
+
+    if (isSupabaseConfigured()) {
+      try {
+        // 1. If contact verification is supplied, attempt the secure two-factor RPC first
+        if (cleanContact) {
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc('lookup_booking_secure', {
+            p_reference: cleanRef,
+            p_verification: cleanContact,
+          });
+
+          const rawBooking = (rpcRes && typeof rpcRes === 'object')
+            ? ((rpcRes as any).booking || ((rpcRes as any).bookingReference ? rpcRes : null))
+            : null;
+
+          if (!rpcErr && rawBooking && rawBooking.bookingReference) {
+            return this.mapSecureBookingToBooking(rawBooking);
+          }
+        }
+
+        // 2. Direct scoped query: retrieve the single booking record by reference
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            tours (*),
+            customers (*),
+            booking_extras (*)
+          `)
+          .eq('booking_reference', cleanRef)
+          .maybeSingle();
+
+        if (error || !data) {
+          return null;
+        }
+
+        // If contact verification was provided, verify it strictly matches this booking
+        if (cleanContact) {
+          const custEmail = (data.customers?.email || '').toLowerCase();
+          const custPhone = (data.customers?.phone || '').replace(/\s+/g, '');
+          const query = cleanContact.toLowerCase().replace(/\s+/g, '');
+
+          const emailMatch = custEmail === query;
+          const phoneMatch = custPhone.length >= 6 && (custPhone.includes(query) || query.includes(custPhone));
+
+          if (!emailMatch && !phoneMatch) {
+            // Mismatch: deny access to protect guest privacy
+            return null;
+          }
+        } else {
+          // If no contact verification provided, verify if the caller is an authenticated administrator
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            // Public unauthenticated lookup requires contact verification (email or phone)
+            return null;
+          }
+          const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+          const isStaff = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'manager' || profile?.role === 'staff';
+          if (!isStaff && data.user_id !== user.id) {
+            return null;
+          }
+        }
+
+        return this.mapDbToBooking(data);
+      } catch (err) {
+        console.error('Supabase findBooking error:', err);
+        return null;
+      }
+    }
+
     const b = await this.getBooking(bookingReference);
     if (!b) return null;
 
-    if (!emailOrPhone.trim()) {
+    if (!cleanContact) {
       return b;
     }
 
-    const query = emailOrPhone.trim().toLowerCase();
+    const query = cleanContact.toLowerCase();
     const emailMatch = b.customer.email.toLowerCase() === query;
-    const phoneMatch = b.customer.phoneNumber.replace(/\s+/g, '').includes(query.replace(/\s+/g, ''));
+    const phoneMatch = (b.customer.phoneNumber || '').replace(/\s+/g, '').includes(query.replace(/\s+/g, ''));
 
     if (emailMatch || phoneMatch) {
       return b;
@@ -527,26 +600,56 @@ class SupabaseBookingRepository implements IBookingRepository {
 
     if (isSupabaseConfigured()) {
       try {
+        // Enforce session check: Ensure caller is authenticated
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          // Unauthenticated requests cannot browse customer bookings by email
+          return [];
+        }
+
+        // Ensure user is querying their own email or possesses admin/staff privileges
+        const isOwnEmail = (user.email || '').toLowerCase() === cleanEmail;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const isStaff = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'manager' || profile?.role === 'staff';
+        if (!isOwnEmail && !isStaff) {
+          // Cross-customer boundary: Reject unprivileged requests for another customer's bookings
+          return [];
+        }
+
+        // Query database scoped by user ID or customer email
         const { data, error } = await supabase
           .from('bookings')
           .select(`
             *,
             tours (*),
-            customers (*),
+            customers!inner (*),
             booking_extras (*)
           `)
+          .eq('customers.email', cleanEmail)
           .order('created_at', { ascending: false });
 
         if (error || !data) {
-          return [];
+          // Fallback scoped to user_id directly
+          const { data: byUserId } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              tours (*),
+              customers (*),
+              booking_extras (*)
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+          return (byUserId || []).map((d: any) => this.mapDbToBooking(d));
         }
 
-        const filtered = data.filter((d: any) => {
-          const custEmail = (d.customers?.email || '').toLowerCase();
-          return custEmail === cleanEmail;
-        });
-
-        return filtered.map((d: any) => this.mapDbToBooking(d));
+        return data.map((d: any) => this.mapDbToBooking(d));
       } catch (err) {
         console.error('Supabase getBookingsByEmail error:', err);
         return [];
@@ -870,6 +973,97 @@ class SupabaseBookingRepository implements IBookingRepository {
           timestamp: data.created_at || new Date().toISOString(),
           title: 'Booking Confirmed',
           description: 'Reservation registered in Supabase database.',
+          type: 'created',
+        },
+      ],
+    };
+  }
+
+  private mapSecureBookingToBooking(sec: any): Booking {
+    const tour = sec.tour || {};
+    const customer = sec.customer || {};
+    const guests = sec.guests || {};
+    const pickup = sec.pickup || {};
+    const pricing = sec.pricing || {};
+    const extras = sec.extras || [];
+
+    return {
+      bookingId: sec.bookingReference,
+      bookingReference: sec.bookingReference,
+      tourId: tour.id || '',
+      tourSlug: tour.slug || 'orange-bay-island-snorkeling',
+      tourTitle: tour.title || 'Red Sea Excursion',
+      tourImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+      tourDestination: 'Hurghada',
+      tourDuration: tour.duration || 'Full Day (approx. 7 hours)',
+      date: sec.bookingDate,
+      guests: {
+        adults: guests.adults || 1,
+        children: guests.children || 0,
+        infants: guests.infants || 0,
+      },
+      pickup: {
+        locationId: 'hurghada',
+        locationName: 'Hurghada Hotels',
+        area: 'Hurghada Coastal Area',
+        feeEur: 0,
+        hotelName: pickup.hotelName || 'Hotel Lobby',
+        roomNumber: pickup.roomNumber || '',
+      },
+      extras: extras.map((ex: any, idx: number) => ({
+        extraId: `extra-${idx}`,
+        name: ex.name,
+        priceEur: Number(ex.unitPrice) || 0,
+        pricingType: 'per_person' as any,
+        quantity: ex.quantity || 1,
+        amountEur: Number(ex.totalPrice) || 0,
+      })),
+      pricing: {
+        basePricePerAdultEur: Number(pricing.subtotal) || 35,
+        basePricePerChildEur: 18,
+        adultSubtotalEur: Number(pricing.subtotal) || 35,
+        childSubtotalEur: 0,
+        infantSubtotalEur: 0,
+        pickupSubtotalEur: 0,
+        pickupFeePerPersonEur: 0,
+        extrasSubtotalEur: Number(pricing.extrasTotal) || 0,
+        extrasBreakdown: extras.map((ex: any, idx: number) => ({
+          extraId: `extra-${idx}`,
+          name: ex.name,
+          amountEur: Number(ex.totalPrice) || 0,
+          pricingType: 'per_person' as any,
+          quantity: ex.quantity || 1,
+        })),
+        discountEur: Number(pricing.discount) || 0,
+        subtotalEur: Number(pricing.subtotal) || 0,
+        totalEur: Number(pricing.total) || 0,
+        formattedTotal: pricing.formattedTotal || `€${Number(pricing.total || 0).toFixed(2)}`,
+        formattedSubtotal: `€${Number(pricing.subtotal || 0).toFixed(2)}`,
+      },
+      customer: {
+        firstName: customer.firstName || 'Guest',
+        lastName: customer.lastName || '',
+        email: customer.emailMasked || '',
+        countryCode: '+49',
+        phoneNumber: customer.phoneMasked || '',
+        country: customer.country || 'International',
+        whatsappNumber: customer.phoneMasked || '',
+        hotelName: pickup.hotelName || '',
+        roomNumber: pickup.roomNumber || '',
+        specialRequests: sec.specialRequests || '',
+      },
+      paymentMethod: sec.paymentMethod || 'pay_at_pickup',
+      paymentStatus: sec.paymentStatus || 'pending',
+      status: sec.status || 'confirmed',
+      bookingStatus: sec.status || 'confirmed',
+      createdAt: sec.createdAt || new Date().toISOString(),
+      updatedAt: sec.createdAt || new Date().toISOString(),
+      timeline: [
+        {
+          id: 'ev-1',
+          timestamp: sec.createdAt || new Date().toISOString(),
+          title: 'Booking Confirmed',
+          description: 'Reservation retrieved via secure verified lookup.',
           type: 'created',
         },
       ],

@@ -89,6 +89,35 @@ function saveLocalAssets(items: StorageFileItem[]) {
   }
 }
 
+export const ALLOWED_STORAGE_FOLDERS = ['tours', 'destinations', 'vessels', 'guides', 'reviews', 'blog'] as const;
+export type AllowedStorageFolder = typeof ALLOWED_STORAGE_FOLDERS[number];
+
+/**
+ * Sanitizes folder names to strictly prevent directory traversal (e.g. '../', '/')
+ * and enforces allowlist of authorized storage directories.
+ */
+export function sanitizeStorageFolder(folder: string): AllowedStorageFolder {
+  const sanitized = folder
+    .replace(/\.\./g, '')
+    .replace(/[/\\]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .trim()
+    .toLowerCase();
+  
+  if (ALLOWED_STORAGE_FOLDERS.includes(sanitized as AllowedStorageFolder)) {
+    return sanitized as AllowedStorageFolder;
+  }
+  return 'tours';
+}
+
+/**
+ * Sanitizes file names to remove paths, directory traversal, and dangerous characters
+ */
+export function sanitizeStorageFileName(name: string): string {
+  const base = name.split(/[/\\]/).pop() || 'media';
+  return base.replace(/[^a-zA-Z0-9.-]/g, '_').slice(-80);
+}
+
 /**
  * Uploads a tour media file to the 'tour-media' public bucket and records metadata in 'media_assets' table
  */
@@ -97,16 +126,19 @@ export async function uploadTourMedia(
   folder: string = 'tours',
   meta?: { title?: string; altText?: string; tourId?: string }
 ): Promise<UploadResult> {
+  const safeFolder = sanitizeStorageFolder(folder);
   const isVideo = file.type.startsWith('video/');
   const validation = validateMediaFile(file, isVideo ? 'video' : 'image');
   if (!validation.valid) {
     return { url: '', storagePath: '', error: validation.error };
   }
 
+  const cleanFileName = sanitizeStorageFileName(file.name);
+
   // If Supabase is not configured yet (e.g. testing in sandbox without keys), generate an object URL and local asset
   if (!isSupabaseConfigured()) {
     const objectUrl = URL.createObjectURL(file);
-    const storagePath = `local/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const storagePath = `local/${Date.now()}-${cleanFileName}`;
     const localItem: StorageFileItem = {
       id: `local-${Date.now()}`,
       name: file.name,
@@ -130,9 +162,7 @@ export async function uploadTourMedia(
   }
 
   try {
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const storagePath = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${cleanFileName}`;
+    const storagePath = `${safeFolder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${cleanFileName}`;
 
     // 1. Upload to Supabase Storage bucket
     const { error: uploadError } = await supabase.storage
@@ -471,20 +501,45 @@ export async function auditOrphanedStorageFiles(folder: string = 'tours'): Promi
 }
 
 /**
- * Automatically cleans and purges orphaned files from the Supabase Storage bucket
+ * Automatically cleans and purges orphaned files from the Supabase Storage bucket.
+ * Requires authenticated administrator privileges.
  */
 export async function cleanOrphanedStorageFiles(orphanedPaths: string[]): Promise<number> {
   if (!orphanedPaths || orphanedPaths.length === 0 || !isSupabaseConfigured()) {
     return 0;
   }
 
+  // Authorization check: User must be authenticated as admin/super_admin
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('Unauthorized: Authentication required to clean storage files.');
+  }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  if (!isAdmin) {
+    throw new Error('Forbidden: Administrative privileges required to delete storage files.');
+  }
+
+  // Strictly filter out any paths attempting directory traversal or containing invalid characters,
+  // and ensure the path begins with one of the allowed storage folders
+  const safePaths = orphanedPaths.filter((p) => {
+    if (typeof p !== 'string' || p.includes('..') || p.startsWith('/') || p.startsWith('\\')) {
+      return false;
+    }
+    const folder = p.split('/')[0];
+    return ALLOWED_STORAGE_FOLDERS.includes(folder as AllowedStorageFolder);
+  });
+
+  if (safePaths.length === 0) return 0;
+
   try {
-    const { error } = await supabase.storage.from(MEDIA_BUCKET).remove(orphanedPaths);
+    const { error } = await supabase.storage.from(MEDIA_BUCKET).remove(safePaths);
     if (error) {
       console.error('Error cleaning orphaned storage files:', error);
       return 0;
     }
-    return orphanedPaths.length;
+    return safePaths.length;
   } catch (err) {
     console.error('Exception cleaning orphaned files:', err);
     return 0;

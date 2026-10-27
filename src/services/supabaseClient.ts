@@ -1,17 +1,81 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// Safely validate candidate URL
+function sanitizeSupabaseUrl(url?: string): string | undefined {
+  if (url && typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+    try {
+      new URL(url);
+      return url;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 // Environment variables for Vite and Node.js testing
+// Fail-closed principle: Do NOT silently fall back to production credentials if unconfigured
 const envUrl =
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) ||
-  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_URL || process.env?.SUPABASE_URL)) ||
+  sanitizeSupabaseUrl(typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_SUPABASE_URL : undefined) ||
+  sanitizeSupabaseUrl(typeof process !== 'undefined' ? (process.env?.VITE_SUPABASE_URL || process.env?.SUPABASE_URL) : undefined) ||
   undefined;
 
-const envAnonKey =
+const rawAnonKeyCandidate =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) ||
-  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_ANON_KEY || process.env?.SUPABASE_ANON_KEY)) ||
+  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_ANON_KEY || (process.env?.SUPABASE_ANON_KEY !== 'ok' ? process.env?.SUPABASE_ANON_KEY : undefined))) ||
   undefined;
 
-// Allow manual override from Admin Settings in browser storage for instant testing
+// Helper to decode JWT role claim without external libraries
+function decodeJwtRole(token: string): string | null {
+  try {
+    const parts = token.trim().split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.role || null;
+    }
+  } catch {
+    // not a standard base64 decodable JWT
+  }
+  return null;
+}
+
+/**
+ * Validates whether a key is a Supabase Secret / Service-Role credential.
+ * Supports:
+ *  - Modern secret keys: starts with 'sb_secret_'
+ *  - Legacy service-role tokens: JWT with claim role === 'service_role'
+ */
+export const isSupabaseSecretKey = (key: string): boolean => {
+  if (!key || typeof key !== 'string') return false;
+  const trimmed = key.trim();
+  if (trimmed.startsWith('sb_secret_')) return true;
+  if (trimmed.toLowerCase().includes('service_role')) return true;
+  const role = decodeJwtRole(trimmed);
+  return role === 'service_role';
+};
+
+/**
+ * Validates whether a key is a safe Supabase Publishable / Anonymous key.
+ * Supports:
+ *  - Modern publishable keys: starts with 'sb_publishable_'
+ *  - Legacy anonymous tokens: JWT with claim role === 'anon'
+ */
+export const isSupabasePublishableKey = (key: string): boolean => {
+  if (!key || typeof key !== 'string') return false;
+  const trimmed = key.trim();
+  if (trimmed.startsWith('sb_publishable_')) return true;
+  const role = decodeJwtRole(trimmed);
+  return role === 'anon';
+};
+
+// Backwards-compatible alias
+export const isSecretOrServiceRoleKey = (key: string): boolean => isSupabaseSecretKey(key);
+
+const envAnonKey = (rawAnonKeyCandidate && !isSupabaseSecretKey(rawAnonKeyCandidate))
+  ? rawAnonKeyCandidate
+  : undefined;
+
+// Safe retrieval from Admin Settings in browser storage (STRICTLY rejecting service_role keys)
 const getStoredUrl = () => {
   try {
     return localStorage.getItem('rse_supabase_url') || envUrl || '';
@@ -22,7 +86,16 @@ const getStoredUrl = () => {
 
 const getStoredKey = () => {
   try {
-    return localStorage.getItem('rse_supabase_anon_key') || envAnonKey || '';
+    const stored = localStorage.getItem('rse_supabase_anon_key');
+    if (stored) {
+      if (isSecretOrServiceRoleKey(stored)) {
+        console.error('CRITICAL SECURITY: Blocked secret / service_role key found in browser storage. Purging immediately.');
+        localStorage.removeItem('rse_supabase_anon_key');
+        return envAnonKey || '';
+      }
+      return stored;
+    }
+    return envAnonKey || '';
   } catch {
     return envAnonKey || '';
   }
@@ -67,14 +140,15 @@ export const isSchemaMissingError = (error: unknown): boolean => {
   return code === 'PGRST205' || message.includes('Could not find the table') || message.includes('schema cache');
 };
 
-// Helper to determine if valid Supabase credentials exist
+// Helper to determine if valid safe client Supabase credentials exist
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
     activeUrl &&
     activeKey &&
     activeUrl.startsWith('https://') &&
     activeUrl.includes('.supabase.co') &&
-    activeKey.length > 20
+    activeKey.length > 20 &&
+    !isSupabaseSecretKey(activeKey)
   );
 };
 
@@ -99,11 +173,21 @@ const createSafeClient = (): SupabaseClient => {
 export let supabase: SupabaseClient = createSafeClient();
 
 /**
- * Re-initializes client when user updates keys in Admin Settings
+ * Re-initializes client when user updates keys in Admin Settings.
+ * STRICT SECURITY: Rejects any attempt to enter a secret or service_role key into browser storage.
  */
 export const updateSupabaseCredentials = (url: string, anonKey: string): boolean => {
-  activeUrl = url.trim();
-  activeKey = anonKey.trim();
+  const cleanUrl = url.trim();
+  const cleanKey = anonKey.trim();
+
+  if (isSecretOrServiceRoleKey(cleanKey)) {
+    throw new Error(
+      'CRITICAL SECURITY VIOLATION: Supabase Secret / Service-Role keys must NEVER be supplied to browser clients or stored in browser storage. Please provide only the public publishable anon key (sb_publishable_... or public anon JWT).'
+    );
+  }
+
+  activeUrl = cleanUrl;
+  activeKey = cleanKey;
   try {
     localStorage.setItem('rse_supabase_url', activeUrl);
     localStorage.setItem('rse_supabase_anon_key', activeKey);

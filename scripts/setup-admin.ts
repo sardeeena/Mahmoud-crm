@@ -24,7 +24,8 @@ dotenv.config();
  */
 
 async function main() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const getValidUrl = (url?: string) => (url && (url.startsWith('https://') || url.startsWith('http://'))) ? url : null;
+  const supabaseUrl = getValidUrl(process.env.SUPABASE_URL) || getValidUrl(process.env.VITE_SUPABASE_URL) || 'https://cyifhjqqvtiguitrziqs.supabase.co';
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const adminEmail = (process.env.ADMIN_EMAIL || 'admin@awesomeadventure.tours').trim().toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD;
