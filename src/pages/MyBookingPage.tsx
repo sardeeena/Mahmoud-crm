@@ -68,16 +68,10 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
     }
   }, [booking?.bookingReference, booking?.tourId, booking?.date]);
 
-  // If initialReference was passed in route, auto-lookup directly
+  // If initialReference was passed in route, prefill the reference input securely
   useEffect(() => {
     if (initialReference) {
-      bookingRepository.getBooking(initialReference).then((found) => {
-        if (found) {
-          setBooking(found);
-          setReference(found.bookingReference);
-          setEmailOrPhone(found.customer.email);
-        }
-      });
+      setReference(initialReference.toUpperCase());
     }
   }, [initialReference]);
 
@@ -95,27 +89,25 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
       return;
     }
 
-    try {
-      // First try exact search by reference and contact
-      let result = await bookingRepository.findBooking(cleanRef, cleanContact);
+    if (!cleanContact) {
+      setErrorMessage('Please enter your email address or phone number to verify this reservation.');
+      setIsLoading(false);
+      return;
+    }
 
-      // Fallback: If only reference was given or contact was slightly formatted differently, check reference
-      if (!result && cleanRef) {
-        const byRef = await bookingRepository.getBooking(cleanRef);
-        if (byRef) {
-          result = byRef;
-        }
-      }
+    try {
+      // Authoritative verification by reference and contact
+      const result = await bookingRepository.findBooking(cleanRef, cleanContact);
 
       if (result) {
         setBooking(result);
       } else {
         setErrorMessage(
-          'Booking reference not found. Please check your reference code (for example RST-2026-AB4821) or contact our pier desk on WhatsApp.'
+          'Booking reference not found or contact verification failed. Please check your reference code and email/phone, or contact our pier desk on WhatsApp.'
         );
       }
     } catch {
-      setErrorMessage('Could not find your booking. Please check your reference code and try again.');
+      setErrorMessage('Could not find your booking. Please check your reference code and contact details, then try again.');
     } finally {
       setIsLoading(false);
     }

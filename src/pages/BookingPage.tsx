@@ -224,8 +224,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         customer,
         pricing,
         paymentMethod,
-        paymentStatus: paymentMethod === 'pay_online' ? 'paid' : 'pending',
-        status: 'confirmed',
+        paymentStatus: 'pending',
+        status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -233,7 +233,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       await bookingRepository.createBooking(newBooking);
       clearBookingDraft();
       notificationService.sendBookingConfirmation(newBooking);
-      showToast('Booking successfully confirmed!', 'success');
+      showToast('Reservation submitted successfully!', 'success');
       onBookingSuccess(newBooking);
     } catch (err) {
       console.error('Failed to save booking:', err);

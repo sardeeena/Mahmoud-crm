@@ -52,11 +52,11 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
           </div>
 
           <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-block mb-2">
-            Booking Confirmed
+            {booking.status === 'confirmed' ? 'Booking Confirmed' : 'Reservation Received'}
           </span>
 
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0E1B2A] tracking-tight">
-            Your booking is confirmed
+            {booking.status === 'confirmed' ? 'Your booking is confirmed' : 'Your reservation has been received'}
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto mt-2">
             We have saved your booking and sent the details to{' '}
@@ -150,8 +150,12 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
 
             <div className="text-right shrink-0">
               <span className="text-[10px] uppercase font-bold text-stone-400 block">Status</span>
-              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                Confirmed
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                booking.status === 'confirmed'
+                  ? 'text-emerald-800 bg-emerald-50 border border-emerald-200'
+                  : 'text-amber-800 bg-amber-50 border border-amber-200'
+              }`}>
+                {booking.status === 'confirmed' ? 'Confirmed' : 'Pending Confirmation'}
               </span>
             </div>
           </div>

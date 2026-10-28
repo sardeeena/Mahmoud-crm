@@ -119,15 +119,15 @@ class SupabaseBookingRepository implements IBookingRepository {
       }
     }
 
-    // 1. Always keep local copy for instant client state
+    if (!isSupabaseConfigured()) {
+      throw new Error('Reservation database service is currently unconfigured or unavailable. Please contact the booking desk directly.');
+    }
+
+    // 1. Keep local cache synchronized
     const currentLocal = this.getLocalBookings();
     const updatedLocal = [booking, ...currentLocal.filter((b) => b.bookingReference !== booking.bookingReference)];
     this.saveLocalBookings(updatedLocal);
     bookingRateLimiter.recordFailedAttempt();
-
-    if (!isSupabaseConfigured()) {
-      return booking;
-    }
 
     try {
       // 1. Verify tour exists in database and retrieve authoritative pricing & capacity
@@ -251,8 +251,8 @@ class SupabaseBookingRepository implements IBookingRepository {
             tour_id: realTourId,
             customer_id: (customerId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) ? customerId : null,
             booking_date: booking.date,
-            status: booking.status || 'confirmed',
-            payment_status: booking.paymentStatus || 'pending',
+            status: booking.status === 'confirmed' ? 'pending' : (booking.status || 'pending'),
+            payment_status: booking.paymentStatus === 'paid' ? 'pending' : (booking.paymentStatus || 'pending'),
             payment_method: booking.paymentMethod || 'pay_at_pickup',
             adult_count: adults,
             child_count: children,
@@ -497,9 +497,7 @@ class SupabaseBookingRepository implements IBookingRepository {
       }
     }
 
-    // Isolated fallback ONLY when Supabase credentials are completely unconfigured (dev sandbox)
-    const found = this.getLocalBookings().find((b) => b.bookingReference.toUpperCase() === cleanRef);
-    return found || null;
+    return null;
   }
 
   async findBooking(bookingReference: string, emailOrPhone: string): Promise<Booking | null> {
@@ -580,7 +578,7 @@ class SupabaseBookingRepository implements IBookingRepository {
     if (!b) return null;
 
     if (!cleanContact) {
-      return b;
+      return null;
     }
 
     const query = cleanContact.toLowerCase();
@@ -847,11 +845,7 @@ class SupabaseBookingRepository implements IBookingRepository {
 
   async listBookings(filters?: { status?: string; limit?: number }): Promise<Booking[]> {
     if (!isSupabaseConfigured() || isSchemaMissing()) {
-      let all = this.getLocalBookings();
-      if (filters?.status && filters.status !== 'all') {
-        all = all.filter((b) => b.status === filters.status);
-      }
-      return all;
+      return [];
     }
 
     try {
@@ -894,6 +888,8 @@ class SupabaseBookingRepository implements IBookingRepository {
     const tour = data.tours || {};
     const customer = data.customers || {};
     const extras = data.booking_extras || [];
+    const tourImg = tour.primary_image || (tour.tour_images && tour.tour_images[0]?.image_url) || '';
+    const tourDest = tour.destination || (tour.destinations && tour.destinations.name) || 'Hurghada';
 
     return {
       bookingId: data.id,
@@ -901,9 +897,9 @@ class SupabaseBookingRepository implements IBookingRepository {
       tourId: data.tour_id,
       tourSlug: tour.slug || 'orange-bay-island-snorkeling',
       tourTitle: tour.title || 'Red Sea Excursion',
-      tourImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
-      tourDestination: 'Hurghada',
-      tourDuration: tour.duration || 'Full Day (approx. 7 hours)',
+      tourImage: tourImg || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+      tourDestination: tourDest,
+      tourDuration: tour.duration || (tour.duration_hours ? `${tour.duration_hours} Hours` : 'Full Day'),
       date: data.booking_date,
       guests: {
         adults: data.adult_count || 1,
@@ -912,7 +908,7 @@ class SupabaseBookingRepository implements IBookingRepository {
       },
       pickup: {
         locationId: data.pickup_location_id || 'hurghada',
-        locationName: 'Hurghada Hotels',
+        locationName: data.pickup_hotel_name || 'Hurghada Hotels',
         area: 'Hurghada Coastal Area',
         feeEur: 0,
         hotelName: data.pickup_hotel_name || customer.hotel || 'Hotel Lobby',
@@ -952,7 +948,7 @@ class SupabaseBookingRepository implements IBookingRepository {
         firstName: customer.first_name || 'Guest',
         lastName: customer.last_name || '',
         email: customer.email || '',
-        countryCode: '+49',
+        countryCode: customer.country_code || '',
         phoneNumber: customer.phone || '',
         country: customer.country || 'International',
         whatsappNumber: customer.whatsapp || customer.phone || '',
@@ -962,8 +958,8 @@ class SupabaseBookingRepository implements IBookingRepository {
       },
       paymentMethod: data.payment_method || 'pay_at_pickup',
       paymentStatus: data.payment_status || 'pending',
-      status: data.status || 'confirmed',
-      bookingStatus: data.status || 'confirmed',
+      status: data.status || 'pending',
+      bookingStatus: data.status || 'pending',
       cancellationReason: data.cancellation_reason,
       createdAt: data.created_at || new Date().toISOString(),
       updatedAt: data.updated_at || new Date().toISOString(),

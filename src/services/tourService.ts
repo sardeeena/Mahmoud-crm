@@ -152,7 +152,8 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
   };
 
   if (!isSupabaseConfigured() || isSchemaMissing()) {
-    return getFilteredLocal();
+    console.warn('Supabase not configured or schema missing; returning empty catalogue.');
+    return [];
   }
 
   try {
@@ -184,7 +185,6 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
     if (error) {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
-        return getFilteredLocal();
       }
       console.error('Failed to query published tours:', formatSupabaseError(error));
       return [];
@@ -232,8 +232,8 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
     }
-    console.warn('Supabase getPublishedTours failed, fallback to local', err);
-    return getFilteredLocal();
+    console.warn('Supabase getPublishedTours failed:', err);
+    return [];
   }
 }
 
@@ -242,8 +242,7 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
  */
 export async function getTourBySlug(slug: string, allowDraft: boolean = false): Promise<Tour | null> {
   if (!isSupabaseConfigured() || isSchemaMissing()) {
-    const found = localTours.find((t) => t.slug === slug);
-    return found || null;
+    return null;
   }
 
   try {
@@ -273,8 +272,6 @@ export async function getTourBySlug(slug: string, allowDraft: boolean = false): 
     if (error) {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
-        const fallback = localTours.find((t) => t.slug === slug);
-        return fallback || null;
       }
       console.error(`Failed to fetch tour by slug "${slug}":`, formatSupabaseError(error));
       return null;
@@ -315,7 +312,7 @@ export async function getTourBySlug(slug: string, allowDraft: boolean = false): 
     });
   } catch (err) {
     console.warn('Error fetching tour by slug:', err);
-    return localTours.find((t) => t.slug === slug) || null;
+    return null;
   }
 }
 
@@ -415,7 +412,7 @@ export async function adminListTours(filters?: {
   };
 
   if (!isSupabaseConfigured() || isSchemaMissing()) {
-    return getLocalList();
+    return [];
   }
 
   try {
@@ -435,21 +432,17 @@ export async function adminListTours(filters?: {
     if (error) {
       if (isSchemaMissingError(error)) {
         setSchemaMissing(true);
-        console.warn('Supabase tours table not found in schema cache. Falling back to local data.');
-        return getLocalList();
       }
       console.error('Supabase adminListTours query error:', error.message);
-      throw new Error(formatSupabaseError(error));
+      return [];
     }
     return (data || []) as DbTour[];
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
-      console.warn('Supabase tours table not found in schema cache. Falling back to local data.');
-      return getLocalList();
     }
     console.error('Failed to list admin tours:', err);
-    throw err;
+    return [];
   }
 }
 
