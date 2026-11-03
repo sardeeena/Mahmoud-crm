@@ -372,11 +372,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectUrl, onNavigate })
             <div className="flex items-center justify-center mx-auto mb-2">
               <img 
                 src="/logo.png" 
-                alt="Red Sea Voyages Logo" 
+                alt="Awesome Adventure Tours Logo" 
                 className="h-16 w-auto object-contain drop-shadow-sm"
               />
             </div>
-            <h1 className="font-display text-2xl font-bold text-[#0E1B2A]">Sign in to Red Sea Voyages</h1>
+            <h1 className="font-display text-2xl font-bold text-[#0E1B2A]">Sign in to Awesome Adventure Tours</h1>
             <p className="text-xs text-stone-500">
               Access your reservations, digital vouchers, and saved excursions
             </p>

@@ -84,8 +84,8 @@ export const AdminSettings: React.FC = () => {
 
   // Company Settings
   const [company, setCompany] = useState<CompanySettings>({
-    companyName: 'Red Sea Excursions & Voyages',
-    email: 'concierge@redseaexcursions.com',
+    companyName: 'Awesome Adventure Tours',
+    email: 'reservations@awesomeadventure.tours',
     phone: '+20 102 345 6789',
     whatsapp: '+20 102 345 6789',
     whatsappUrl: 'https://wa.me/201023456789',
@@ -110,15 +110,15 @@ export const AdminSettings: React.FC = () => {
 
   // Social & Footer
   const [social, setSocial] = useState<SocialLinksSettings>({
-    facebook: 'https://facebook.com/RedSeaExcursionsOfficial',
-    instagram: 'https://instagram.com/redseavoyages',
-    youtube: 'https://youtube.com/@redseavoyages',
+    facebook: 'https://facebook.com/AwesomeAdventureTours',
+    instagram: 'https://instagram.com/awesomeadventuretours',
+    youtube: 'https://youtube.com/@awesomeadventuretours',
     tripadvisor: 'https://tripadvisor.com/Attraction_Review-Hurghada-Red_Sea.html',
   });
 
   const [footer, setFooter] = useState<FooterContentSettings>({
-    copyrightNotice: '© 2026 Red Sea Excursions & Voyages SAE. Registered Tour Operator License #8421.',
-    aboutSnippet: 'Official Red Sea maritime tour operator based in Hurghada Marina. Certified vessels, private yacht charters, island transfers, and desert safaris.',
+    copyrightNotice: '© 2026 Awesome Adventure Tours SAE. Registered Tour Operator License #8421.',
+    aboutSnippet: 'Awesome Adventure Tours - professional maritime tour operator based in Hurghada Marina. Certified vessels, private yacht charters, island transfers, and desert safaris.',
     badges: ['Egyptian Ministry of Tourism Certified', 'PADI Certified Dive Centers', 'Coast Guard Safety Compliant'],
     paymentIconsText: 'Cash on Pickup • Visa • MasterCard • Bank Transfer',
   });

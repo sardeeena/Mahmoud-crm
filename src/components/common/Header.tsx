@@ -368,13 +368,13 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Main Navigation (Selected Element: header > div:nth-of-type(2)) */}
       <div 
-        className={`w-full bg-[#0E1B2A] text-white border-b border-[#1F3854] shadow-md transition-all duration-300 ease-in-out ${
+        className={`w-full bg-[#F7F4ED] text-stone-800 border-b border-[#E8E3DA] shadow-xs transition-all duration-300 ease-in-out ${
           isHeaderVisible
             ? 'opacity-100 translate-y-0'
             : 'opacity-0 -translate-y-2 pointer-events-none'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between bg-[#F7F4ED]">
           {/* Brand Logo */}
           <a 
             href="/" 
@@ -391,39 +391,39 @@ export const Header: React.FC<HeaderProps> = ({
           </a>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center space-x-7 text-sm font-medium text-slate-200" aria-label="Main Navigation">
+          <nav className="hidden lg:flex items-center space-x-7 text-sm font-semibold text-stone-700" aria-label="Main Navigation">
             <button 
               type="button"
               onClick={handleExcursionsClick} 
-              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+              className="text-stone-700 hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
             >
               {t('nav.allExcursions')}
             </button>
             <button 
               type="button"
               onClick={() => handleNavClick('destinations-section')} 
-              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+              className="text-stone-700 hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
             >
               {t('nav.destinations')}
             </button>
             <button 
               type="button"
               onClick={() => handleNavClick('categories-section')} 
-              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+              className="text-stone-700 hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
             >
               {t('nav.experiences')}
             </button>
             <button 
               type="button"
               onClick={() => handleNavClick('why-us-section')} 
-              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+              className="text-stone-700 hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
             >
               Why Choose Us
             </button>
             <button 
               type="button"
               onClick={() => handleNavClick('reviews-section')} 
-              className="text-slate-200 hover:text-[#60C3CC] transition-colors py-1 cursor-pointer"
+              className="text-stone-700 hover:text-[#0A6C74] transition-colors py-1 cursor-pointer"
             >
               {t('nav.guestReviews')}
             </button>
@@ -437,7 +437,7 @@ export const Header: React.FC<HeaderProps> = ({
             whileTap={{ scale: 0.9 }}
             type="button"
             onClick={onOpenWishlist}
-            className="relative p-2 text-slate-200 hover:text-rose-400 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
+            className="relative p-2 text-stone-700 hover:text-rose-500 bg-stone-200/60 hover:bg-stone-200 border border-stone-300/70 rounded-xl transition-all cursor-pointer"
             title="Saved Excursions"
             aria-label={`View ${wishlistCount} saved excursions`}
           >
@@ -456,11 +456,11 @@ export const Header: React.FC<HeaderProps> = ({
               whileTap={{ scale: 0.9 }}
               type="button"
               onClick={onOpenCompare}
-              className="relative p-2 text-slate-200 hover:text-[#60C3CC] bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
+              className="relative p-2 text-stone-700 hover:text-[#0A6C74] bg-stone-200/60 hover:bg-stone-200 border border-stone-300/70 rounded-xl transition-all cursor-pointer"
               title="Compare Excursions"
               aria-label={`Compare ${comparisonCount} excursions`}
             >
-              <Scale className="w-4 h-4 text-[#60C3CC]" />
+              <Scale className="w-4 h-4 text-[#0A6C74]" />
               <span className="absolute -top-1 -right-1 bg-[#0A6C74] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                 {comparisonCount}
               </span>
@@ -474,14 +474,14 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="theme-toggle-main-nav"
             onClick={toggleTheme}
-            className="p-2 text-slate-200 hover:text-[#60C3CC] bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
+            className="p-2 text-stone-700 hover:text-[#0A6C74] bg-stone-200/60 hover:bg-stone-200 border border-stone-300/70 rounded-xl transition-all cursor-pointer"
             title={isDark ? "Switch to Light Mode (Default)" : "Switch to Dark Mode"}
             aria-label={isDark ? "Switch to Light Mode (Default)" : "Switch to Dark Mode"}
           >
             {isDark ? (
-              <Sun className="w-4 h-4 text-amber-300" />
+              <Sun className="w-4 h-4 text-amber-500" />
             ) : (
-              <Moon className="w-4 h-4 text-cyan-300" />
+              <Moon className="w-4 h-4 text-[#0A6C74]" />
             )}
           </motion.button>
 
@@ -492,9 +492,9 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="my-booking-header-btn"
             onClick={onOpenMyBooking}
-            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all cursor-pointer"
+            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-stone-800 bg-stone-200/60 hover:bg-stone-200 border border-stone-300/70 rounded-xl transition-all cursor-pointer"
           >
-            <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-[#60C3CC]" />
+            <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-[#0A6C74]" />
             {t('nav.findMyBooking')}
           </motion.button>
 
@@ -505,7 +505,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="user-menu-button"
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-sm border border-white/20 bg-white/10 hover:bg-white/15 text-xs font-semibold text-white transition-colors cursor-pointer"
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-stone-300/70 bg-stone-200/60 hover:bg-stone-200 text-xs font-semibold text-stone-800 transition-colors cursor-pointer"
                 aria-expanded={userDropdownOpen}
               >
                 <div className="w-5 h-5 rounded-full bg-[#0A6C74] text-white flex items-center justify-center text-[10px] font-bold overflow-hidden">
@@ -515,8 +515,8 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>{user.fullName.charAt(0).toUpperCase()}</span>
                   )}
                 </div>
-                <span className="max-w-[100px] truncate text-white">{user.fullName.split(' ')[0]}</span>
-                <ChevronDown className={`w-3 h-3 text-slate-300 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                <span className="max-w-[100px] truncate text-stone-800">{user.fullName.split(' ')[0]}</span>
+                <ChevronDown className={`w-3 h-3 text-stone-500 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -603,9 +603,9 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => {
                   if (onNavigateLogin) onNavigateLogin();
                 }}
-                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer"
+                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-stone-700 hover:text-stone-900 hover:bg-stone-200/60 rounded-xl transition-all cursor-pointer"
               >
-                <LogIn className="w-3.5 h-3.5 mr-1 text-[#60C3CC]" />
+                <LogIn className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
                 <span>Sign In</span>
               </button>
 
@@ -615,7 +615,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => {
                   if (onNavigateRegister) onNavigateRegister();
                 }}
-                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#60C3CC] hover:text-white hover:bg-white/10 border border-[#60C3CC]/30 rounded-xl transition-all cursor-pointer font-medium"
+                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#0A6C74] hover:text-white hover:bg-[#0A6C74] border border-[#0A6C74]/40 rounded-xl transition-all cursor-pointer font-medium"
               >
                 <UserPlus className="w-3.5 h-3.5 mr-1" />
                 <span>Register</span>
@@ -628,10 +628,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenHelpInquiry}
-              className="hidden md:inline-flex items-center px-3 py-2 text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer border border-white/15 bg-white/5"
+              className="hidden md:inline-flex items-center px-3 py-2 text-xs font-semibold text-stone-700 hover:text-stone-900 hover:bg-stone-200/60 rounded-xl transition-all cursor-pointer border border-stone-300/70 bg-stone-200/40"
               title="Require Help, Concierge & Custom Tours"
             >
-              <HelpCircle className="w-3.5 h-3.5 mr-1 text-[#60C3CC]" />
+              <HelpCircle className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
               <span>Require Help</span>
             </button>
           )}
@@ -643,7 +643,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="book-excursion-header-btn"
             onClick={handleBookingClick}
-            className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-[#0A6C74] to-[#0D838C] hover:from-[#08565C] hover:to-[#0A6C74] rounded-xl shadow-sm transition-all cursor-pointer"
+            className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-[#0A6C74] to-[#0D838C] hover:from-[#08565C] hover:to-[#0A6C74] rounded-xl shadow-xs transition-all cursor-pointer"
           >
             {t('nav.bookExcursion')}
           </motion.button>
@@ -654,7 +654,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenWishlist}
-            className="relative p-2 text-slate-200 hover:text-rose-400 rounded-sm border border-white/20 bg-white/10"
+            className="relative p-2 text-stone-700 hover:text-rose-500 rounded-lg border border-stone-300/70 bg-stone-200/60"
             title="Saved Excursions"
           >
             <Heart className={`w-4 h-4 ${wishlistCount > 0 ? 'fill-rose-500 text-rose-500' : ''}`} />
@@ -668,7 +668,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenMyBooking}
-            className="p-2 text-slate-200 hover:text-[#60C3CC] rounded-sm border border-white/20 bg-white/10"
+            className="p-2 text-stone-700 hover:text-[#0A6C74] rounded-lg border border-stone-300/70 bg-stone-200/60"
             title={t('nav.findMyBooking')}
           >
             <CalendarCheck className="w-4 h-4" />
@@ -678,7 +678,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="mobile-menu-toggle-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-white hover:bg-white/10 rounded-sm border border-white/20 bg-white/10"
+            className="p-2 text-stone-800 hover:bg-stone-200 rounded-lg border border-stone-300/70 bg-stone-200/60"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

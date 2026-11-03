@@ -101,15 +101,15 @@ export const AdminSeoManager: React.FC = () => {
     currentCats = categories
   ) => {
     // Generate default baseline
-    let defaultTitle = 'Red Sea Excursions & Voyages | Official Pier Desk';
-    let defaultDesc = 'Official Red Sea boat trips, island excursions, and desert safaris in Egypt. Free hotel pickup and 24h free cancellation.';
-    let defaultCanonical = 'https://redseaexcursions.com';
+    let defaultTitle = 'Awesome Adventure Tours | Official Pier Desk';
+    let defaultDesc = 'Awesome Adventure Tours - boat trips, island excursions, and desert safaris in Egypt. Free hotel pickup and 24h free cancellation.';
+    let defaultCanonical = 'https://awesomeadventure.tours';
     let defaultOgImage = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80';
     let defaultSchema: any = {
       '@context': 'https://schema.org',
       '@type': 'TravelAgency',
-      name: 'Red Sea Excursions & Voyages',
-      url: 'https://redseaexcursions.com',
+      name: 'Awesome Adventure Tours',
+      url: 'https://awesomeadventure.tours',
       telephone: '+20 102 345 6789',
       address: {
         '@type': 'PostalAddress',
@@ -122,9 +122,9 @@ export const AdminSeoManager: React.FC = () => {
     if (currentScope === 'tours') {
       const tour = currentTours.find((t) => t.id === entityId || t.slug === entityId);
       if (tour) {
-        defaultTitle = `${tour.title} | Red Sea Excursions & Voyages`;
+        defaultTitle = `${tour.title} | Awesome Adventure Tours`;
         defaultDesc = tour.short_description || tour.description?.slice(0, 155) || '';
-        defaultCanonical = `https://redseaexcursions.com/excursions/${tour.slug}`;
+        defaultCanonical = `https://awesomeadventure.tours/excursions/${tour.slug}`;
         defaultOgImage = (tour as any).primary_image || defaultOgImage;
         defaultSchema = {
           '@context': 'https://schema.org',
@@ -464,10 +464,10 @@ export const AdminSeoManager: React.FC = () => {
               Google Search Result Simulation
             </span>
             <div className="text-[11px] text-stone-400 font-mono truncate">
-              {canonicalUrl || 'https://redseaexcursions.com'}
+              {canonicalUrl || 'https://awesomeadventure.tours'}
             </div>
             <div className="text-base font-medium text-sky-400 hover:underline cursor-pointer truncate">
-              {seoTitle || 'Red Sea Excursions & Voyages'}
+              {seoTitle || 'Awesome Adventure Tours'}
             </div>
             <p className="text-xs text-stone-300 line-clamp-2 leading-relaxed">
               {metaDescription || 'Book official Red Sea excursions with verified captains and free hotel pickup.'}

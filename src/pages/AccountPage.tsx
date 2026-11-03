@@ -113,7 +113,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({
         <div className="flex items-center justify-center mb-4">
           <img 
             src="/logo.png" 
-            alt="Red Sea Voyages Logo" 
+            alt="Awesome Adventure Tours Logo" 
             className="h-20 w-auto object-contain drop-shadow-sm"
           />
         </div>

@@ -9,15 +9,15 @@
 
 export const APP_CONFIG = {
   DEMO_MODE: false,
-  COMPANY_NAME: 'Red Sea Excursions & Tours',
-  LEGAL_NAME: 'Red Sea Marine Travel S.A.E.',
+  COMPANY_NAME: 'Awesome Adventure Tours',
+  LEGAL_NAME: 'Awesome Adventure Tours S.A.E.',
   
   // WhatsApp support number (Pier Desk Hotline)
   WHATSAPP_NUMBER: '+20 102 345 6789',
   WHATSAPP_DISPLAY: '+20 102 345 6789',
   
   SUPPORT_PHONE: '+20 102 345 6789',
-  SUPPORT_EMAIL: 'reservations@redseaexcursions.com',
+  SUPPORT_EMAIL: 'reservations@awesomeadventure.tours',
   OFFICE_LOCATION: 'Berth B-14, Hurghada Marina, Red Sea Governorate, Egypt',
 
   // Booking notice & availability defaults

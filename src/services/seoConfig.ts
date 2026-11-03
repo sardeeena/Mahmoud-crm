@@ -6,9 +6,9 @@ import { APP_CONFIG } from '../config/appConfig';
  * Global Site-Wide SEO Constants & Branding Identifiers
  */
 export const SEO_DEFAULTS = {
-  SITE_NAME: 'Red Sea Excursions & Tours',
-  LEGAL_NAME: 'Red Sea Marine Travel S.A.E.',
-  DEFAULT_TITLE: 'Red Sea Excursions & Tours | Verified Red Sea Boat Trips & Safaris',
+  SITE_NAME: 'Awesome Adventure Tours',
+  LEGAL_NAME: 'Awesome Adventure Tours S.A.E.',
+  DEFAULT_TITLE: 'Awesome Adventure Tours | Verified Excursions, Boat Trips & Safaris',
   DEFAULT_DESCRIPTION:
     'Direct booking for premium Red Sea boat trips, coral reef snorkeling, scuba diving, and desert quad safaris in Hurghada, El Gouna, and Sharm El-Sheikh. Hotel pickup included with free 24-hour cancellation.',
   DEFAULT_OG_IMAGE: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80',
@@ -17,7 +17,7 @@ export const SEO_DEFAULTS = {
   CURRENCY: 'EUR',
   FOUNDING_DATE: '2016',
   CONTACT_PHONE: '+20 102 345 6789',
-  CONTACT_EMAIL: 'reservations@redseaexcursions.com',
+  CONTACT_EMAIL: 'reservations@awesomeadventure.tours',
   HEADQUARTERS: {
     streetAddress: 'Berth B-14, Hurghada Marina Boulevard',
     addressLocality: 'Hurghada',
@@ -316,7 +316,7 @@ export function generateDestinationJsonLd(
  */
 export const STATIC_ROUTE_SEO: Record<string, (origin: string) => SeoMetadata> = {
   '/': (origin) => ({
-    title: 'Red Sea Excursions & Tours | Verified Red Sea Boat Trips & Safaris',
+    title: 'Awesome Adventure Tours | Verified Excursions, Boat Trips & Safaris',
     description:
       'Book verified Red Sea boat trips to Orange Bay, Giftun Island, Ras Mohammed, and desert safaris. Direct pier rates, hotel pickup included, free cancellation.',
     keywords: SEO_DEFAULTS.KEYWORDS,
@@ -329,7 +329,7 @@ export const STATIC_ROUTE_SEO: Record<string, (origin: string) => SeoMetadata> =
   }),
 
   '/excursions': (origin) => ({
-    title: 'All Red Sea Excursions & Boat Trips | Hurghada, El Gouna & Sharm',
+    title: 'All Excursions & Boat Trips | Awesome Adventure Tours',
     description:
       'Explore our full catalog of daily boat trips, coral snorkeling safaris, private yacht charters, and desert adventures across the Egyptian Red Sea.',
     keywords: [
@@ -354,7 +354,7 @@ export const STATIC_ROUTE_SEO: Record<string, (origin: string) => SeoMetadata> =
   }),
 
   '/my-booking': (origin) => ({
-    title: 'Manage Your Booking & Download Voucher | Red Sea Excursions',
+    title: 'Manage Your Booking & Download Voucher | Awesome Adventure Tours',
     description:
       'Lookup your excursion reservation, download PDF vouchers, verify hotel pickup timings, or request free cancellation online.',
     canonicalUrl: `${origin}/my-booking`,
@@ -364,7 +364,7 @@ export const STATIC_ROUTE_SEO: Record<string, (origin: string) => SeoMetadata> =
   }),
 
   '/login': (origin) => ({
-    title: 'Sign In | Red Sea Excursions Guest Portal',
+    title: 'Sign In | Awesome Adventure Tours Guest Portal',
     description:
       'Sign in to access your upcoming excursion reservations, saved wishlists, and exclusive member discounts.',
     canonicalUrl: `${origin}/login`,
@@ -374,7 +374,7 @@ export const STATIC_ROUTE_SEO: Record<string, (origin: string) => SeoMetadata> =
   }),
 
   '/register': (origin) => ({
-    title: 'Create an Account | Red Sea Excursions',
+    title: 'Create an Account | Awesome Adventure Tours',
     description:
       'Create your free traveler profile to manage bookings, track pickup status, and unlock special Red Sea excursion discounts.',
     canonicalUrl: `${origin}/register`,

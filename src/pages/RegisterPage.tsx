@@ -311,13 +311,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ redirectUrl, onNavig
             <div className="flex items-center justify-center mx-auto mb-2">
               <img 
                 src="/logo.png" 
-                alt="Red Sea Voyages Logo" 
+                alt="Awesome Adventure Tours Logo" 
                 className="h-16 w-auto object-contain drop-shadow-sm"
               />
             </div>
             <h1 className="font-display text-2xl font-bold text-[#0E1B2A]">Create Voyager Account</h1>
             <p className="text-xs text-stone-500">
-              Join Red Sea Voyages for quick booking autofill, voucher downloads, and excursion archives
+              Join Awesome Adventure Tours for quick booking autofill, voucher downloads, and excursion archives
             </p>
             <div className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-medium">
               <Mail className="w-3 h-3 text-[#0A6C74]" />
