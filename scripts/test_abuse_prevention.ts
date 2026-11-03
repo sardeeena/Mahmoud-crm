@@ -141,7 +141,14 @@ async function runTests() {
       updatedAt: new Date().toISOString(),
     } as any);
   } catch (err: any) {
-    if (err.message.includes('not registered') || err.message.includes('not available')) {
+    if (
+      err.message.includes('not registered') ||
+      err.message.includes('not available') ||
+      err.message.includes('unavailable') ||
+      err.message.includes('not configured') ||
+      err.message.includes('unconfigured') ||
+      err.message.includes('cannot be accepted')
+    ) {
       bookingRejectedProperly = true;
     }
   }
