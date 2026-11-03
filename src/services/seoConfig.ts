@@ -16,7 +16,7 @@ export const SEO_DEFAULTS = {
   PRICE_RANGE: '€€',
   CURRENCY: 'EUR',
   FOUNDING_DATE: '2016',
-  CONTACT_PHONE: '+20 102 345 6789',
+  CONTACT_PHONE: '+20 151 5212741',
   CONTACT_EMAIL: 'reservations@awesomeadventure.tours',
   HEADQUARTERS: {
     streetAddress: 'Berth B-14, Hurghada Marina Boulevard',

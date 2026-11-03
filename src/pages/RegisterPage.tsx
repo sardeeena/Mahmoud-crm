@@ -398,7 +398,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ redirectUrl, onNavig
                   <input
                     id="reg-phone"
                     type="tel"
-                    placeholder="102 345 6789"
+                    placeholder="151 5212741"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0A6C74] focus:border-[#0A6C74] bg-stone-50/50"

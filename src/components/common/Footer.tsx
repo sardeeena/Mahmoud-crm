@@ -61,7 +61,7 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
             <div>
               <span className="text-stone-900 dark:text-white font-semibold block text-xs">Phone & Support</span>
-              <span className="text-[11px] text-stone-500 dark:text-slate-400">+20 102 345 6789 (Daily 06:00 – 22:00)</span>
+              <span className="text-[11px] text-stone-500 dark:text-slate-400">+20 151 5212741 (Daily 06:00 – 22:00)</span>
             </div>
           </div>
 

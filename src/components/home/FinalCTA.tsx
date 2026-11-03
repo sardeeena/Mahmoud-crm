@@ -61,7 +61,7 @@ export const FinalCTA: React.FC<FinalCTAProps> = ({ onExploreTours, onOpenMyBook
               <motion.a
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                href="https://wa.me/201023456789"
+                href="https://wa.me/201515212741"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-xl flex items-center justify-center space-x-2 transition-all shadow-md cursor-pointer"

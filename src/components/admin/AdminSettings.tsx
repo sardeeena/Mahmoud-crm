@@ -86,9 +86,9 @@ export const AdminSettings: React.FC = () => {
   const [company, setCompany] = useState<CompanySettings>({
     companyName: 'Awesome Adventure Tours',
     email: 'reservations@awesomeadventure.tours',
-    phone: '+20 102 345 6789',
-    whatsapp: '+20 102 345 6789',
-    whatsappUrl: 'https://wa.me/201023456789',
+    phone: '+20 151 5212741',
+    whatsapp: '+20 151 5212741',
+    whatsappUrl: 'https://wa.me/201515212741',
     address: 'Hurghada Marina Boulevard, Pier 4 Dispatch Office, Red Sea Governorate, Egypt',
     operatingHours: '06:00 - 23:00 EEST (Daily Pier Operations)',
     defaultCurrency: 'EUR',

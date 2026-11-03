@@ -141,7 +141,7 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
                   type="text"
                   value={emailOrPhone}
                   onChange={(e) => setEmailOrPhone(e.target.value)}
-                  placeholder="name@domain.com or +20 102 345 6789"
+                  placeholder="name@domain.com or +20 151 5212741"
                   className="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0A6C74]"
                 />
               </div>
@@ -157,7 +157,7 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
               </div>
 
               <p className="text-[11px] text-stone-600 text-center">
-                Need immediate assistance? Contact our Hurghada marina dispatch desk on WhatsApp: +20 102 345 6789.
+                Need immediate assistance? Contact our Hurghada marina dispatch desk on WhatsApp: +20 151 5212741.
               </p>
             </form>
           ) : (
@@ -231,7 +231,7 @@ export const MyBookingModal: React.FC<MyBookingModalProps> = ({ isOpen, onClose,
                   <span>Print Voucher</span>
                 </button>
                 <a
-                  href={`https://wa.me/201023456789?text=${encodeURIComponent(`Hello, I have an inquiry about my reservation reference ${booking.bookingReference}`)}`}
+                  href={`https://wa.me/201515212741?text=${encodeURIComponent(`Hello, I have an inquiry about my reservation reference ${booking.bookingReference}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center justify-center space-x-1.5"

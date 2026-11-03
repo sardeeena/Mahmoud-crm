@@ -13,10 +13,10 @@ export const APP_CONFIG = {
   LEGAL_NAME: 'Awesome Adventure Tours S.A.E.',
   
   // WhatsApp support number (Pier Desk Hotline)
-  WHATSAPP_NUMBER: '+20 102 345 6789',
-  WHATSAPP_DISPLAY: '+20 102 345 6789',
+  WHATSAPP_NUMBER: '+20 151 5212741',
+  WHATSAPP_DISPLAY: '+20 151 5212741',
   
-  SUPPORT_PHONE: '+20 102 345 6789',
+  SUPPORT_PHONE: '+20 151 5212741',
   SUPPORT_EMAIL: 'reservations@awesomeadventure.tours',
   OFFICE_LOCATION: 'Berth B-14, Hurghada Marina, Red Sea Governorate, Egypt',
 

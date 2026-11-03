@@ -202,13 +202,13 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center space-x-3.5 ml-auto">
             {/* Direct WhatsApp Hotline */}
             <a 
-              href="https://wa.me/201023456789" 
+              href="https://wa.me/201515212741" 
               target="_blank" 
               rel="noopener noreferrer"
               className="flex items-center text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors text-xs font-medium"
             >
               <MessageCircle className="w-3.5 h-3.5 mr-1" />
-              <span className="hidden sm:inline">{t('top.pierDesk')}: </span>+20 102 345 6789
+              <span className="hidden sm:inline">{t('top.pierDesk')}: </span>+20 151 5212741
             </a>
 
             <div className="h-3 w-px bg-stone-300 dark:bg-slate-700"></div>
@@ -944,7 +944,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
                 <a
-                  href="https://wa.me/201023456789"
+                  href="https://wa.me/201515212741"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-2.5 px-4 text-center font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center justify-center space-x-2"

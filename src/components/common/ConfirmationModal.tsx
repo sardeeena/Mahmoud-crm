@@ -91,7 +91,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         {/* Actions */}
         <div className="space-y-2">
           <a
-            href="https://wa.me/201023456789"
+            href="https://wa.me/201515212741"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center justify-center space-x-2 transition-colors"

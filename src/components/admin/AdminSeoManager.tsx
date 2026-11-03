@@ -110,7 +110,7 @@ export const AdminSeoManager: React.FC = () => {
       '@type': 'TravelAgency',
       name: 'Awesome Adventure Tours',
       url: 'https://awesomeadventure.tours',
-      telephone: '+20 102 345 6789',
+      telephone: '+20 151 5212741',
       address: {
         '@type': 'PostalAddress',
         addressLocality: 'Hurghada',

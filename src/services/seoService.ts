@@ -148,7 +148,7 @@ export const seoService = {
         seller: {
           '@type': 'TravelAgency',
           name: SITE_NAME,
-          telephone: '+201023456789',
+          telephone: '+201515212741',
         },
       },
       aggregateRating: {
@@ -161,7 +161,7 @@ export const seoService = {
       provider: {
         '@type': 'TravelAgency',
         name: SITE_NAME,
-        telephone: '+201023456789',
+        telephone: '+201515212741',
         url: origin,
       },
       itinerary: {
@@ -276,7 +276,7 @@ export const seoService = {
       alternateName: 'Awesome Adventure Tours',
       description: DEFAULT_DESCRIPTION,
       url: origin,
-      telephone: '+201023456789',
+      telephone: '+201515212741',
       priceRange: '€€',
       currenciesAccepted: 'EUR, USD, GBP, EGP',
       paymentAccepted: 'Cash, Credit Card, Pay at Pickup',
