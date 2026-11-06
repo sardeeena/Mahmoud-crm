@@ -35,6 +35,7 @@ import { seoService } from './services/seoService';
 import { getPageSeo } from './services/seoConfig';
 import { sanitizeRedirectUrl } from './lib/security';
 import { TourDetailSkeleton } from './components/tours/TourDetailSkeleton';
+import { BookingPageSkeleton } from './components/booking/BookingPageSkeleton';
 import { Compass } from 'lucide-react';
 
 // Providers
@@ -908,7 +909,11 @@ function MainApp() {
 
         {activeAdminTab === 'pickup' && <AdminPickupList />}
 
-        {activeAdminTab === 'extras' && <AdminExtrasList />}
+        {activeAdminTab === 'extras' && (
+          <AdminExtrasList
+            onNavigateTab={(tab, param) => handleAdminSelectTab(tab, param)}
+          />
+        )}
 
         {activeAdminTab === 'coupons' && <AdminCouponsList />}
 
@@ -1000,6 +1005,10 @@ function MainApp() {
 
     // 2. Booking Multi-Step Experience: /booking or /booking?tour=:slug
     if (currentPath.startsWith('/booking')) {
+      if (loadingTours && liveTours.length === 0) {
+        return <BookingPageSkeleton />;
+      }
+
       return (
         <BookingPage
           tours={liveTours}

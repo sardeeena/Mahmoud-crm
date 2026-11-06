@@ -43,6 +43,7 @@ export function mapDbTourToFrontendTour(
     highlights?: DbTourHighlight[];
     faqs?: DbTourFaq[];
     reviews?: Review[];
+    extras?: DbTourExtra[];
   }
 ): Tour {
   const images = relations.images || [];
@@ -109,6 +110,19 @@ export function mapDbTourToFrontendTour(
     difficulty: dbTour.difficulty || 'Easy',
     ageRestrictions: dbTour.age_restrictions || '',
     reviews: relations.reviews,
+    optionalExtras: relations.extras && relations.extras.length > 0 
+      ? relations.extras.map((e) => {
+          const customPrices = getTourCustomExtraPrices(dbTour.id);
+          const customSlugPrices = getTourCustomExtraPrices(dbTour.slug);
+          const customPrice = customPrices[e.id] ?? customSlugPrices[e.id];
+          return {
+            id: e.id,
+            name: e.name,
+            priceEur: customPrice !== undefined && !isNaN(customPrice) ? Number(customPrice) : Number(e.price_eur) || 0,
+            description: e.description || undefined,
+          };
+        })
+      : undefined,
   };
 }
 
@@ -353,6 +367,7 @@ export interface AdminTourPayload {
   faqs?: Array<{ question: string; answer: string }>;
   pickupLocationIds?: string[];
   extraIds?: string[];
+  extraPrices?: Record<string, number>;
   seo?: Partial<DbSeoMetadata>;
 }
 
@@ -950,8 +965,11 @@ async function syncTourRelations(tourId: string, payload: AdminTourPayload): Pro
     }
   }
 
-  // Tour Assigned Extras
+  // Tour Assigned Extras & Custom Prices
   if (payload.extraIds !== undefined) {
+    if (payload.extraPrices) {
+      saveTourCustomExtraPrices(tourId, payload.extraPrices);
+    }
     await supabase.from('tour_assigned_extras').delete().eq('tour_id', tourId);
     if (payload.extraIds.length > 0) {
       const links = payload.extraIds.map((extId) => ({
@@ -1493,18 +1511,70 @@ export async function getPublishedPickupLocations(): Promise<PickupLocation[]> {
   }));
 }
 
+// In-memory / localStorage cache for tour-specific extra price overrides
+const TOUR_EXTRA_PRICES_KEY = 'rse_tour_custom_extra_prices';
+
+export function getTourCustomExtraPrices(tourId: string): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(`${TOUR_EXTRA_PRICES_KEY}_${tourId}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveTourCustomExtraPrices(tourId: string, prices: Record<string, number>): void {
+  try {
+    localStorage.setItem(`${TOUR_EXTRA_PRICES_KEY}_${tourId}`, JSON.stringify(prices));
+  } catch (err) {
+    console.warn('Failed to save tour custom extra prices to localStorage:', err);
+  }
+}
+
 /**
- * Fetches active tour extras formatted for client checkout selection
+ * Fetches active tour extras formatted for client checkout selection.
+ * If tourId is provided, applies any tour-specific price overrides configured by admin.
  */
-export async function getPublishedTourExtras(): Promise<BookingExtra[]> {
+export async function getPublishedTourExtras(tourIdOrSlug?: string): Promise<BookingExtra[]> {
   const dbExtras = await getTourExtras();
-  return dbExtras.map((e) => ({
-    id: e.id,
-    name: e.name,
-    description: e.description || '',
-    priceEur: Number(e.price_eur) || 0,
-    pricingType: e.pricing_type === 'per_person' ? 'per_person' : 'per_booking',
-  }));
+
+  // Check if tour-specific price overrides exist in storage
+  let customPrices: Record<string, number> = {};
+  if (tourIdOrSlug) {
+    // Check direct parameter
+    customPrices = { ...getTourCustomExtraPrices(tourIdOrSlug) };
+    
+    // Also check if tourIdOrSlug is matched against cached/local tours to check counterpart id/slug
+    try {
+      const storedTours = localStorage.getItem('rse_mock_tours');
+      if (storedTours) {
+        const parsed: any[] = JSON.parse(storedTours);
+        const match = parsed.find((t) => t.id === tourIdOrSlug || t.slug === tourIdOrSlug);
+        if (match) {
+          const idPrices = getTourCustomExtraPrices(match.id);
+          const slugPrices = getTourCustomExtraPrices(match.slug);
+          customPrices = { ...slugPrices, ...idPrices, ...customPrices };
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return dbExtras.map((e) => {
+    const customizedPrice = customPrices[e.id];
+    const finalPrice = customizedPrice !== undefined && customizedPrice !== null && !isNaN(customizedPrice)
+      ? Number(customizedPrice)
+      : Number(e.price_eur) || 0;
+
+    return {
+      id: e.id,
+      name: e.name,
+      description: e.description || '',
+      priceEur: finalPrice,
+      pricingType: e.pricing_type === 'per_person' ? 'per_person' : 'per_booking',
+    };
+  });
 }
 
 // ==============================================================================

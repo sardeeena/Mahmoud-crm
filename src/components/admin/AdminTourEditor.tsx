@@ -31,7 +31,9 @@ import {
   getDestinations,
   getCategories,
   getPickupLocations,
-  getTourExtras
+  getTourExtras,
+  getTourCustomExtraPrices,
+  notifyCatalogueDataChanged
 } from '../../services/tourService';
 import {
   DbTour,
@@ -130,6 +132,7 @@ export const AdminTourEditor: React.FC<AdminTourEditorProps> = ({
   const [videos, setVideos] = useState<any[]>([]);
   const [selectedPickupIds, setSelectedPickupIds] = useState<string[]>([]);
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([]);
+  const [extraPrices, setExtraPrices] = useState<Record<string, number>>({});
 
   // SEO Form State
   const [seo, setSeo] = useState({
@@ -188,6 +191,8 @@ export const AdminTourEditor: React.FC<AdminTourEditorProps> = ({
             setVideos(fullTour.videos || []);
             setSelectedPickupIds(fullTour.pickup_locations?.map((p) => p.id) || []);
             setSelectedExtraIds(fullTour.extras?.map((e) => e.id) || []);
+            const customPrices = getTourCustomExtraPrices(tourId);
+            setExtraPrices(customPrices || {});
             if (fullTour.seo) {
               setSeo({
                 seo_title: fullTour.seo.seo_title || '',
@@ -309,6 +314,7 @@ export const AdminTourEditor: React.FC<AdminTourEditorProps> = ({
         videos,
         pickupLocationIds: selectedPickupIds,
         extraIds: selectedExtraIds,
+        extraPrices,
         seo: {
           ...seo,
           seo_title: seo.seo_title || tourData.title,
@@ -1206,44 +1212,120 @@ export const AdminTourEditor: React.FC<AdminTourEditorProps> = ({
       {/* TAB 11: EXTRAS */}
       {activeSubTab === 'extras' && (
         <div className="bg-stone-950 p-6 rounded-lg border border-stone-800 space-y-4">
-          <h3 className="text-sm font-bold text-white">Assigned Optional Tour Extras</h3>
-          <p className="text-xs text-stone-400">
-            Select upgrades and add-ons offered to customers during step 3 of the booking wizard.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-[#2dd4bf]" />
+                <span>Assigned Optional Tour Extras & Tour-Specific Pricing</span>
+              </h3>
+              <p className="text-xs text-stone-400 mt-0.5">
+                Enable extras for this excursion and customize individual prices specifically for this tour instead of default catalogue prices.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('extras')}
+              className="text-xs text-[#2dd4bf] hover:underline self-start sm:self-auto font-medium cursor-pointer"
+            >
+              Manage Global Extras catalogue →
+            </button>
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
             {tourExtrasList.map((extra) => {
               const checked = selectedExtraIds.includes(extra.id);
+              const customPrice = extraPrices[extra.id];
+              const effectivePrice = customPrice !== undefined && customPrice !== null ? customPrice : extra.price_eur;
+              const isOverridden = customPrice !== undefined && customPrice !== null && customPrice !== extra.price_eur;
+
               return (
-                <label
+                <div
                   key={extra.id}
-                  className={`p-3 rounded border cursor-pointer text-xs transition-colors flex items-start space-x-3 ${
+                  className={`p-3.5 rounded-lg border text-xs transition-colors flex flex-col justify-between space-y-3 ${
                     checked
-                      ? 'bg-[#0A6C74]/20 border-[#0A6C74] text-white'
-                      : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-200'
+                      ? 'bg-[#0A6C74]/15 border-[#0A6C74] text-white shadow-xs'
+                      : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-300'
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedExtraIds([...selectedExtraIds, extra.id]);
-                      } else {
-                        setSelectedExtraIds(selectedExtraIds.filter((id) => id !== extra.id));
-                      }
-                      setHasUnsavedChanges(true);
-                    }}
-                    className="mt-0.5 rounded text-[#0A6C74] focus:ring-0"
-                  />
-                  <div>
-                    <span className="font-semibold block text-stone-200">{extra.name}</span>
-                    <span className="text-[11px] text-stone-400 block">{extra.description}</span>
-                    <span className="text-[11px] text-[#2dd4bf] font-bold block mt-1">
-                      +€{extra.price_eur} ({extra.pricing_type.replace('_', ' ')})
-                    </span>
+                  <div className="flex items-start space-x-3">
+                    <input
+                      type="checkbox"
+                      id={`extra-checkbox-${extra.id}`}
+                      checked={checked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedExtraIds([...selectedExtraIds, extra.id]);
+                        } else {
+                          setSelectedExtraIds(selectedExtraIds.filter((id) => id !== extra.id));
+                        }
+                        setHasUnsavedChanges(true);
+                      }}
+                      className="mt-1 rounded text-[#0A6C74] focus:ring-0 cursor-pointer"
+                    />
+                    <label htmlFor={`extra-checkbox-${extra.id}`} className="flex-1 cursor-pointer select-none">
+                      <span className="font-semibold block text-stone-200 text-xs sm:text-sm">{extra.name}</span>
+                      <span className="text-[11px] text-stone-400 block mt-0.5 leading-relaxed">{extra.description}</span>
+                      <div className="flex items-center space-x-2 mt-1.5 text-[10px] text-stone-400">
+                        <span className="uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-stone-800 text-stone-300">
+                          {extra.pricing_type.replace('_', ' ')}
+                        </span>
+                        <span>Catalogue standard: €{extra.price_eur}</span>
+                      </div>
+                    </label>
                   </div>
-                </label>
+
+                  {/* Tour-Specific Price Override Input */}
+                  {checked && (
+                    <div className="pt-2.5 border-t border-stone-800/80 flex items-center justify-between gap-3 bg-stone-950/60 -mx-3.5 -mb-3.5 p-3 rounded-b-lg">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
+                          Price for this Tour (€)
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-2.5 top-1.5 text-stone-500 font-bold">€</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={effectivePrice}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setExtraPrices((prev) => ({
+                                  ...prev,
+                                  [extra.id]: val,
+                                }));
+                                setHasUnsavedChanges(true);
+                              }}
+                              className="w-full pl-6 pr-3 py-1 bg-stone-900 border border-stone-700 rounded text-xs text-white font-bold focus:border-[#2dd4bf] focus:outline-hidden"
+                            />
+                          </div>
+                          {isOverridden && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const copy = { ...extraPrices };
+                                delete copy[extra.id];
+                                setExtraPrices(copy);
+                                setHasUnsavedChanges(true);
+                              }}
+                              className="text-[10px] text-amber-400 hover:text-amber-300 underline shrink-0 cursor-pointer"
+                              title="Reset to default catalogue price"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] text-stone-400 block">Applied at Booking:</span>
+                        <span className="text-xs font-bold text-[#2dd4bf]">
+                          €{effectivePrice} {extra.pricing_type === 'per_person' ? '/ guest' : 'flat'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

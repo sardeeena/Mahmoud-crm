@@ -386,6 +386,10 @@ export const Header: React.FC<HeaderProps> = ({
             <img 
               src="/logo.png" 
               alt="Awesome Adventure Tours" 
+              width="240"
+              height="80"
+              fetchPriority="high"
+              decoding="async"
               className="h-14 sm:h-16 md:h-20 w-auto object-contain drop-shadow-xs group-hover:scale-105 transition-transform duration-300"
             />
           </a>

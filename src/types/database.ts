@@ -176,6 +176,7 @@ export interface DbPickupLocation {
 
 export interface DbTourExtra {
   id: string;
+  tour_id?: string | null;
   name: string;
   description: string | null;
   price_eur: number;

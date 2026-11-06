@@ -44,6 +44,7 @@ export const TourCard: React.FC<TourCardProps> = ({
             alt={tour.title}
             className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-stone-200 text-stone-400">

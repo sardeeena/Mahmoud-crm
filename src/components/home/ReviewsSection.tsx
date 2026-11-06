@@ -114,20 +114,20 @@ export const ReviewsSection: React.FC = () => {
             {[...Array(3)].map((_, idx) => (
               <div
                 key={idx}
-                className="bg-white dark:bg-[#132235] rounded-2xl border border-[#E8E3DA] dark:border-slate-800 p-6 animate-pulse space-y-4"
+                className={`bg-white dark:bg-[#132235] rounded-2xl border border-[#E8E3DA] dark:border-slate-800 p-6 space-y-4 shadow-xs select-none skeleton-delay-${idx + 1}`}
               >
                 <div className="flex justify-between items-center">
-                  <div className="h-4 bg-stone-200 dark:bg-slate-700 rounded w-24" />
-                  <div className="h-3 bg-stone-100 dark:bg-slate-800 rounded w-16" />
+                  <div className={`h-4 bg-stone-200 dark:bg-slate-700 rounded w-24 animate-shimmer skeleton-delay-${idx + 1}`} />
+                  <div className={`h-3 bg-stone-100 dark:bg-slate-800 rounded w-16 animate-shimmer skeleton-delay-${idx + 1}`} />
                 </div>
-                <div className="h-3.5 bg-stone-200 dark:bg-slate-700 rounded w-36" />
+                <div className={`h-3.5 bg-stone-200 dark:bg-slate-700 rounded w-36 animate-shimmer skeleton-delay-${idx + 1}`} />
                 <div className="space-y-2">
-                  <div className="h-3 bg-stone-100 dark:bg-slate-800 rounded w-full" />
-                  <div className="h-3 bg-stone-100 dark:bg-slate-800 rounded w-4/5" />
+                  <div className={`h-3 bg-stone-100 dark:bg-slate-800 rounded w-full animate-shimmer skeleton-delay-${idx + 1}`} />
+                  <div className={`h-3 bg-stone-100 dark:bg-slate-800 rounded w-4/5 animate-shimmer skeleton-delay-${idx + 1}`} />
                 </div>
                 <div className="pt-3 border-t border-stone-100 dark:border-slate-800 flex justify-between">
-                  <div className="h-3 bg-stone-200 dark:bg-slate-700 rounded w-28" />
-                  <div className="h-3 bg-stone-100 dark:bg-slate-800 rounded w-12" />
+                  <div className={`h-3 bg-stone-200 dark:bg-slate-700 rounded w-28 animate-shimmer skeleton-delay-${idx + 1}`} />
+                  <div className={`h-3 bg-stone-100 dark:bg-slate-800 rounded w-12 animate-shimmer skeleton-delay-${idx + 1}`} />
                 </div>
               </div>
             ))}

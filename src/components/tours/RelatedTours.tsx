@@ -29,7 +29,7 @@ export const RelatedTours: React.FC<RelatedToursProps> = ({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[...Array(4)].map((_, i) => (
-            <TourCardSkeleton key={i} />
+            <TourCardSkeleton key={i} staggerIndex={i} />
           ))}
         </div>
       </section>

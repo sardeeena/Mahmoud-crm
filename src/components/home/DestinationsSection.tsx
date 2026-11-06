@@ -99,14 +99,14 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({
             {[1, 2, 3].map((i) => (
               <div 
                 key={i} 
-                className="bg-white dark:bg-[#132235] rounded-2xl border border-[#E8E3DA] dark:border-slate-800 overflow-hidden animate-pulse flex flex-col justify-between"
+                className={`bg-white dark:bg-[#132235] rounded-2xl border border-[#E8E3DA] dark:border-slate-800 overflow-hidden flex flex-col justify-between shadow-xs select-none skeleton-delay-${i}`}
               >
                 <div>
-                  <div className="aspect-[16/9] bg-stone-200 dark:bg-slate-800" />
+                  <div className={`aspect-[16/9] bg-stone-200 dark:bg-slate-800 animate-shimmer skeleton-delay-${i}`} />
                   <div className="p-5 space-y-3">
-                    <div className="h-5 w-1/2 bg-stone-200 dark:bg-slate-800 rounded" />
-                    <div className="h-3 w-1/3 bg-stone-200 dark:bg-slate-800 rounded" />
-                    <div className="h-3 w-full bg-stone-200 dark:bg-slate-800 rounded" />
+                    <div className={`h-5 w-1/2 bg-stone-200 dark:bg-slate-800 rounded animate-shimmer skeleton-delay-${i}`} />
+                    <div className={`h-3 w-1/3 bg-stone-200/80 dark:bg-slate-800/80 rounded animate-shimmer skeleton-delay-${i}`} />
+                    <div className={`h-3 w-full bg-stone-100 dark:bg-slate-800/50 rounded animate-shimmer skeleton-delay-${i}`} />
                   </div>
                 </div>
                 <div className="px-5 py-3 border-t border-stone-100 dark:border-slate-800 bg-stone-50/70 dark:bg-[#0E1B2A] h-10" />

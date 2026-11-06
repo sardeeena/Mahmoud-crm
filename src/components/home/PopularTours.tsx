@@ -128,7 +128,7 @@ export const PopularTours: React.FC<PopularToursProps> = ({
             aria-label="Loading handpicked excursions from Supabase"
           >
             {[...Array(8)].map((_, index) => (
-              <TourCardSkeleton key={index} />
+              <TourCardSkeleton key={index} staggerIndex={index} />
             ))}
           </div>
         ) : filteredTours.length === 0 ? (

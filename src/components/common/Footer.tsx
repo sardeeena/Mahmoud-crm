@@ -102,6 +102,10 @@ export const Footer: React.FC<FooterProps> = ({
               <img 
                 src="/logo.png" 
                 alt="Awesome Adventure Tours Logo" 
+                width="160"
+                height="48"
+                loading="lazy"
+                decoding="async"
                 className="h-12 w-auto object-contain shrink-0 drop-shadow-xs"
               />
               <span className="font-display font-semibold text-stone-900 dark:text-white text-lg tracking-wide">

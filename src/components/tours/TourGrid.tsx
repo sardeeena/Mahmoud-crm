@@ -35,7 +35,7 @@ export const TourGrid: React.FC<TourGridProps> = ({
         aria-label="Loading excursions from Supabase"
       >
         {[...Array(skeletonCount)].map((_, i) => (
-          <TourCardSkeleton key={i} />
+          <TourCardSkeleton key={i} staggerIndex={i} />
         ))}
       </div>
     );

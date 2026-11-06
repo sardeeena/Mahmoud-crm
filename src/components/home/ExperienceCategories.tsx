@@ -128,12 +128,12 @@ export const ExperienceCategories: React.FC<ExperienceCategoriesProps> = ({
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div 
                 key={i} 
-                className="rounded-2xl border border-stone-200 dark:border-slate-800 bg-stone-100 dark:bg-slate-900/60 h-80 animate-pulse p-6 flex flex-col justify-end space-y-3"
+                className={`rounded-2xl border border-stone-200 dark:border-slate-800 bg-stone-100 dark:bg-slate-900/60 h-80 p-6 flex flex-col justify-end space-y-3 relative overflow-hidden select-none skeleton-delay-${i % 5}`}
               >
-                <div className="w-11 h-11 rounded-xl bg-stone-200 dark:bg-slate-800 mb-2" />
-                <div className="h-6 w-3/4 bg-stone-200 dark:bg-slate-800 rounded" />
-                <div className="h-4 w-full bg-stone-200 dark:bg-slate-800 rounded" />
-                <div className="h-4 w-1/2 bg-stone-200 dark:bg-slate-800 rounded" />
+                <div className={`w-11 h-11 rounded-xl bg-stone-200 dark:bg-slate-800 animate-shimmer skeleton-delay-${i % 5} mb-2`} />
+                <div className={`h-6 w-3/4 bg-stone-200 dark:bg-slate-800 rounded animate-shimmer skeleton-delay-${i % 5}`} />
+                <div className={`h-4 w-full bg-stone-200/80 dark:bg-slate-800/80 rounded animate-shimmer skeleton-delay-${i % 5}`} />
+                <div className={`h-4 w-1/2 bg-stone-200/80 dark:bg-slate-800/80 rounded animate-shimmer skeleton-delay-${i % 5}`} />
               </div>
             ))}
           </div>

@@ -94,7 +94,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       try {
         const [locs, exts] = await Promise.all([
           getPublishedPickupLocations(),
-          getPublishedTourExtras(),
+          getPublishedTourExtras(currentTour?.slug || currentTour?.id),
         ]);
         if (isMounted) {
           if (locs.length > 0) setPickupLocations(locs);
@@ -118,7 +118,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       isMounted = false;
       window.removeEventListener('rse_data_updated', handleUpdate);
     };
-  }, []);
+  }, [currentTour?.slug, currentTour?.id]);
 
   // Synchronize draft to sessionStorage
   useEffect(() => {
