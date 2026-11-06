@@ -792,38 +792,89 @@ export async function generateInvoiceForBooking(bookingReference: string): Promi
     updatedAt: new Date().toISOString(),
   };
 
-  const updated = [newInvoice, ...existingInvoices];
-  setLocal(LOCAL_INVOICES_KEY, updated);
-
   if (isSupabaseConfigured()) {
     try {
-      await supabase.from('invoices').insert({
-        invoice_number: newInvoice.invoiceNumber,
-        booking_id: newInvoice.bookingId,
-        customer_id: newInvoice.customerId,
-        customer_name: newInvoice.customer.name,
-        customer_email: newInvoice.customer.email,
-        customer_phone: newInvoice.customer.phone,
-        tour_title: newInvoice.tourTitle,
-        tour_date: newInvoice.tourDate ? newInvoice.tourDate.split('T')[0] : undefined,
-        issue_date: newInvoice.issueDate,
-        due_date: newInvoice.dueDate,
-        subtotal: newInvoice.subtotal,
-        discount: newInvoice.discount,
-        tax_amount: newInvoice.taxAmount,
-        total: newInvoice.total,
-        paid: newInvoice.paid,
-        balance: newInvoice.balance,
-        currency: newInvoice.currency,
-        status: newInvoice.status,
-        line_items: newInvoice.lineItems,
-        company_details: newInvoice.companyDetails,
-        notes: newInvoice.notes,
-      });
-    } catch {
-      // ignore
+      // Check if invoice already exists in database
+      const { data: dbExisting } = await supabase
+        .from('invoices')
+        .select('*')
+        .or(`booking_id.eq.${b.bookingId},invoice_number.eq.${newInvoice.invoiceNumber}`)
+        .maybeSingle();
+
+      if (dbExisting) {
+        return {
+          id: dbExisting.id,
+          invoiceNumber: dbExisting.invoice_number,
+          bookingId: dbExisting.booking_id,
+          bookingReference: b.bookingReference,
+          customerId: dbExisting.customer_id,
+          issueDate: dbExisting.issue_date,
+          dueDate: dbExisting.due_date,
+          customer: newInvoice.customer,
+          tourTitle: dbExisting.tour_title || newInvoice.tourTitle,
+          tourDate: dbExisting.tour_date || newInvoice.tourDate,
+          guests: newInvoice.guests,
+          lineItems: (dbExisting.line_items as InvoiceLineItem[]) || newInvoice.lineItems,
+          subtotal: Number(dbExisting.subtotal),
+          discount: Number(dbExisting.discount),
+          taxRatePercent: 0,
+          taxAmount: Number(dbExisting.tax_amount),
+          total: Number(dbExisting.total),
+          paid: Number(dbExisting.paid),
+          balance: Number(dbExisting.balance),
+          currency: dbExisting.currency || 'EUR',
+          status: dbExisting.status as any,
+          companyDetails: (dbExisting.company_details as any) || COMPANY_DETAILS,
+          notes: dbExisting.notes,
+          createdAt: dbExisting.created_at,
+          updatedAt: dbExisting.updated_at,
+        };
+      }
+
+      const { data: inserted, error: invError } = await supabase
+        .from('invoices')
+        .insert({
+          invoice_number: newInvoice.invoiceNumber,
+          booking_id: newInvoice.bookingId,
+          customer_id: newInvoice.customerId,
+          customer_name: newInvoice.customer.name,
+          customer_email: newInvoice.customer.email,
+          customer_phone: newInvoice.customer.phone,
+          tour_title: newInvoice.tourTitle,
+          tour_date: newInvoice.tourDate ? newInvoice.tourDate.split('T')[0] : undefined,
+          issue_date: newInvoice.issueDate,
+          due_date: newInvoice.dueDate,
+          subtotal: newInvoice.subtotal,
+          discount: newInvoice.discount,
+          tax_amount: newInvoice.taxAmount,
+          total: newInvoice.total,
+          paid: newInvoice.paid,
+          balance: newInvoice.balance,
+          currency: newInvoice.currency,
+          status: newInvoice.status,
+          line_items: newInvoice.lineItems,
+          company_details: newInvoice.companyDetails,
+          notes: newInvoice.notes,
+        })
+        .select('*')
+        .single();
+
+      if (invError) {
+        throw new Error(`Failed to persist invoice to database: ${formatSupabaseError(invError)}`);
+      }
+
+      if (inserted?.id) {
+        newInvoice.id = inserted.id;
+      }
+    } catch (err: any) {
+      console.error('Invoice persistence error:', err);
+      throw err;
     }
   }
+
+  // Only commit to local state cache after authoritative database insert succeeds
+  const updated = [newInvoice, ...existingInvoices];
+  setLocal(LOCAL_INVOICES_KEY, updated);
 
   return newInvoice;
 }
@@ -1215,26 +1266,34 @@ export async function rejectRefund(
   const target = allRefunds.find((r) => r.id === refundId);
   if (!target) return { success: false, error: 'Refund record not found.' };
 
-  target.status = 'rejected';
-  target.notes = `${target.notes || ''} [Rejected by ${rejectedBy}: ${reason || 'Not eligible'}]`.trim();
-  target.updatedAt = new Date().toISOString();
+  const updatedNotes = `${target.notes || ''} [Rejected by ${rejectedBy}: ${reason || 'Not eligible'}]`.trim();
+  const nowIso = new Date().toISOString();
 
-  setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
-
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && refundId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
     try {
-      await supabase
+      const { error: updErr } = await supabase
         .from('refund_records')
         .update({
           status: 'rejected',
-          notes: target.notes,
-          updated_at: new Date().toISOString(),
+          notes: updatedNotes,
+          updated_at: nowIso,
         })
         .eq('id', refundId);
-    } catch {
-      // ignore
+
+      if (updErr) {
+        return { success: false, error: formatSupabaseError(updErr) };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Database error rejecting refund.' };
     }
   }
+
+  target.status = 'rejected';
+  target.notes = updatedNotes;
+  target.updatedAt = nowIso;
+
+  // Only commit to local state cache after authoritative database write succeeds
+  setLocal(LOCAL_REFUNDS_KEY, [...allRefunds]);
 
   return { success: true, refund: target };
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
@@ -46,67 +46,76 @@ import { ToastProvider } from './contexts/ToastContext';
 import { WishlistProvider } from './contexts/WishlistContext';
 import { ComparisonProvider } from './contexts/ComparisonContext';
 
-// Admin CMS Components
-import { AdminLayout, AdminTab } from './components/admin/AdminLayout';
-import { AdminDashboard } from './components/admin/AdminDashboard';
-import { AdminTourList } from './components/admin/AdminTourList';
-import { AdminTourEditor } from './components/admin/AdminTourEditor';
-import { AdminBookingsList } from './components/admin/AdminBookingsList';
-import { AdminInquiriesList } from './components/admin/AdminInquiriesList';
-import { AdminCustomersList } from './components/admin/AdminCustomersList';
-import { AdminNewsletterList } from './components/admin/AdminNewsletterList';
-import { AdminDestinationsList } from './components/admin/AdminDestinationsList';
-import { AdminCategoriesList } from './components/admin/AdminCategoriesList';
-import { AdminPickupList } from './components/admin/AdminPickupList';
-import { AdminExtrasList } from './components/admin/AdminExtrasList';
-import { AdminReviewsList } from './components/admin/AdminReviewsList';
-import { AdminAvailabilityManager } from './components/admin/AdminAvailabilityManager';
-import { AdminMediaLibrary } from './components/admin/AdminMediaLibrary';
-import { AdminSeoManager } from './components/admin/AdminSeoManager';
-import { AdminCouponsList } from './components/admin/AdminCouponsList';
-import { AdminFaqsManager } from './components/admin/AdminFaqsManager';
-import { AdminPagesManager } from './components/admin/AdminPagesManager';
-import { AdminSettings } from './components/admin/AdminSettings';
-import { AdminLoginPage } from './components/admin/AdminLoginPage';
+// Admin CMS & Layout (Lazy-Loaded to reduce public bundle size)
+import type { AdminTab } from './components/admin/AdminLayout';
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminTourList = lazy(() => import('./components/admin/AdminTourList').then(m => ({ default: m.AdminTourList })));
+const AdminTourEditor = lazy(() => import('./components/admin/AdminTourEditor').then(m => ({ default: m.AdminTourEditor })));
+const AdminBookingsList = lazy(() => import('./components/admin/AdminBookingsList').then(m => ({ default: m.AdminBookingsList })));
+const AdminInquiriesList = lazy(() => import('./components/admin/AdminInquiriesList').then(m => ({ default: m.AdminInquiriesList })));
+const AdminCustomersList = lazy(() => import('./components/admin/AdminCustomersList').then(m => ({ default: m.AdminCustomersList })));
+const AdminNewsletterList = lazy(() => import('./components/admin/AdminNewsletterList').then(m => ({ default: m.AdminNewsletterList })));
+const AdminDestinationsList = lazy(() => import('./components/admin/AdminDestinationsList').then(m => ({ default: m.AdminDestinationsList })));
+const AdminCategoriesList = lazy(() => import('./components/admin/AdminCategoriesList').then(m => ({ default: m.AdminCategoriesList })));
+const AdminPickupList = lazy(() => import('./components/admin/AdminPickupList').then(m => ({ default: m.AdminPickupList })));
+const AdminExtrasList = lazy(() => import('./components/admin/AdminExtrasList').then(m => ({ default: m.AdminExtrasList })));
+const AdminReviewsList = lazy(() => import('./components/admin/AdminReviewsList').then(m => ({ default: m.AdminReviewsList })));
+const AdminAvailabilityManager = lazy(() => import('./components/admin/AdminAvailabilityManager').then(m => ({ default: m.AdminAvailabilityManager })));
+const AdminMediaLibrary = lazy(() => import('./components/admin/AdminMediaLibrary').then(m => ({ default: m.AdminMediaLibrary })));
+const AdminSeoManager = lazy(() => import('./components/admin/AdminSeoManager').then(m => ({ default: m.AdminSeoManager })));
+const AdminCouponsList = lazy(() => import('./components/admin/AdminCouponsList').then(m => ({ default: m.AdminCouponsList })));
+const AdminFaqsManager = lazy(() => import('./components/admin/AdminFaqsManager').then(m => ({ default: m.AdminFaqsManager })));
+const AdminPagesManager = lazy(() => import('./components/admin/AdminPagesManager').then(m => ({ default: m.AdminPagesManager })));
+const AdminSettings = lazy(() => import('./components/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
+const AdminLoginPage = lazy(() => import('./components/admin/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })));
 import { HelpInquiryModal } from './components/common/HelpInquiryModal';
 
-// CRM Modules
-import { CrmDashboard } from './components/admin/crm/CrmDashboard';
-import { CrmLeadsManager } from './components/admin/crm/CrmLeadsManager';
-import { CrmCustomersManager } from './components/admin/crm/CrmCustomersManager';
-import { CrmInquiriesManager } from './components/admin/crm/CrmInquiriesManager';
-import { CrmTasksManager } from './components/admin/crm/CrmTasksManager';
-import { CrmFollowUpsManager } from './components/admin/crm/CrmFollowUpsManager';
-import { CrmConversationsManager } from './components/admin/crm/CrmConversationsManager';
-import { CrmSegmentsManager } from './components/admin/crm/CrmSegmentsManager';
-import { CrmActivityTimeline } from './components/admin/crm/CrmActivityTimeline';
+// CRM Modules (Lazy-Loaded)
+const CrmDashboard = lazy(() => import('./components/admin/crm/CrmDashboard').then(m => ({ default: m.CrmDashboard })));
+const CrmLeadsManager = lazy(() => import('./components/admin/crm/CrmLeadsManager').then(m => ({ default: m.CrmLeadsManager })));
+const CrmCustomersManager = lazy(() => import('./components/admin/crm/CrmCustomersManager').then(m => ({ default: m.CrmCustomersManager })));
+const CrmInquiriesManager = lazy(() => import('./components/admin/crm/CrmInquiriesManager').then(m => ({ default: m.CrmInquiriesManager })));
+const CrmTasksManager = lazy(() => import('./components/admin/crm/CrmTasksManager').then(m => ({ default: m.CrmTasksManager })));
+const CrmFollowUpsManager = lazy(() => import('./components/admin/crm/CrmFollowUpsManager').then(m => ({ default: m.CrmFollowUpsManager })));
+const CrmConversationsManager = lazy(() => import('./components/admin/crm/CrmConversationsManager').then(m => ({ default: m.CrmConversationsManager })));
+const CrmSegmentsManager = lazy(() => import('./components/admin/crm/CrmSegmentsManager').then(m => ({ default: m.CrmSegmentsManager })));
+const CrmActivityTimeline = lazy(() => import('./components/admin/crm/CrmActivityTimeline').then(m => ({ default: m.CrmActivityTimeline })));
 
-// Operations Modules
-import { OperationsDepartures } from './components/admin/operations/OperationsDepartures';
-import { OperationsCalendar } from './components/admin/operations/OperationsCalendar';
-import { OperationsAvailability } from './components/admin/operations/OperationsAvailability';
-import { OperationsManifests } from './components/admin/operations/OperationsManifests';
-import { OperationsPickupSchedule } from './components/admin/operations/OperationsPickupSchedule';
-import { OperationsVessels } from './components/admin/operations/OperationsVessels';
-import { OperationsGuides } from './components/admin/operations/OperationsGuides';
-import { OperationsAssignments } from './components/admin/operations/OperationsAssignments';
-import { OperationsWeather } from './components/admin/operations/OperationsWeather';
-import { OperationsDocuments } from './components/admin/operations/OperationsDocuments';
+// Operations Modules (Lazy-Loaded)
+const OperationsDepartures = lazy(() => import('./components/admin/operations/OperationsDepartures').then(m => ({ default: m.OperationsDepartures })));
+const OperationsCalendar = lazy(() => import('./components/admin/operations/OperationsCalendar').then(m => ({ default: m.OperationsCalendar })));
+const OperationsAvailability = lazy(() => import('./components/admin/operations/OperationsAvailability').then(m => ({ default: m.OperationsAvailability })));
+const OperationsManifests = lazy(() => import('./components/admin/operations/OperationsManifests').then(m => ({ default: m.OperationsManifests })));
+const OperationsPickupSchedule = lazy(() => import('./components/admin/operations/OperationsPickupSchedule').then(m => ({ default: m.OperationsPickupSchedule })));
+const OperationsVessels = lazy(() => import('./components/admin/operations/OperationsVessels').then(m => ({ default: m.OperationsVessels })));
+const OperationsGuides = lazy(() => import('./components/admin/operations/OperationsGuides').then(m => ({ default: m.OperationsGuides })));
+const OperationsAssignments = lazy(() => import('./components/admin/operations/OperationsAssignments').then(m => ({ default: m.OperationsAssignments })));
+const OperationsWeather = lazy(() => import('./components/admin/operations/OperationsWeather').then(m => ({ default: m.OperationsWeather })));
+const OperationsDocuments = lazy(() => import('./components/admin/operations/OperationsDocuments').then(m => ({ default: m.OperationsDocuments })));
 
-// Finance Modules
-import { FinancePayments } from './components/admin/finance/FinancePayments';
-import { FinanceInvoices } from './components/admin/finance/FinanceInvoices';
-import { FinanceRefunds } from './components/admin/finance/FinanceRefunds';
-import { FinanceOutstandingBalances } from './components/admin/finance/FinanceOutstandingBalances';
-import { FinanceRevenue } from './components/admin/finance/FinanceRevenue';
-import { FinanceReports } from './components/admin/finance/FinanceReports';
+// Finance Modules (Lazy-Loaded)
+const FinancePayments = lazy(() => import('./components/admin/finance/FinancePayments').then(m => ({ default: m.FinancePayments })));
+const FinanceInvoices = lazy(() => import('./components/admin/finance/FinanceInvoices').then(m => ({ default: m.FinanceInvoices })));
+const FinanceRefunds = lazy(() => import('./components/admin/finance/FinanceRefunds').then(m => ({ default: m.FinanceRefunds })));
+const FinanceOutstandingBalances = lazy(() => import('./components/admin/finance/FinanceOutstandingBalances').then(m => ({ default: m.FinanceOutstandingBalances })));
+const FinanceRevenue = lazy(() => import('./components/admin/finance/FinanceRevenue').then(m => ({ default: m.FinanceRevenue })));
+const FinanceReports = lazy(() => import('./components/admin/finance/FinanceReports').then(m => ({ default: m.FinanceReports })));
 
-// Communications Modules
-import { CommunicationsEmail } from './components/admin/communications/CommunicationsEmail';
-import { CommunicationsWhatsApp } from './components/admin/communications/CommunicationsWhatsApp';
-import { CommunicationsTemplates } from './components/admin/communications/CommunicationsTemplates';
-import { CommunicationsNotifications } from './components/admin/communications/CommunicationsNotifications';
-import { CommunicationsHistory } from './components/admin/communications/CommunicationsHistory';
+// Communications Modules (Lazy-Loaded)
+const CommunicationsEmail = lazy(() => import('./components/admin/communications/CommunicationsEmail').then(m => ({ default: m.CommunicationsEmail })));
+const CommunicationsWhatsApp = lazy(() => import('./components/admin/communications/CommunicationsWhatsApp').then(m => ({ default: m.CommunicationsWhatsApp })));
+const CommunicationsTemplates = lazy(() => import('./components/admin/communications/CommunicationsTemplates').then(m => ({ default: m.CommunicationsTemplates })));
+const CommunicationsNotifications = lazy(() => import('./components/admin/communications/CommunicationsNotifications').then(m => ({ default: m.CommunicationsNotifications })));
+const CommunicationsHistory = lazy(() => import('./components/admin/communications/CommunicationsHistory').then(m => ({ default: m.CommunicationsHistory })));
+
+const AdminLoadingFallback = () => (
+  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white">
+    <div className="w-12 h-12 border-4 border-[#0A6C74] border-t-transparent rounded-full animate-spin mb-4" />
+    <p className="text-sm font-medium text-slate-200">Loading Management System...</p>
+    <p className="text-xs text-slate-400 mt-1">Initializing secure administrative workspace</p>
+  </div>
+);
 
 function MainApp() {
   const { user, isAdmin, loading: authLoading, refreshUser, checkAdminAccess } = useAuth();
@@ -152,7 +161,47 @@ function MainApp() {
     category: 'All',
   });
 
-  // Load tours from Supabase on mount
+  // Load tours, destinations, and categories in parallel for sub-second homepage rendering
+  const refreshCatalogue = useCallback(async () => {
+    setLoadingTours(true);
+    setLoadingDestinations(true);
+    setLoadingCategories(true);
+    setDestinationsError(null);
+    setCategoriesError(null);
+
+    const [toursRes, destsRes, catsRes] = await Promise.allSettled([
+      getPublishedTours(),
+      getPublishedDestinations(),
+      getPublishedCategories(),
+    ]);
+
+    if (toursRes.status === 'fulfilled') {
+      setLiveTours(toursRes.value || []);
+    } else {
+      console.warn('Failed to load published tours from Supabase:', toursRes.reason);
+      setLiveTours([]);
+    }
+    setLoadingTours(false);
+
+    if (destsRes.status === 'fulfilled') {
+      setLiveDestinations(destsRes.value || []);
+    } else {
+      console.warn('Failed to load published destinations from Supabase:', destsRes.reason);
+      setDestinationsError(destsRes.reason?.message || 'Unable to load destinations from database.');
+      setLiveDestinations([]);
+    }
+    setLoadingDestinations(false);
+
+    if (catsRes.status === 'fulfilled') {
+      setLiveCategories(catsRes.value || []);
+    } else {
+      console.warn('Failed to load published categories from Supabase:', catsRes.reason);
+      setCategoriesError(catsRes.reason?.message || 'Unable to load categories from database.');
+      setLiveCategories([]);
+    }
+    setLoadingCategories(false);
+  }, []);
+
   const refreshPublishedTours = useCallback(async () => {
     setLoadingTours(true);
     try {
@@ -196,22 +245,19 @@ function MainApp() {
     }
   }, []);
 
+  // Initial catalogue parallel load
   useEffect(() => {
-    refreshPublishedTours();
-    refreshPublishedDestinations();
-    refreshPublishedCategories();
-  }, [refreshPublishedTours, refreshPublishedDestinations, refreshPublishedCategories]);
+    refreshCatalogue();
+  }, [refreshCatalogue]);
 
   // Synchronize dynamic catalogue when admin mutations occur
   useEffect(() => {
     const handleDataUpdated = () => {
-      refreshPublishedTours();
-      refreshPublishedDestinations();
-      refreshPublishedCategories();
+      refreshCatalogue();
     };
     window.addEventListener('rse_data_updated', handleDataUpdated);
     return () => window.removeEventListener('rse_data_updated', handleDataUpdated);
-  }, [refreshPublishedTours, refreshPublishedDestinations, refreshPublishedCategories]);
+  }, [refreshCatalogue]);
 
   // Sync browser back/forward buttons
   useEffect(() => {
@@ -506,11 +552,13 @@ function MainApp() {
     const rawRedirect = searchParams.get('redirect');
     const redirectParam = rawRedirect ? sanitizeRedirectUrl(rawRedirect, '/admin') : '/admin';
     return (
-      <AdminLoginPage
-        redirectUrl={redirectParam}
-        onSuccess={(target) => navigate(sanitizeRedirectUrl(target, '/admin'))}
-        onBackToSite={() => navigate('/')}
-      />
+      <Suspense fallback={<AdminLoadingFallback />}>
+        <AdminLoginPage
+          redirectUrl={redirectParam}
+          onSuccess={(target) => navigate(sanitizeRedirectUrl(target, '/admin'))}
+          onBackToSite={() => navigate('/')}
+        />
+      </Suspense>
     );
   }
 
@@ -700,237 +748,239 @@ function MainApp() {
     }
 
     return (
-      <AdminLayout
-        activeTab={activeAdminTab}
-        onSelectTab={handleAdminSelectTab}
-        onNavigateSite={() => navigate('/')}
-      >
-        {activeAdminTab === 'dashboard' && (
-          <AdminDashboard
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-            initialViewMode="executive"
-          />
-        )}
+      <Suspense fallback={<AdminLoadingFallback />}>
+        <AdminLayout
+          activeTab={activeAdminTab}
+          onSelectTab={handleAdminSelectTab}
+          onNavigateSite={() => navigate('/')}
+        >
+          {activeAdminTab === 'dashboard' && (
+            <AdminDashboard
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+              initialViewMode="executive"
+            />
+          )}
 
-        {activeAdminTab === 'dash_sales' && (
-          <AdminDashboard
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-            initialViewMode="sales"
-          />
-        )}
+          {activeAdminTab === 'dash_sales' && (
+            <AdminDashboard
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+              initialViewMode="sales"
+            />
+          )}
 
-        {activeAdminTab === 'dash_ops' && (
-          <AdminDashboard
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-            initialViewMode="operations"
-          />
-        )}
+          {activeAdminTab === 'dash_ops' && (
+            <AdminDashboard
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+              initialViewMode="operations"
+            />
+          )}
 
-        {activeAdminTab === 'dash_customers' && (
-          <AdminDashboard
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-            initialViewMode="customers"
-          />
-        )}
+          {activeAdminTab === 'dash_customers' && (
+            <AdminDashboard
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+              initialViewMode="customers"
+            />
+          )}
 
-        {activeAdminTab === 'dash_finance' && (
-          <AdminDashboard
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-            initialViewMode="finance"
-          />
-        )}
+          {activeAdminTab === 'dash_finance' && (
+            <AdminDashboard
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+              initialViewMode="finance"
+            />
+          )}
 
-        {activeAdminTab === 'dash_builder' && (
-          <AdminDashboard
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-            initialViewMode="builder"
-          />
-        )}
+          {activeAdminTab === 'dash_builder' && (
+            <AdminDashboard
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+              initialViewMode="builder"
+            />
+          )}
 
-        {activeAdminTab === 'tours' && (
-          <AdminTourList
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-          />
-        )}
+          {activeAdminTab === 'tours' && (
+            <AdminTourList
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            />
+          )}
 
-        {activeAdminTab === 'tour_new' && (
-          <AdminTourEditor
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-          />
-        )}
+          {activeAdminTab === 'tour_new' && (
+            <AdminTourEditor
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            />
+          )}
 
-        {activeAdminTab === 'tour_edit' && (
-          <AdminTourEditor
-            tourId={editTourId}
-            onNavigateTab={handleAdminSelectTab}
-            onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
-          />
-        )}
+          {activeAdminTab === 'tour_edit' && (
+            <AdminTourEditor
+              tourId={editTourId}
+              onNavigateTab={handleAdminSelectTab}
+              onPreviewTour={(slug) => navigate(`/excursions/${slug}`)}
+            />
+          )}
 
-        {activeAdminTab === 'bookings' && <AdminBookingsList />}
+          {activeAdminTab === 'bookings' && <AdminBookingsList />}
 
-        {/* OPERATIONS MODULES */}
-        {activeAdminTab === 'ops_departures' && (
-          <OperationsDepartures
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {/* OPERATIONS MODULES */}
+          {activeAdminTab === 'ops_departures' && (
+            <OperationsDepartures
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'ops_calendar' && (
-          <OperationsCalendar
-            onSelectDepartureDate={(d) => handleAdminSelectTab('ops_departures')}
-          />
-        )}
+          {activeAdminTab === 'ops_calendar' && (
+            <OperationsCalendar
+              onSelectDepartureDate={(d) => handleAdminSelectTab('ops_departures')}
+            />
+          )}
 
-        {activeAdminTab === 'ops_availability' && <OperationsAvailability />}
+          {activeAdminTab === 'ops_availability' && <OperationsAvailability />}
 
-        {activeAdminTab === 'ops_manifests' && <OperationsManifests />}
+          {activeAdminTab === 'ops_manifests' && <OperationsManifests />}
 
-        {activeAdminTab === 'ops_pickups' && <OperationsPickupSchedule />}
+          {activeAdminTab === 'ops_pickups' && <OperationsPickupSchedule />}
 
-        {activeAdminTab === 'ops_vessels' && <OperationsVessels />}
+          {activeAdminTab === 'ops_vessels' && <OperationsVessels />}
 
-        {activeAdminTab === 'ops_guides' && <OperationsGuides />}
+          {activeAdminTab === 'ops_guides' && <OperationsGuides />}
 
-        {activeAdminTab === 'ops_assignments' && <OperationsAssignments />}
+          {activeAdminTab === 'ops_assignments' && <OperationsAssignments />}
 
-        {activeAdminTab === 'ops_weather' && <OperationsWeather />}
+          {activeAdminTab === 'ops_weather' && <OperationsWeather />}
 
-        {activeAdminTab === 'ops_documents' && (
-          <OperationsDocuments
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'ops_documents' && (
+            <OperationsDocuments
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {/* FINANCE MODULES */}
-        {activeAdminTab === 'fin_payments' && (
-          <FinancePayments
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {/* FINANCE MODULES */}
+          {activeAdminTab === 'fin_payments' && (
+            <FinancePayments
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'fin_invoices' && (
-          <FinanceInvoices
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'fin_invoices' && (
+            <FinanceInvoices
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'fin_refunds' && (
-          <FinanceRefunds
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'fin_refunds' && (
+            <FinanceRefunds
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'fin_balances' && (
-          <FinanceOutstandingBalances
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'fin_balances' && (
+            <FinanceOutstandingBalances
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'fin_revenue' && (
-          <FinanceRevenue
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'fin_revenue' && (
+            <FinanceRevenue
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'fin_reports' && <FinanceReports />}
+          {activeAdminTab === 'fin_reports' && <FinanceReports />}
 
-        {/* COMMUNICATIONS MODULES */}
-        {activeAdminTab === 'comm_email' && (
-          <CommunicationsEmail
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {/* COMMUNICATIONS MODULES */}
+          {activeAdminTab === 'comm_email' && (
+            <CommunicationsEmail
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'comm_whatsapp' && (
-          <CommunicationsWhatsApp
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'comm_whatsapp' && (
+            <CommunicationsWhatsApp
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'comm_templates' && (
-          <CommunicationsTemplates
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'comm_templates' && (
+            <CommunicationsTemplates
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'comm_notifications' && (
-          <CommunicationsNotifications
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'comm_notifications' && (
+            <CommunicationsNotifications
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'comm_history' && (
-          <CommunicationsHistory
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {activeAdminTab === 'comm_history' && (
+            <CommunicationsHistory
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {/* CRM Modules */}
-        {activeAdminTab === 'crm_dashboard' && (
-          <CrmDashboard
-            onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
-          />
-        )}
+          {/* CRM Modules */}
+          {activeAdminTab === 'crm_dashboard' && (
+            <CrmDashboard
+              onNavigateTab={(tabId, param) => handleAdminSelectTab(tabId as AdminTab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'crm_leads' && <CrmLeadsManager />}
+          {activeAdminTab === 'crm_leads' && <CrmLeadsManager />}
 
-        {(activeAdminTab === 'customers' || activeAdminTab === 'crm_customers') && (
-          <CrmCustomersManager />
-        )}
+          {(activeAdminTab === 'customers' || activeAdminTab === 'crm_customers') && (
+            <CrmCustomersManager />
+          )}
 
-        {(activeAdminTab === 'inquiries' || activeAdminTab === 'crm_inquiries') && (
-          <CrmInquiriesManager />
-        )}
+          {(activeAdminTab === 'inquiries' || activeAdminTab === 'crm_inquiries') && (
+            <CrmInquiriesManager />
+          )}
 
-        {activeAdminTab === 'crm_tasks' && <CrmTasksManager />}
+          {activeAdminTab === 'crm_tasks' && <CrmTasksManager />}
 
-        {activeAdminTab === 'crm_followups' && <CrmFollowUpsManager />}
+          {activeAdminTab === 'crm_followups' && <CrmFollowUpsManager />}
 
-        {activeAdminTab === 'crm_conversations' && <CrmConversationsManager />}
+          {activeAdminTab === 'crm_conversations' && <CrmConversationsManager />}
 
-        {activeAdminTab === 'crm_segments' && <CrmSegmentsManager />}
+          {activeAdminTab === 'crm_segments' && <CrmSegmentsManager />}
 
-        {activeAdminTab === 'crm_timeline' && <CrmActivityTimeline />}
+          {activeAdminTab === 'crm_timeline' && <CrmActivityTimeline />}
 
-        {activeAdminTab === 'newsletter' && <AdminNewsletterList />}
+          {activeAdminTab === 'newsletter' && <AdminNewsletterList />}
 
-        {activeAdminTab === 'destinations' && <AdminDestinationsList />}
+          {activeAdminTab === 'destinations' && <AdminDestinationsList />}
 
-        {activeAdminTab === 'categories' && <AdminCategoriesList />}
+          {activeAdminTab === 'categories' && <AdminCategoriesList />}
 
-        {activeAdminTab === 'pickup' && <AdminPickupList />}
+          {activeAdminTab === 'pickup' && <AdminPickupList />}
 
-        {activeAdminTab === 'extras' && (
-          <AdminExtrasList
-            onNavigateTab={(tab, param) => handleAdminSelectTab(tab, param)}
-          />
-        )}
+          {activeAdminTab === 'extras' && (
+            <AdminExtrasList
+              onNavigateTab={(tab, param) => handleAdminSelectTab(tab, param)}
+            />
+          )}
 
-        {activeAdminTab === 'coupons' && <AdminCouponsList />}
+          {activeAdminTab === 'coupons' && <AdminCouponsList />}
 
-        {activeAdminTab === 'faqs' && <AdminFaqsManager />}
+          {activeAdminTab === 'faqs' && <AdminFaqsManager />}
 
-        {activeAdminTab === 'reviews' && <AdminReviewsList />}
+          {activeAdminTab === 'reviews' && <AdminReviewsList />}
 
-        {activeAdminTab === 'availability' && <OperationsAvailability />}
+          {activeAdminTab === 'availability' && <OperationsAvailability />}
 
-        {activeAdminTab === 'media' && <AdminMediaLibrary />}
+          {activeAdminTab === 'media' && <AdminMediaLibrary />}
 
-        {activeAdminTab === 'seo' && <AdminSeoManager />}
+          {activeAdminTab === 'seo' && <AdminSeoManager />}
 
-        {activeAdminTab === 'pages' && <AdminPagesManager />}
+          {activeAdminTab === 'pages' && <AdminPagesManager />}
 
-        {activeAdminTab === 'settings' && <AdminSettings />}
-      </AdminLayout>
+          {activeAdminTab === 'settings' && <AdminSettings />}
+        </AdminLayout>
+      </Suspense>
     );
   }
 

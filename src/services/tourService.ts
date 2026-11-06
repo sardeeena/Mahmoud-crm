@@ -131,6 +131,22 @@ export function mapDbTourToFrontendTour(
  */
 let localTours: Tour[] = [...ALL_TOURS];
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+let cachedPublishedTours: CacheEntry<Tour[]> | null = null;
+let cachedDestinations: CacheEntry<Destination[]> | null = null;
+let cachedCategories: CacheEntry<Category[]> | null = null;
+const CACHE_TTL_MS = 60 * 1000;
+
+export function invalidateCatalogueCache() {
+  cachedPublishedTours = null;
+  cachedDestinations = null;
+  cachedCategories = null;
+}
+
 export interface TourFilterOptions {
   destination?: string;
   category?: string;
@@ -140,30 +156,38 @@ export interface TourFilterOptions {
 }
 
 /**
- * Fetches all published tours for the public website
+ * Fetches all published tours for the public website with in-memory caching
  */
 export async function getPublishedTours(options?: TourFilterOptions): Promise<Tour[]> {
-  const getFilteredLocal = () => {
-    let list = [...localTours];
+  const filterTours = (sourceList: Tour[]): Tour[] => {
+    let tours = [...sourceList];
     if (options?.destination && options.destination !== 'All' && options.destination !== 'All Destinations') {
       const destQuery = options.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
-      list = list.filter((t) => {
+      tours = tours.filter((t) => {
         const destName = t.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
         return destName === destQuery || destName.includes(destQuery) || destQuery.includes(destName);
       });
     }
+
     if (options?.category && options.category !== 'All' && options.category !== 'All Activities') {
-      list = list.filter((t) => t.categories.some((c) => c.toLowerCase() === options.category?.toLowerCase()));
+      tours = tours.filter((t) => t.categories.some((c) => c.toLowerCase() === options.category?.toLowerCase()));
     }
+
     if (options?.featuredOnly) {
-      list = list.filter((t) => t.badge || t.rating >= 4.8);
+      tours = tours.filter((t) => t.badge || t.rating >= 4.8);
     }
+
     if (options?.searchQuery) {
       const q = options.searchQuery.toLowerCase();
-      list = list.filter((t) => t.title.toLowerCase().includes(q) || t.shortDescription.toLowerCase().includes(q));
+      tours = tours.filter((t) => t.title.toLowerCase().includes(q) || t.shortDescription?.toLowerCase().includes(q));
     }
-    return list;
+    return tours;
   };
+
+  // Serve from fast memory cache if valid and not demanding drafts
+  if (!options?.includeDrafts && cachedPublishedTours && (Date.now() - cachedPublishedTours.timestamp < CACHE_TTL_MS)) {
+    return filterTours(cachedPublishedTours.data);
+  }
 
   if (!isSupabaseConfigured() || isSchemaMissing()) {
     console.warn('Supabase not configured or schema missing; returning empty catalogue.');
@@ -208,7 +232,7 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
       return [];
     }
 
-    let tours = data.map((row: any) => {
+    const baseTours = data.map((row: any) => {
       const destName = row.destinations?.name;
       const catNames = row.tour_categories?.map((tc: any) => tc.categories?.name).filter(Boolean) || [];
 
@@ -224,24 +248,14 @@ export async function getPublishedTours(options?: TourFilterOptions): Promise<To
       });
     });
 
-    if (options?.destination && options.destination !== 'All' && options.destination !== 'All Destinations') {
-      const destQuery = options.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
-      tours = tours.filter((t) => {
-        const destName = t.destination.toLowerCase().replace(/[-_ ]/g, '').replace('shiekh', 'sheikh');
-        return destName === destQuery || destName.includes(destQuery) || destQuery.includes(destName);
-      });
+    if (!options?.includeDrafts && !options?.featuredOnly) {
+      cachedPublishedTours = {
+        data: baseTours,
+        timestamp: Date.now(),
+      };
     }
 
-    if (options?.category && options.category !== 'All' && options.category !== 'All Activities') {
-      tours = tours.filter((t) => t.categories.some((c) => c.toLowerCase() === options.category?.toLowerCase()));
-    }
-
-    if (options?.searchQuery) {
-      const q = options.searchQuery.toLowerCase();
-      tours = tours.filter((t) => t.title.toLowerCase().includes(q) || t.shortDescription?.toLowerCase().includes(q));
-    }
-
-    return tours;
+    return filterTours(baseTours);
   } catch (err) {
     if (isSchemaMissingError(err)) {
       setSchemaMissing(true);
@@ -1123,6 +1137,7 @@ export const NEUTRAL_CATEGORY_PLACEHOLDER =
 export function notifyCatalogueDataChanged(
   entity?: 'tours' | 'destinations' | 'categories' | 'reviews' | 'locations' | 'extras'
 ) {
+  invalidateCatalogueCache();
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('rse_data_updated', { detail: { entity } }));
   }
@@ -1132,6 +1147,10 @@ export function notifyCatalogueDataChanged(
  * Fetches all published destinations for the public website with real dynamic tour counts
  */
 export async function getPublishedDestinations(): Promise<Destination[]> {
+  if (cachedDestinations && (Date.now() - cachedDestinations.timestamp < CACHE_TTL_MS)) {
+    return cachedDestinations.data;
+  }
+
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase database credentials are not configured.');
   }
@@ -1171,7 +1190,7 @@ export async function getPublishedDestinations(): Promise<Destination[]> {
     }
   }
 
-  return dests.map((d: DbDestination) => ({
+  const mapped = dests.map((d: DbDestination) => ({
     id: d.id,
     name: d.name,
     slug: d.slug,
@@ -1182,12 +1201,23 @@ export async function getPublishedDestinations(): Promise<Destination[]> {
     highlights: Array.isArray(d.seo_keywords) ? d.seo_keywords : [],
     distanceFromAirport: d.distance_from_airport || '',
   }));
+
+  cachedDestinations = {
+    data: mapped,
+    timestamp: Date.now(),
+  };
+
+  return mapped;
 }
 
 /**
  * Fetches all published categories for the public website with real dynamic tour counts
  */
 export async function getPublishedCategories(): Promise<Category[]> {
+  if (cachedCategories && (Date.now() - cachedCategories.timestamp < CACHE_TTL_MS)) {
+    return cachedCategories.data;
+  }
+
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase database credentials are not configured.');
   }
@@ -1245,7 +1275,7 @@ export async function getPublishedCategories(): Promise<Category[]> {
     console.warn('Could not calculate category tour counts:', countErr);
   }
 
-  return cats.map((c: DbCategory) => ({
+  const mapped = cats.map((c: DbCategory) => ({
     id: c.id,
     name: c.name,
     slug: c.slug,
@@ -1254,6 +1284,13 @@ export async function getPublishedCategories(): Promise<Category[]> {
     tourCount: countMap[c.id] || 0,
     description: c.description || '',
   }));
+
+  cachedCategories = {
+    data: mapped,
+    timestamp: Date.now(),
+  };
+
+  return mapped;
 }
 
 /**

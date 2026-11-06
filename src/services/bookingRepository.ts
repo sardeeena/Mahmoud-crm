@@ -77,60 +77,112 @@ class SupabaseBookingRepository implements IBookingRepository {
     }
   }
 
+  private static inFlightRefs = new Set<string>();
+
   async createBooking(booking: Booking): Promise<Booking> {
     const validation = validateBookingPayload(booking);
     if (!validation.isValid) {
       throw new Error(validation.error || 'Invalid booking details provided.');
     }
 
+    // Validate passenger counts
+    if (booking.guests.adults < 1) {
+      throw new Error('At least one adult passenger is required.');
+    }
+    if ((booking.guests.children || 0) < 0 || (booking.guests.infants || 0) < 0) {
+      throw new Error('Passenger counts cannot be negative.');
+    }
+
+    // Validate booking date is not in the past
+    const bookingDateObj = new Date(booking.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (isNaN(bookingDateObj.getTime()) || bookingDateObj < today) {
+      throw new Error('Excursion departure date cannot be in the past.');
+    }
+
+    // Double-click / retry submission lock
+    const dedupeKey = `${booking.tourId}_${booking.date}_${booking.customer.email.toLowerCase()}`;
+    if (SupabaseBookingRepository.inFlightRefs.has(dedupeKey)) {
+      throw new Error('A reservation request for this excursion is currently being processed. Please wait.');
+    }
+    SupabaseBookingRepository.inFlightRefs.add(dedupeKey);
+
     const limit = bookingRateLimiter.check();
     if (limit.isLocked) {
+      SupabaseBookingRepository.inFlightRefs.delete(dedupeKey);
       throw new Error(`Too many reservation requests submitted. Please wait ${limit.remainingSeconds} seconds before trying again.`);
     }
 
-    // 0. Enforce capacity and blackout dates before accepting reservation
     const totalPartySize = (booking.guests.adults || 1) + (booking.guests.children || 0) + (booking.guests.infants || 0);
     const bookingDateStr = booking.date ? booking.date.split('T')[0] : '';
-    
-    try {
-      const rawOps = localStorage.getItem('rse_ops_availability');
-      if (rawOps) {
-        const slots = JSON.parse(rawOps);
-        const slot = slots.find((s: any) => s.tourId === booking.tourId && s.date === bookingDateStr);
-        if (slot) {
-          if (slot.isBlackout || slot.status === 'unavailable') {
-            throw new Error(`This excursion date (${bookingDateStr}) is closed or set as an operational blackout date.`);
-          }
-          if (slot.status === 'sold_out') {
-            throw new Error(`This departure date (${bookingDateStr}) is completely sold out.`);
-          }
-          const currentBookedCount = this.getLocalBookings()
-            .filter((b) => b.tourId === booking.tourId && b.date?.split('T')[0] === bookingDateStr && b.status !== 'cancelled')
-            .reduce((sum, b) => sum + (b.guests.adults || 1) + (b.guests.children || 0) + (b.guests.infants || 0), 0);
-          if (slot.maxCapacity && (currentBookedCount + totalPartySize) > slot.maxCapacity) {
-            const remainingSeats = Math.max(0, slot.maxCapacity - currentBookedCount);
-            throw new Error(`Only ${remainingSeats} seat(s) remaining for departure on ${bookingDateStr}. Requested: ${totalPartySize} guests.`);
-          }
-        }
-      }
-    } catch (opsErr: any) {
-      if (opsErr.message && (opsErr.message.includes('closed') || opsErr.message.includes('sold out') || opsErr.message.includes('remaining'))) {
-        throw opsErr;
-      }
-    }
 
     if (!isSupabaseConfigured()) {
+      SupabaseBookingRepository.inFlightRefs.delete(dedupeKey);
       throw new Error('Reservation database service is currently unconfigured or unavailable. Please contact the booking desk directly.');
     }
 
-    // 1. Keep local cache synchronized
-    const currentLocal = this.getLocalBookings();
-    const updatedLocal = [booking, ...currentLocal.filter((b) => b.bookingReference !== booking.bookingReference)];
-    this.saveLocalBookings(updatedLocal);
-    bookingRateLimiter.recordFailedAttempt();
-
     try {
-      // 1. Verify tour exists in database and retrieve authoritative pricing & capacity
+      // 1. Authoritative Primary Path: create_booking_atomic RPC
+      // Executes single PostgreSQL transaction with row-level capacity lock, server-side pricing,
+      // passenger manifest creation, extras persistence, and audit logging.
+      const { data: atomicRes, error: rpcErr } = await supabase.rpc('create_booking_atomic', {
+        p_tour_identifier: booking.tourId || booking.tourSlug || '',
+        p_booking_date: bookingDateStr,
+        p_adult_count: booking.guests.adults,
+        p_child_count: booking.guests.children || 0,
+        p_infant_count: booking.guests.infants || 0,
+        p_customer_first_name: booking.customer.firstName.trim(),
+        p_customer_last_name: booking.customer.lastName.trim(),
+        p_customer_email: booking.customer.email.trim().toLowerCase(),
+        p_customer_phone: `${booking.customer.countryCode || ''} ${booking.customer.phoneNumber || ''}`.trim(),
+        p_customer_country: booking.customer.country || 'International',
+        p_customer_hotel: booking.customer.hotelName || booking.pickup.hotelName || null,
+        p_pickup_location_id: booking.pickup.locationId || null,
+        p_pickup_room_number: booking.pickup.roomNumber || null,
+        p_extras: (booking.extras || []).map((e: any) => ({
+          id: e.id || e.extraId || '',
+          name: e.name,
+          quantity: e.quantity || 1,
+        })),
+        p_payment_method: booking.paymentMethod || 'pay_at_pickup',
+        p_special_requests: booking.customer.specialRequests || null,
+      });
+
+      if (!rpcErr && atomicRes && typeof atomicRes === 'object') {
+        const res = atomicRes as any;
+        if (res.success === false) {
+          throw new Error(res.error || 'Failed to complete reservation due to capacity or validation error.');
+        }
+
+        // Authoritative reservation confirmed
+        booking.bookingId = res.bookingId || booking.bookingId;
+        booking.bookingReference = res.bookingReference || booking.bookingReference;
+        booking.status = (res.status as any) || 'pending';
+        booking.paymentStatus = (res.paymentStatus as any) || 'pending';
+        if (res.totalEur !== undefined && res.totalEur !== null) {
+          booking.pricing.totalEur = Number(res.totalEur);
+          booking.pricing.formattedTotal = `€${Number(res.totalEur).toFixed(2)}`;
+        }
+
+        // Only commit to local state cache after authoritative database transaction succeeds
+        const currentLocal = this.getLocalBookings();
+        const updatedLocal = [booking, ...currentLocal.filter((b) => b.bookingReference !== booking.bookingReference)];
+        this.saveLocalBookings(updatedLocal);
+
+        return booking;
+      }
+
+      if (rpcErr && rpcErr.message && (
+        rpcErr.message.includes('sold out') ||
+        rpcErr.message.includes('capacity') ||
+        rpcErr.message.includes('past') ||
+        rpcErr.message.includes('valid customer')
+      )) {
+        throw new Error(rpcErr.message);
+      }
+
+      // 2. Fallback direct multi-table path if RPC is missing on legacy database
       let realTourId = booking.tourId;
       let dbTourRecord: any = null;
 
@@ -173,7 +225,6 @@ class SupabaseBookingRepository implements IBookingRepository {
       }
 
       // Check date-specific tour_availability table
-      const bookingDateStr = booking.date ? booking.date.split('T')[0] : '';
       if (bookingDateStr) {
         try {
           const { data: dateAvail } = await supabase
@@ -465,6 +516,8 @@ class SupabaseBookingRepository implements IBookingRepository {
     } catch (err: any) {
       console.error('Failed to create booking in Supabase:', err);
       throw new Error(err.message || 'Unable to register excursion booking in database. Please verify your details.');
+    } finally {
+      SupabaseBookingRepository.inFlightRefs.delete(dedupeKey);
     }
   }
 
@@ -525,6 +578,13 @@ class SupabaseBookingRepository implements IBookingRepository {
         }
 
         // 2. Direct scoped query: retrieve the single booking record by reference
+        // Unauthenticated callers without valid two-factor verification cannot browse bookings table directly.
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          // Anonymous visitors MUST provide valid verification and succeed through lookup_booking_secure
+          return null;
+        }
+
         const { data, error } = await supabase
           .from('bookings')
           .select(`
@@ -542,24 +602,24 @@ class SupabaseBookingRepository implements IBookingRepository {
 
         // If contact verification was provided, verify it strictly matches this booking
         if (cleanContact) {
-          const custEmail = (data.customers?.email || '').toLowerCase();
-          const custPhone = (data.customers?.phone || '').replace(/\s+/g, '');
-          const query = cleanContact.toLowerCase().replace(/\s+/g, '');
+          const custEmail = (data.customers?.email || '').trim().toLowerCase();
+          const queryLower = cleanContact.trim().toLowerCase();
+          const emailMatch = custEmail === queryLower;
 
-          const emailMatch = custEmail === query;
-          const phoneMatch = custPhone.length >= 6 && (custPhone.includes(query) || query.includes(custPhone));
+          // Normalized phone comparison: require at least 8 digits and exact match
+          const custDigits = (data.customers?.phone || '').replace(/\D/g, '');
+          const queryDigits = cleanContact.replace(/\D/g, '');
+          const phoneMatch = queryDigits.length >= 8 && (
+            custDigits === queryDigits ||
+            custDigits.endsWith(queryDigits) ||
+            queryDigits.endsWith(custDigits)
+          );
 
           if (!emailMatch && !phoneMatch) {
-            // Mismatch: deny access to protect guest privacy
             return null;
           }
         } else {
-          // If no contact verification provided, verify if the caller is an authenticated administrator
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
-            // Public unauthenticated lookup requires contact verification (email or phone)
-            return null;
-          }
+          // If no contact verification provided, verify user is administrator or booking owner
           const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
           const isStaff = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'manager' || profile?.role === 'staff';
           if (!isStaff && data.user_id !== user.id) {
@@ -574,16 +634,19 @@ class SupabaseBookingRepository implements IBookingRepository {
       }
     }
 
+    // Dev sandbox fallback: require exact email or normalized phone match (>= 8 digits)
     const b = await this.getBooking(bookingReference);
-    if (!b) return null;
+    if (!b || !cleanContact) return null;
 
-    if (!cleanContact) {
-      return null;
-    }
-
-    const query = cleanContact.toLowerCase();
-    const emailMatch = b.customer.email.toLowerCase() === query;
-    const phoneMatch = (b.customer.phoneNumber || '').replace(/\s+/g, '').includes(query.replace(/\s+/g, ''));
+    const queryLower = cleanContact.trim().toLowerCase();
+    const emailMatch = b.customer.email.trim().toLowerCase() === queryLower;
+    const custDigits = (b.customer.phoneNumber || '').replace(/\D/g, '');
+    const queryDigits = cleanContact.replace(/\D/g, '');
+    const phoneMatch = queryDigits.length >= 8 && (
+      custDigits === queryDigits ||
+      custDigits.endsWith(queryDigits) ||
+      queryDigits.endsWith(custDigits)
+    );
 
     if (emailMatch || phoneMatch) {
       return b;

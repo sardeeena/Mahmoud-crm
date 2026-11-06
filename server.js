@@ -829,118 +829,10 @@ OUR TOUR CATALOG:
 ${JSON.stringify(TOUR_CATALOG_SUMMARY, null, 2)}
 `;
 
-// src/data/bookingData.ts
-var STANDARD_PICKUP_LOCATIONS = [
-  {
-    id: "hurghada",
-    name: "Hurghada Hotels",
-    area: "Hurghada (Mamsha, Dahar, Sheraton, Marina)",
-    feeEurPerPerson: 0,
-    note: "Free pickup from any hotel in Hurghada.",
-    isPopular: true
-  },
-  {
-    id: "el-gouna",
-    name: "El Gouna",
-    area: "El Gouna Resorts & Marina",
-    feeEurPerPerson: 5,
-    note: "+\u20AC5 per person (approx. 25-30 km north of Hurghada).",
-    isPopular: true
-  },
-  {
-    id: "makadi-bay",
-    name: "Makadi Bay",
-    area: "Makadi Bay & Madinat Makadi",
-    feeEurPerPerson: 5,
-    note: "+\u20AC5 per person (approx. 30 km south of Hurghada).",
-    isPopular: true
-  },
-  {
-    id: "sahl-hasheesh",
-    name: "Sahl Hasheesh",
-    area: "Sahl Hasheesh Bay & Old Town",
-    feeEurPerPerson: 5,
-    note: "+\u20AC5 per person (approx. 18 km south of Hurghada).",
-    isPopular: true
-  },
-  {
-    id: "safaga",
-    name: "Safaga & Soma Bay",
-    area: "Port Safaga, Soma Bay Peninsula",
-    feeEurPerPerson: 10,
-    note: "+\u20AC10 per person (approx. 50 km south of Hurghada)."
-  },
-  {
-    id: "marsa-alam",
-    name: "Marsa Alam",
-    area: "Marsa Alam / Port Ghalib (for local tours)",
-    feeEurPerPerson: 10,
-    note: "+\u20AC10 per person for regional pickup."
-  },
-  {
-    id: "sharm-el-sheikh",
-    name: "Sharm El-Sheikh Hotels",
-    area: "Naama Bay, Nabq, Sharks Bay, Hadaba, Ras Um Sid",
-    feeEurPerPerson: 0,
-    note: "Free lobby pickup from any hotel across Sharm El-Sheikh.",
-    isPopular: true
-  }
-];
-var GLOBAL_BOOKING_EXTRAS = [
-  {
-    id: "underwater-photos",
-    name: "Underwater Photos & Video Package",
-    description: "A photographer takes underwater photos and video clips of you and sends them to your phone.",
-    priceEur: 20,
-    pricingType: "per_booking",
-    category: "Media"
-  },
-  {
-    id: "private-guide",
-    name: "Private Guide for Snorkeling",
-    description: "A dedicated marine guide stays with your group throughout the cruise and snorkeling stops.",
-    priceEur: 50,
-    pricingType: "per_booking",
-    category: "Service"
-  },
-  {
-    id: "private-transfer",
-    name: "Private Hotel Transfer Van",
-    description: "Direct van transfer for your party only, without stopping at other hotels.",
-    priceEur: 30,
-    pricingType: "per_booking",
-    category: "Transfer"
-  },
-  {
-    id: "extra-diving",
-    name: "Extra Guided Scuba Dive",
-    description: "Additional 20-minute dive with gear and a certified instructor.",
-    priceEur: 25,
-    pricingType: "per_person",
-    category: "Activity"
-  },
-  {
-    id: "seafood-lunch",
-    name: "Fresh Grilled Seafood Lunch Upgrade",
-    description: "Grilled Red Sea jumbo prawns and calamari added to the buffet.",
-    priceEur: 15,
-    pricingType: "per_person",
-    category: "Dining"
-  },
-  {
-    id: "gopro-rental",
-    name: "GoPro Underwater Camera Rental",
-    description: "Waterproof camera for the full day with handle and SD memory card to keep.",
-    priceEur: 20,
-    pricingType: "per_booking",
-    category: "Equipment"
-  }
-];
-
 // server.ts
 dotenv.config();
 var app = express();
-var PORT = Number(process.env.PORT) || 3e3;
+var PORT = process.env.PORT || 3e3;
 var SERVER_START_TIME = Date.now();
 function parseJwtPayload(token) {
   try {
@@ -958,7 +850,6 @@ function isSupabaseSecretKey(key) {
   if (!key || typeof key !== "string") return false;
   const trimmed = key.trim();
   if (trimmed.startsWith("sb_secret_")) return true;
-  if (trimmed.startsWith("sbp_")) return true;
   const payload = parseJwtPayload(trimmed);
   return payload?.role === "service_role";
 }
@@ -1145,8 +1036,6 @@ if (process.env.GEMINI_API_KEY) {
     }
   });
 }
-var serverInquiries = [];
-var serverNewsletters = [];
 function isValidEmail(email) {
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
   return emailRegex.test(email) && email.length <= 254;
@@ -1239,36 +1128,130 @@ app.get("/api/config", (_req, res) => {
     cancellationFreeNoticeHours: 24
   });
 });
-app.get("/api/tours", (req, res) => {
+app.get("/api/tours", async (req, res) => {
   const { destination, category, search, limit } = req.query;
-  let filtered = [...TOUR_CATALOG_SUMMARY];
-  if (destination && typeof destination === "string") {
-    filtered = filtered.filter(
-      (t) => t.destination.toLowerCase() === destination.toLowerCase()
-    );
+  const maxItems = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
+  if (!serverSupabase) {
+    return res.status(503).json({
+      success: false,
+      error: "Database service is currently unconfigured or unavailable.",
+      tours: [],
+      count: 0,
+      total: 0
+    });
   }
-  if (category && typeof category === "string") {
-    filtered = filtered.filter(
-      (t) => t.category.toLowerCase() === category.toLowerCase() || t.categories.some((c) => c.toLowerCase() === category.toLowerCase())
-    );
+  try {
+    let query = serverSupabase.from("tours").select(`
+        id,
+        title,
+        slug,
+        short_description,
+        description,
+        destination_id,
+        duration,
+        duration_type,
+        duration_hours,
+        tour_type,
+        status,
+        featured,
+        price,
+        child_price,
+        infant_price,
+        private_price,
+        currency,
+        max_guests,
+        minimum_booking_notice_hours,
+        pickup_available,
+        pickup_info,
+        cancellation_policy,
+        departure_time,
+        available_days,
+        languages,
+        difficulty,
+        age_restrictions,
+        badge,
+        rating,
+        review_count,
+        sort_order,
+        created_at,
+        destinations (id, name, slug),
+        tour_categories (categories (id, name, slug)),
+        tour_images (id, image_url, is_primary, sort_order)
+      `).eq("status", "published").order("sort_order", { ascending: true }).limit(maxItems);
+    if (destination && typeof destination === "string") {
+      const cleanDest = destination.trim().replace(/[%_()]/g, "");
+      if (cleanDest) {
+        query = query.ilike("destination_id", `%${cleanDest}%`);
+      }
+    }
+    if (search && typeof search === "string") {
+      const cleanSearch = search.trim().replace(/[%_()]/g, "");
+      if (cleanSearch) {
+        query = query.or(`title.ilike.%${cleanSearch}%,short_description.ilike.%${cleanSearch}%`);
+      }
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.error("Supabase /api/tours query error:", error.message);
+      return res.status(500).json({
+        success: false,
+        error: "Database query failed when loading tour catalogue.",
+        tours: [],
+        count: 0,
+        total: 0
+      });
+    }
+    const tours = (data || []).map((t) => {
+      const primaryImg = t.tour_images?.find((img) => img.is_primary) || t.tour_images?.[0];
+      const cats = t.tour_categories?.map((tc) => tc.categories?.name).filter(Boolean) || [];
+      return {
+        id: t.id,
+        slug: t.slug,
+        title: t.title,
+        shortDescription: t.short_description || "",
+        destination: t.destinations?.name || "Hurghada",
+        category: cats[0] || "Excursion",
+        categories: cats,
+        priceEur: Number(t.price) || 0,
+        childPriceEur: t.child_price != null ? Number(t.child_price) : void 0,
+        durationLabel: t.duration || `${t.duration_hours || 7} Hours`,
+        durationHours: t.duration_hours || 7,
+        rating: Number(t.rating) || 5,
+        reviewCount: Number(t.review_count) || 0,
+        primaryImage: primaryImg?.image_url || "",
+        badge: t.badge || (t.featured ? "Popular" : void 0)
+      };
+    });
+    return res.json({
+      success: true,
+      count: tours.length,
+      total: tours.length,
+      tours
+    });
+  } catch (err) {
+    console.error("Unhandled exception in /api/tours:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error processing tour catalogue request.",
+      tours: [],
+      count: 0,
+      total: 0
+    });
   }
-  if (search && typeof search === "string") {
-    const q = search.toLowerCase();
-    filtered = filtered.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.shortDescription.toLowerCase().includes(q) || t.destination.toLowerCase().includes(q)
-    );
-  }
-  const maxItems = limit ? parseInt(limit, 10) : 50;
-  const result = filtered.slice(0, isNaN(maxItems) ? 50 : maxItems);
-  res.json({
-    success: true,
-    count: result.length,
-    total: filtered.length,
-    tours: result
-  });
 });
-app.post("/api/bookings/create", (req, res) => {
-  const { tourSlug, date, guests, customer, pickupLocationId, hotelName, roomNumber, extras, paymentMethod = "pay_at_pickup", specialRequests } = req.body;
+app.post("/api/bookings/create", async (req, res) => {
+  const {
+    tourSlug,
+    date,
+    guests,
+    customer,
+    pickupLocationId,
+    hotelName,
+    roomNumber,
+    extras,
+    paymentMethod = "pay_at_pickup",
+    specialRequests
+  } = req.body;
   if (!tourSlug || typeof tourSlug !== "string") {
     return res.status(400).json({ success: false, error: "tourSlug is required." });
   }
@@ -1292,97 +1275,217 @@ app.post("/api/bookings/create", (req, res) => {
   const infants = Math.max(0, parseInt(guests?.infants, 10) || 0);
   const totalParty = adults + children + infants;
   const payingPassengers = adults + children;
-  const tour = TOUR_CATALOG_SUMMARY.find((t) => t.slug === tourSlug);
-  if (!tour) {
-    return res.status(404).json({ success: false, error: `Excursion "${tourSlug}" not found in catalog.` });
-  }
-  const maxCapacity = 30;
-  if (totalParty > maxCapacity) {
-    return res.status(400).json({
+  if (!serverSupabase) {
+    return res.status(503).json({
       success: false,
-      error: `Group size (${totalParty} guests) exceeds maximum capacity of ${maxCapacity} passengers.`
+      error: "Reservation database service is currently unconfigured or unavailable."
     });
   }
-  const adultBasePrice = tour.priceEur;
-  const childBasePrice = typeof tour.childPriceEur === "number" ? tour.childPriceEur : Math.round(tour.priceEur * 0.5);
-  const adultSubtotalEur = adults * adultBasePrice;
-  const childSubtotalEur = children * childBasePrice;
-  let pickupFeeEur = 0;
-  let pickupLocationName = "Hurghada Central";
-  if (pickupLocationId) {
-    const matchedLoc = STANDARD_PICKUP_LOCATIONS.find((l) => l.id === pickupLocationId);
-    if (matchedLoc) {
-      pickupLocationName = matchedLoc.name;
-      pickupFeeEur = (matchedLoc.feeEurPerPerson || 0) * payingPassengers + (matchedLoc.feeEurFlat || 0);
+  try {
+    const { data: tourRecord, error: tourErr } = await serverSupabase.from("tours").select("id, title, slug, price, child_price, max_guests, duration, pickup_available, pickup_info, status").or(`slug.eq.${tourSlug},id.eq.${tourSlug}`).maybeSingle();
+    if (tourErr || !tourRecord) {
+      return res.status(404).json({
+        success: false,
+        error: `Excursion "${tourSlug}" was not found in the reservation catalog.`
+      });
     }
-  }
-  let extrasSubtotalEur = 0;
-  const verifiedExtras = [];
-  if (Array.isArray(extras)) {
-    extras.forEach((item) => {
-      const extraDef = GLOBAL_BOOKING_EXTRAS.find((e) => e.id === item.extraId);
-      if (extraDef) {
-        const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
-        const itemAmount = extraDef.pricingType === "per_person" ? extraDef.priceEur * payingPassengers * qty : extraDef.priceEur * qty;
-        extrasSubtotalEur += itemAmount;
-        verifiedExtras.push({
-          extraId: extraDef.id,
-          name: extraDef.name,
-          amountEur: itemAmount,
-          quantity: qty
+    const maxCapacity = tourRecord.max_guests || 35;
+    if (totalParty > maxCapacity) {
+      return res.status(400).json({
+        success: false,
+        error: `Group size (${totalParty} guests) exceeds maximum tour capacity of ${maxCapacity} passengers.`
+      });
+    }
+    const { data: availRecord } = await serverSupabase.from("tour_availability").select("id, status, booked_count, max_capacity").eq("tour_id", tourRecord.id).eq("date", date).maybeSingle();
+    if (availRecord) {
+      if (availRecord.status === "unavailable") {
+        return res.status(400).json({
+          success: false,
+          error: `Excursion date (${date}) is closed or marked as an operational blackout date.`
         });
       }
+      if (availRecord.status === "sold_out") {
+        return res.status(400).json({
+          success: false,
+          error: `Excursion departure on ${date} is sold out.`
+        });
+      }
+      if (availRecord.max_capacity && availRecord.booked_count + totalParty > availRecord.max_capacity) {
+        const remaining = Math.max(0, availRecord.max_capacity - availRecord.booked_count);
+        return res.status(400).json({
+          success: false,
+          error: `Only ${remaining} seat(s) remaining for departure on ${date}. Requested: ${totalParty} guests.`
+        });
+      }
+    }
+    const adultBasePrice = Number(tourRecord.price);
+    const childBasePrice = tourRecord.child_price !== null && tourRecord.child_price !== void 0 ? Number(tourRecord.child_price) : Math.round(adultBasePrice * 0.5);
+    const adultSubtotalEur = adults * adultBasePrice;
+    const childSubtotalEur = children * childBasePrice;
+    let pickupFeeEur = 0;
+    let pickupLocationName = "Hurghada Central";
+    let validPickupId = null;
+    if (pickupLocationId) {
+      const { data: loc } = await serverSupabase.from("pickup_locations").select("id, name, fee_eur_per_person, fee_eur_flat").or(`id.eq.${pickupLocationId},code.eq.${pickupLocationId}`).maybeSingle();
+      if (loc) {
+        validPickupId = loc.id;
+        pickupLocationName = loc.name;
+        pickupFeeEur = (Number(loc.fee_eur_per_person) || 0) * payingPassengers + (Number(loc.fee_eur_flat) || 0);
+      }
+    }
+    let extrasSubtotalEur = 0;
+    const verifiedExtras = [];
+    if (Array.isArray(extras) && extras.length > 0) {
+      for (const item of extras) {
+        const extraId = item.extraId || item.id;
+        if (!extraId) continue;
+        const { data: exDef } = await serverSupabase.from("tour_extras").select("id, name, price_eur, pricing_type").eq("id", extraId).maybeSingle();
+        if (exDef) {
+          const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+          const price = Number(exDef.price_eur);
+          const itemAmount = exDef.pricing_type === "per_person" ? price * payingPassengers * qty : price * qty;
+          extrasSubtotalEur += itemAmount;
+          verifiedExtras.push({
+            extraId: exDef.id,
+            name: exDef.name,
+            amountEur: itemAmount,
+            quantity: qty
+          });
+        }
+      }
+    }
+    const subtotalEur = adultSubtotalEur + childSubtotalEur + pickupFeeEur;
+    const totalEur = subtotalEur + extrasSubtotalEur;
+    const cleanEmail = customer.email.trim().toLowerCase();
+    let customerId = null;
+    const { data: existingCustomer } = await serverSupabase.from("customers").select("id").eq("email", cleanEmail).maybeSingle();
+    if (existingCustomer?.id) {
+      customerId = existingCustomer.id;
+    } else {
+      const { data: newCustomer, error: custErr } = await serverSupabase.from("customers").insert({
+        first_name: customer.firstName.trim(),
+        last_name: (customer.lastName || "").trim(),
+        email: cleanEmail,
+        phone: customer.phoneNumber || null,
+        whatsapp: customer.whatsappNumber || customer.phoneNumber || null,
+        country: customer.country || "International",
+        hotel: hotelName || null,
+        source: "Website Booking",
+        status: "active",
+        user_id: req.user?.id || null
+      }).select("id").single();
+      if (!custErr && newCustomer) {
+        customerId = newCustomer.id;
+      }
+    }
+    const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+    const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const c1 = letters.charAt(Math.floor(Math.random() * letters.length));
+    const c2 = letters.charAt(Math.floor(Math.random() * letters.length));
+    const digits = Math.floor(1e3 + Math.random() * 9e3);
+    const bookingReference = `RST-${currentYear}-${c1}${c2}${digits}`;
+    const { data: createdBooking, error: bookErr } = await serverSupabase.from("bookings").insert({
+      booking_reference: bookingReference,
+      user_id: req.user?.id || null,
+      tour_id: tourRecord.id,
+      customer_id: customerId,
+      booking_date: date,
+      status: "pending",
+      payment_status: "pending",
+      payment_method: paymentMethod || "pay_at_pickup",
+      adult_count: adults,
+      child_count: children,
+      infant_count: infants,
+      pickup_location_id: validPickupId,
+      pickup_hotel_name: hotelName || null,
+      pickup_room_number: roomNumber || null,
+      subtotal: subtotalEur,
+      extras_total: extrasSubtotalEur,
+      discount: 0,
+      total: totalEur,
+      currency: "EUR",
+      special_requests: specialRequests || null
+    }).select("id, booking_reference, created_at").single();
+    if (bookErr || !createdBooking) {
+      console.error("Failed to durably insert booking into Supabase:", bookErr);
+      return res.status(500).json({
+        success: false,
+        error: "Database error: Could not complete reservation. Please contact our booking desk."
+      });
+    }
+    await serverSupabase.from("booking_passengers").insert({
+      booking_id: createdBooking.id,
+      full_name: `${customer.firstName} ${customer.lastName || ""}`.trim(),
+      nationality: customer.country || "International",
+      passenger_type: "adult",
+      is_lead_passenger: true
+    });
+    if (verifiedExtras.length > 0) {
+      const extraRows = verifiedExtras.map((e) => ({
+        booking_id: createdBooking.id,
+        extra_id: e.extraId,
+        name: e.name,
+        quantity: e.quantity,
+        unit_price: e.amountEur / e.quantity,
+        total_price: e.amountEur
+      }));
+      await serverSupabase.from("booking_extras").insert(extraRows);
+    }
+    if (availRecord) {
+      const newBooked = (availRecord.booked_count || 0) + totalParty;
+      await serverSupabase.from("tour_availability").update({
+        booked_count: newBooked,
+        status: availRecord.max_capacity && newBooked >= availRecord.max_capacity ? "sold_out" : availRecord.status,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", availRecord.id);
+    }
+    return res.status(201).json({
+      success: true,
+      bookingReference,
+      tour: {
+        slug: tourRecord.slug,
+        title: tourRecord.title,
+        durationLabel: tourRecord.duration
+      },
+      date,
+      guests: { adults, children, infants, total: totalParty },
+      pickup: {
+        locationId: validPickupId || "hurghada",
+        locationName: pickupLocationName,
+        hotelName: hotelName || null,
+        roomNumber: roomNumber || null,
+        feeEur: pickupFeeEur
+      },
+      pricing: {
+        adultPriceEur: adultBasePrice,
+        childPriceEur: childBasePrice,
+        adultSubtotalEur,
+        childSubtotalEur,
+        pickupFeeEur,
+        extrasSubtotalEur,
+        subtotalEur,
+        totalEur,
+        currency: "EUR",
+        formattedTotal: `\u20AC${totalEur.toFixed(2)}`
+      },
+      customer: {
+        name: `${customer.firstName} ${customer.lastName || ""}`.trim(),
+        email: cleanEmail,
+        phone: customer.phoneNumber || null,
+        country: customer.country || "International"
+      },
+      paymentMethod,
+      status: "pending",
+      paymentStatus: "pending",
+      createdAt: createdBooking.created_at
+    });
+  } catch (err) {
+    console.error("Unhandled exception during booking creation:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error while processing your reservation."
     });
   }
-  const subtotalEur = adultSubtotalEur + childSubtotalEur + pickupFeeEur;
-  const totalEur = subtotalEur + extrasSubtotalEur;
-  const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const c1 = letters.charAt(Math.floor(Math.random() * letters.length));
-  const c2 = letters.charAt(Math.floor(Math.random() * letters.length));
-  const digits = Math.floor(1e3 + Math.random() * 9e3);
-  const bookingReference = `RST-${currentYear}-${c1}${c2}${digits}`;
-  return res.status(201).json({
-    success: true,
-    bookingReference,
-    tour: {
-      slug: tour.slug,
-      title: tour.title,
-      destination: tour.destination,
-      durationLabel: tour.durationLabel,
-      primaryImage: tour.primaryImage
-    },
-    date,
-    guests: { adults, children, infants, total: totalParty },
-    pickup: {
-      locationId: pickupLocationId || "hurghada",
-      locationName: pickupLocationName,
-      hotelName: hotelName || null,
-      roomNumber: roomNumber || null,
-      feeEur: pickupFeeEur
-    },
-    pricing: {
-      adultPriceEur: adultBasePrice,
-      childPriceEur: childBasePrice,
-      adultSubtotalEur,
-      childSubtotalEur,
-      pickupFeeEur,
-      extrasSubtotalEur,
-      subtotalEur,
-      totalEur,
-      currency: "EUR",
-      formattedTotal: `\u20AC${totalEur.toFixed(2)}`
-    },
-    customer: {
-      name: `${customer.firstName} ${customer.lastName || ""}`.trim(),
-      email: customer.email.trim().toLowerCase(),
-      phone: customer.phoneNumber || null,
-      country: customer.country || "International"
-    },
-    paymentMethod,
-    status: "confirmed",
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  });
 });
 app.all(["/api/bookings/lookup", "/api/booking/lookup"], rateLimit(10, 6e4), async (req, res) => {
   const reference = req.body?.reference || req.query?.ref || req.query?.reference;
@@ -1459,8 +1562,9 @@ app.all(["/api/bookings/lookup", "/api/booking/lookup"], rateLimit(10, 6e4), asy
           return res.json({ success: true, found: true, booking: b });
         }
         if (verification) {
-          const custEmail = (b.customers?.email || "").toLowerCase();
-          const custPhone = (b.customers?.phone || "").replace(/\s+/g, "");
+          const custRecord = Array.isArray(b.customers) ? b.customers[0] : b.customers;
+          const custEmail = (custRecord?.email || "").toLowerCase();
+          const custPhone = (custRecord?.phone || "").replace(/\s+/g, "");
           const cleanVer = verification.replace(/\s+/g, "");
           if (custEmail === verification || custPhone.length >= 6 && custPhone.includes(cleanVer)) {
             const maskedEmail = custEmail.replace(/^(.)(.*)(@.*)$/, (_, a, _b, c) => `${a}***${c}`);
@@ -1480,11 +1584,11 @@ app.all(["/api/bookings/lookup", "/api/booking/lookup"], rateLimit(10, 6e4), asy
                 },
                 tour: b.tours,
                 customer: {
-                  firstName: b.customers?.first_name || "Guest",
-                  lastName: b.customers?.last_name || "",
+                  firstName: custRecord?.first_name || "Guest",
+                  lastName: custRecord?.last_name || "",
                   emailMasked: maskedEmail,
                   phoneMasked: "*** Protected ***",
-                  country: b.customers?.country || "International"
+                  country: custRecord?.country || "International"
                 },
                 specialRequests: b.special_requests
               }
@@ -1573,8 +1677,11 @@ app.all("/api/availability/check", (req, res) => {
     slots
   });
 });
-app.post(["/api/inquiries", "/api/inquiries/submit", "/api/contact"], (req, res) => {
-  const { name, email, phone, inquiryType = "general_question", message } = req.body;
+app.post(["/api/inquiries", "/api/inquiries/submit", "/api/contact"], async (req, res) => {
+  const { name, email, phone, inquiryType = "general_question", message, website_url_hp } = req.body;
+  if (website_url_hp && String(website_url_hp).trim() !== "") {
+    return res.status(200).json({ success: true, status: "received" });
+  }
   if (!name || !email || !message) {
     return res.status(400).json({
       success: false,
@@ -1588,31 +1695,49 @@ app.post(["/api/inquiries", "/api/inquiries/submit", "/api/contact"], (req, res)
     });
   }
   const cleanName = String(name).trim().slice(0, 100);
+  const cleanEmail = String(email).trim().toLowerCase();
   const cleanMessage = String(message).trim().slice(0, 2e3);
+  const cleanPhone = phone ? String(phone).slice(0, 30) : null;
   const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
   const ticketNumber = `INQ-${currentYear}-${Math.floor(1e3 + Math.random() * 9e3)}`;
-  const inquiry = {
-    id: "inq-" + Date.now(),
-    ticketNumber,
-    name: cleanName,
-    email: email.trim().toLowerCase(),
-    phone: phone ? String(phone).slice(0, 30) : void 0,
-    inquiryType,
-    message: cleanMessage,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  serverInquiries.push(inquiry);
-  res.status(201).json({
-    success: true,
-    inquiryId: inquiry.id,
-    ticketNumber: inquiry.ticketNumber,
-    status: "received",
-    estimatedResponseTime: "Within 2 hours (Egypt Pier Desk hours)",
-    receivedAt: inquiry.createdAt
+  if (serverSupabase) {
+    try {
+      const { data, error } = await serverSupabase.from("inquiries").insert({
+        customer_name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        subject: inquiryType === "general_question" ? "General Excursion Question" : String(inquiryType),
+        message: cleanMessage,
+        status: "new",
+        source: "web"
+      }).select("id, created_at").single();
+      if (!error && data) {
+        return res.status(201).json({
+          success: true,
+          inquiryId: data.id,
+          ticketNumber,
+          status: "received",
+          estimatedResponseTime: "Within 2 hours (Egypt Pier Desk hours)",
+          receivedAt: data.created_at
+        });
+      }
+      if (error) {
+        console.error("Supabase inquiries insert error:", error.message);
+      }
+    } catch (dbErr) {
+      console.warn("Supabase inquiries insert exception:", dbErr);
+    }
+  }
+  return res.status(503).json({
+    success: false,
+    error: "Inquiry service is currently unconfigured or database is unreachable."
   });
 });
-app.post(["/api/newsletter", "/api/newsletter/subscribe"], (req, res) => {
-  const { email, preferredLanguage = "en" } = req.body;
+app.post(["/api/newsletter", "/api/newsletter/subscribe"], async (req, res) => {
+  const { email, preferredLanguage = "en", website_url_hp } = req.body;
+  if (website_url_hp && String(website_url_hp).trim() !== "") {
+    return res.json({ success: true, subscribed: true });
+  }
   if (!email || !isValidEmail(email)) {
     return res.status(400).json({
       success: false,
@@ -1620,20 +1745,40 @@ app.post(["/api/newsletter", "/api/newsletter/subscribe"], (req, res) => {
     });
   }
   const cleanEmail = email.trim().toLowerCase();
-  const exists = serverNewsletters.some((n) => n.email === cleanEmail);
-  if (!exists) {
-    serverNewsletters.push({
-      email: cleanEmail,
-      subscribedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      language: preferredLanguage
-    });
+  if (serverSupabase) {
+    try {
+      const { data, error } = await serverSupabase.from("newsletter_subscriptions").insert({
+        email: cleanEmail,
+        source: "website_footer",
+        status: "subscribed"
+      }).select("id, created_at").single();
+      if (!error && data) {
+        return res.json({
+          success: true,
+          subscribed: true,
+          email: cleanEmail,
+          message: "Thank you for subscribing! Your Red Sea VIP seasonal excursion discount will be sent shortly."
+        });
+      }
+      if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
+        return res.json({
+          success: true,
+          subscribed: true,
+          email: cleanEmail,
+          alreadySubscribed: true,
+          message: "You are already registered for Red Sea VIP excursion deals and marine updates."
+        });
+      }
+      if (error) {
+        console.error("Supabase newsletter insert error:", error.message);
+      }
+    } catch (err) {
+      console.warn("Newsletter subscription exception:", err);
+    }
   }
-  res.json({
-    success: true,
-    subscribed: true,
-    email: cleanEmail,
-    alreadySubscribed: exists,
-    message: exists ? "You are already registered for Red Sea VIP excursion deals and marine updates." : "Thank you for subscribing! Your Red Sea VIP seasonal excursion discount will be sent shortly."
+  return res.status(503).json({
+    success: false,
+    error: "Newsletter subscription service is currently unconfigured or database is unreachable."
   });
 });
 app.get("/api/auth/verify-session", rateLimit(60, 6e4), (req, res) => {
@@ -1674,72 +1819,78 @@ app.all("/api/db/query", rateLimit(60, 6e4), async (req, res) => {
       const category = typeof body.category === "string" ? body.category.trim().slice(0, 50) : void 0;
       const search = typeof body.search === "string" ? body.search.trim().slice(0, 100) : void 0;
       const limit = Math.min(Math.max(1, parseInt(body.limit, 10) || 50), 100);
-      if (serverSupabase) {
-        try {
-          let q = serverSupabase.from("tours").select("id, title, slug, destination, price, child_price, duration_hours, duration_label, short_description, is_published, created_at").eq("is_published", true).limit(limit);
-          if (destination) q = q.ilike("destination", `%${destination}%`);
-          if (search) {
-            const cleanSearch = search.replace(/[%_,()]/g, "");
-            if (cleanSearch) {
-              q = q.or(`title.ilike.%${cleanSearch}%,short_description.ilike.%${cleanSearch}%`);
-            }
-          }
-          const { data, error } = await q;
-          if (!error && data) {
-            return res.json({ success: true, count: data.length, tours: data });
-          }
-        } catch (err) {
-          console.warn("Database error in get_tours:", err);
+      if (!serverSupabase) {
+        return res.status(503).json({
+          success: false,
+          error: "Database service is currently unconfigured or unavailable.",
+          tours: [],
+          count: 0
+        });
+      }
+      try {
+        let q = serverSupabase.from("tours").select("id, title, slug, price, child_price, duration_hours, duration, short_description, status, created_at").eq("status", "published").limit(limit);
+        if (destination) {
+          const cleanDest = destination.replace(/[%_,()]/g, "");
+          if (cleanDest) q = q.ilike("destination_id", `%${cleanDest}%`);
         }
+        if (search) {
+          const cleanSearch = search.replace(/[%_,()]/g, "");
+          if (cleanSearch) {
+            q = q.or(`title.ilike.%${cleanSearch}%,short_description.ilike.%${cleanSearch}%`);
+          }
+        }
+        const { data, error } = await q;
+        if (error) {
+          console.error("Database error in get_tours operation:", error.message);
+          return res.status(500).json({ success: false, error: "Database query failed.", tours: [], count: 0 });
+        }
+        return res.json({ success: true, count: data?.length || 0, tours: data || [] });
+      } catch (err) {
+        console.warn("Database error in get_tours:", err);
+        return res.status(500).json({ success: false, error: "Failed to retrieve tours.", tours: [], count: 0 });
       }
-      let filtered = [...TOUR_CATALOG_SUMMARY];
-      if (destination) filtered = filtered.filter((t) => t.destination.toLowerCase() === destination.toLowerCase());
-      if (category) filtered = filtered.filter((t) => t.category.toLowerCase() === category.toLowerCase());
-      if (search) {
-        const s = search.toLowerCase();
-        filtered = filtered.filter((t) => t.title.toLowerCase().includes(s) || t.shortDescription.toLowerCase().includes(s));
-      }
-      return res.json({ success: true, count: filtered.slice(0, limit).length, tours: filtered.slice(0, limit) });
     }
     case "get_destinations": {
-      if (serverSupabase) {
-        try {
-          const { data, error } = await serverSupabase.from("destinations").select("id, name, slug, description, image_url, sort_order").order("sort_order", { ascending: true }).limit(50);
-          if (!error && data) {
-            return res.json({ success: true, count: data.length, destinations: data });
-          }
-        } catch (err) {
-          console.warn("Database error in get_destinations:", err);
-        }
+      if (!serverSupabase) {
+        return res.status(503).json({
+          success: false,
+          error: "Database service is currently unconfigured or unavailable.",
+          destinations: [],
+          count: 0
+        });
       }
-      return res.json({
-        success: true,
-        destinations: [
-          { id: "dest-1", name: "Hurghada", slug: "hurghada", description: "Red Sea Riviera hub" },
-          { id: "dest-2", name: "El Gouna", slug: "el-gouna", description: "Venice of Egypt lagoons" },
-          { id: "dest-3", name: "Makadi Bay", slug: "makadi-bay", description: "Reef sanctuary" }
-        ]
-      });
+      try {
+        const { data, error } = await serverSupabase.from("destinations").select("id, name, slug, description, main_image, sort_order").order("sort_order", { ascending: true }).limit(50);
+        if (error) {
+          console.error("Database error in get_destinations:", error.message);
+          return res.status(500).json({ success: false, error: "Failed to retrieve destinations.", destinations: [], count: 0 });
+        }
+        return res.json({ success: true, count: data?.length || 0, destinations: data || [] });
+      } catch (err) {
+        console.warn("Database error in get_destinations:", err);
+        return res.status(500).json({ success: false, error: "Failed to retrieve destinations.", destinations: [], count: 0 });
+      }
     }
     case "get_categories": {
-      if (serverSupabase) {
-        try {
-          const { data, error } = await serverSupabase.from("categories").select("id, name, slug, description, icon_name, sort_order").order("sort_order", { ascending: true }).limit(50);
-          if (!error && data) {
-            return res.json({ success: true, count: data.length, categories: data });
-          }
-        } catch (err) {
-          console.warn("Database error in get_categories:", err);
-        }
+      if (!serverSupabase) {
+        return res.status(503).json({
+          success: false,
+          error: "Database service is currently unconfigured or unavailable.",
+          categories: [],
+          count: 0
+        });
       }
-      return res.json({
-        success: true,
-        categories: [
-          { id: "cat-1", name: "Boat Trips & Islands", slug: "boat-trips" },
-          { id: "cat-2", name: "Snorkeling & Coral", slug: "snorkeling" },
-          { id: "cat-3", name: "Desert Safari", slug: "safari" }
-        ]
-      });
+      try {
+        const { data, error } = await serverSupabase.from("categories").select("id, name, slug, description, icon, sort_order").order("sort_order", { ascending: true }).limit(50);
+        if (error) {
+          console.error("Database error in get_categories:", error.message);
+          return res.status(500).json({ success: false, error: "Failed to retrieve categories.", categories: [], count: 0 });
+        }
+        return res.json({ success: true, count: data?.length || 0, categories: data || [] });
+      } catch (err) {
+        console.warn("Database error in get_categories:", err);
+        return res.status(500).json({ success: false, error: "Failed to retrieve categories.", categories: [], count: 0 });
+      }
     }
     case "get_my_bookings": {
       if (!req.user || !req.user.id) {
@@ -1819,8 +1970,9 @@ app.all("/api/db/query", rateLimit(60, 6e4), async (req, res) => {
             if (isStaff) {
               return res.json({ success: true, booking: b });
             }
-            const custEmail = (b.customers?.email || "").toLowerCase();
-            const custPhone = (b.customers?.phone || "").replace(/\s+/g, "");
+            const custRecord = Array.isArray(b.customers) ? b.customers[0] : b.customers;
+            const custEmail = (custRecord?.email || "").toLowerCase();
+            const custPhone = (custRecord?.phone || "").replace(/\s+/g, "");
             const cleanVer = verification.replace(/\s+/g, "");
             if (custEmail === verification || custPhone.length >= 6 && custPhone.includes(cleanVer)) {
               const maskedEmail = custEmail.replace(/^(.)(.*)(@.*)$/, (_, a, _b, c) => `${a}***${c}`);
@@ -1829,7 +1981,7 @@ app.all("/api/db/query", rateLimit(60, 6e4), async (req, res) => {
                 booking: {
                   ...b,
                   customers: {
-                    ...b.customers,
+                    ...custRecord,
                     email: maskedEmail,
                     phone: "*** Protected ***"
                   }
@@ -1938,8 +2090,8 @@ async function startServer() {
       }
     });
   }
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Awesome Adventure Tours server running on http://0.0.0.0:${PORT} [${process.env.NODE_ENV || "development"}]`);
+  const server = app.listen(PORT, () => {
+    console.log(`Awesome Adventure Tours server running on port/socket ${PORT} [${process.env.NODE_ENV || "development"}]`);
   });
   const shutdown = (signal) => {
     console.log(`Received ${signal}. Shutting down gracefully...`);
