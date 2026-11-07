@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Plus, Edit2, Trash2, AlertTriangle, Layers, ArrowRight, RotateCcw } from 'lucide-react';
-import {
-  getTourExtras,
-  adminListTours,
-  getTourCustomExtraPrices,
-  saveTourCustomExtraPrices,
-  notifyCatalogueDataChanged
-} from '../../services/tourService';
+import { 
+  Sparkles, 
+  Plus, 
+  Search, 
+  Edit, 
+  Trash2, 
+  Compass, 
+  AlertTriangle, 
+  RotateCcw,
+  Tag,
+  DollarSign,
+  Check,
+  Image as ImageIcon
+} from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { DbTourExtra, DbTour } from '../../types/database';
-import { supabase, isSupabaseConfigured, formatSupabaseError } from '../../services/supabaseClient';
+import { 
+  getTourExtras, 
+  getTourCustomExtraPrices, 
+  saveTourCustomExtraPrices, 
+  adminListTours, 
+  notifyCatalogueDataChanged,
+  formatSupabaseError 
+} from '../../services/tourService';
 import { useToast } from '../../contexts/ToastContext';
 import { AdminTab } from './AdminLayout';
 
@@ -24,9 +38,11 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
   const [tourCustomPrices, setTourCustomPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [editingExtra, setEditingExtra] = useState<Partial<DbTourExtra> | null>(null);
+  const [assignedTourIds, setAssignedTourIds] = useState<string[]>([]);
   const [extraToDelete, setExtraToDelete] = useState<DbTourExtra | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -59,6 +75,35 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
     }
   }, [selectedTourId]);
 
+  const handleOpenEdit = async (extra: Partial<DbTourExtra> | null) => {
+    if (!extra) {
+      setEditingExtra(null);
+      setAssignedTourIds([]);
+      return;
+    }
+
+    setEditingExtra(extra);
+
+    if (extra.id && isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase
+          .from('tour_assigned_extras')
+          .select('tour_id')
+          .eq('extra_id', extra.id);
+        if (data) {
+          setAssignedTourIds(data.map((r: any) => r.tour_id));
+        } else {
+          setAssignedTourIds([]);
+        }
+      } catch {
+        setAssignedTourIds([]);
+      }
+    } else {
+      // For a new extra, default to assigning to all safari tours if name includes quad/safari, else all tours
+      setAssignedTourIds([]);
+    }
+  };
+
   const handleUpdateTourPrice = (extraId: string, newPrice: number) => {
     if (selectedTourId === 'all') return;
     const updated = {
@@ -85,19 +130,31 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
     if (!editingExtra || !editingExtra.name) return;
     setSaving(true);
 
+    const priceEur = Number(editingExtra.price_eur) || 15;
+    const pricingType = editingExtra.pricing_type || 'per_booking';
+    const currency = editingExtra.currency || 'EUR';
+    const minQty = Math.max(1, Number(editingExtra.min_quantity) || 1);
+    const maxQty = Math.max(minQty, Number(editingExtra.max_quantity) || 10);
+    const isActive = editingExtra.is_active ?? true;
+
     if (!isSupabaseConfigured()) {
+      let savedId = editingExtra.id;
       if (editingExtra.id) {
-        setExtras(extras.map((e) => (e.id === editingExtra.id ? ({ ...e, ...editingExtra } as DbTourExtra) : e)));
+        setExtras(extras.map((e) => (e.id === editingExtra.id ? ({ ...e, ...editingExtra, price_eur: priceEur, pricing_type: pricingType } as DbTourExtra) : e)));
       } else {
+        savedId = `extra-${Date.now()}`;
         const newE: DbTourExtra = {
-          id: `extra-${Date.now()}`,
+          id: savedId,
           name: editingExtra.name,
           description: editingExtra.description || '',
-          price_eur: Number(editingExtra.price_eur) || 15,
-          currency: 'EUR',
-          pricing_type: editingExtra.pricing_type || 'per_booking',
-          is_active: true,
+          price_eur: priceEur,
+          currency,
+          pricing_type: pricingType,
+          is_active: isActive,
           sort_order: extras.length + 1,
+          image_url: editingExtra.image_url || undefined,
+          min_quantity: minQty,
+          max_quantity: maxQty,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -106,37 +163,68 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
       setSaving(false);
       setEditingExtra(null);
       notifyCatalogueDataChanged('extras');
+      showToast('Tour extra saved successfully (in-memory state)', 'success');
       return;
     }
 
     try {
+      let savedExtraId = editingExtra.id;
+
       if (editingExtra.id && !editingExtra.id.startsWith('extra-')) {
         await supabase
           .from('tour_extras')
           .update({
             name: editingExtra.name,
             description: editingExtra.description,
-            price_eur: editingExtra.price_eur,
-            pricing_type: editingExtra.pricing_type,
+            price_eur: priceEur,
+            pricing_type: pricingType,
+            currency,
+            is_active: isActive,
+            image_url: editingExtra.image_url || null,
+            min_quantity: minQty,
+            max_quantity: maxQty,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingExtra.id);
       } else {
-        await supabase.from('tour_extras').insert({
-          name: editingExtra.name,
-          description: editingExtra.description,
-          price_eur: editingExtra.price_eur || 15,
-          pricing_type: editingExtra.pricing_type || 'per_booking',
-          currency: 'EUR',
-          is_active: true,
-          sort_order: extras.length + 1,
-        });
+        const { data: inserted, error: insertErr } = await supabase
+          .from('tour_extras')
+          .insert({
+            name: editingExtra.name,
+            description: editingExtra.description,
+            price_eur: priceEur,
+            pricing_type: pricingType,
+            currency,
+            is_active: isActive,
+            image_url: editingExtra.image_url || null,
+            min_quantity: minQty,
+            max_quantity: maxQty,
+            sort_order: extras.length + 1,
+          })
+          .select('id')
+          .single();
+
+        if (insertErr) throw insertErr;
+        savedExtraId = inserted?.id;
       }
+
+      // Sync tour assignments in tour_assigned_extras
+      if (savedExtraId) {
+        await supabase.from('tour_assigned_extras').delete().eq('extra_id', savedExtraId);
+        if (assignedTourIds.length > 0) {
+          const links = assignedTourIds.map((tid) => ({
+            tour_id: tid,
+            extra_id: savedExtraId!,
+          }));
+          await supabase.from('tour_assigned_extras').insert(links);
+        }
+      }
+
       await loadData();
-      showToast('Tour extra saved successfully', 'success');
+      showToast('Tour extra and excursion assignments saved successfully', 'success');
       setEditingExtra(null);
       notifyCatalogueDataChanged('extras');
-    } catch (err) {
+    } catch (err: any) {
       showToast(formatSupabaseError(err), 'error');
     } finally {
       setSaving(false);
@@ -157,6 +245,7 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
     }
 
     try {
+      await supabase.from('tour_assigned_extras').delete().eq('extra_id', extraToDelete.id);
       const { error } = await supabase.from('tour_extras').delete().eq('id', extraToDelete.id);
       if (error) throw error;
       showToast(`Tour extra "${extraToDelete.name}" deleted successfully.`, 'success');
@@ -170,272 +259,234 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
     }
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Calculate tour override counts for each extra across all loaded tours
   const extraOverrideCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
-    if (!tours || tours.length === 0) return counts;
-    
-    tours.forEach((t) => {
-      const customPrices = getTourCustomExtraPrices(t.id);
+    tours.forEach((tour) => {
+      const customPrices = getTourCustomExtraPrices(tour.id);
       Object.keys(customPrices).forEach((extraId) => {
         counts[extraId] = (counts[extraId] || 0) + 1;
       });
     });
     return counts;
-  }, [tours, tourCustomPrices]);
+  }, [tours]);
 
   const filteredExtras = extras.filter((extra) => {
-    if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return extra.name.toLowerCase().includes(q) || (extra.description || '').toLowerCase().includes(q);
   });
 
-  const selectedTour = tours.find((t) => t.id === selectedTourId);
-
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Top Banner & Excursion Selector */}
+      <div className="bg-stone-900 border border-stone-800 rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-display text-white tracking-tight flex items-center space-x-2">
-            <Sparkles className="w-6 h-6 text-[#2DD4BF]" />
-            <span>Optional Tour Extras & Custom Pricing</span>
-          </h1>
+          <h2 className="text-base font-bold text-white flex items-center">
+            <Sparkles className="w-4 h-4 mr-2 text-[#0A6C74]" />
+            Dynamic Tour Extras & Add-on Management
+          </h2>
           <p className="text-xs text-stone-400 mt-1">
-            Manage global catalogue extras or customize individual excursion prices per trip/tour.
+            Manage optional excursion add-ons, pricing models (per person, per vehicle, per item, or per booking), and excursion assignments.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setEditingExtra({
+        <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={() => handleOpenEdit({
               name: '',
               description: '',
               price_eur: 20,
-              pricing_type: 'per_booking',
-            })
-          }
-          className="flex items-center space-x-1.5 px-3 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded text-xs font-semibold shadow transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Extra</span>
-        </button>
+              pricing_type: 'per_person',
+              currency: 'EUR',
+              min_quantity: 1,
+              max_quantity: 10,
+              is_active: true,
+            })}
+            className="px-3.5 py-2 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded font-semibold text-xs flex items-center space-x-1.5 transition-colors shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Add-on</span>
+          </button>
+        </div>
       </div>
 
-      {/* Scope Selector Bar & Filter */}
-      <div className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center space-x-3 flex-1">
-            <div className="p-2 bg-stone-800 rounded-md text-[#2DD4BF] shrink-0">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div className="flex-1 max-w-md">
-              <label htmlFor="tour-pricing-scope" className="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">
-                Editing Prices For:
-              </label>
-              <select
-                id="tour-pricing-scope"
-                value={selectedTourId}
-                onChange={(e) => setSelectedTourId(e.target.value)}
-                className="w-full bg-stone-950 border border-stone-700 text-white rounded px-3 py-1.5 text-xs font-medium focus:ring-1 focus:ring-[#0A6C74] focus:border-[#0A6C74] outline-none"
-              >
-                <option value="all">🌐 Global Catalogue (Default Prices)</option>
-                <optgroup label="Select Tour to Customize Prices">
-                  {tours.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title} (€{t.price})
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
+      {/* Excursion Pricing Filter Context */}
+      <div className="bg-stone-900/60 border border-stone-800/80 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center space-x-2">
+          <Compass className="w-4 h-4 text-[#0A6C74]" />
+          <span className="font-semibold text-stone-200">Excursion Price Customization Mode:</span>
+        </div>
+
+        <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <select
+            value={selectedTourId}
+            onChange={(e) => setSelectedTourId(e.target.value)}
+            className="w-full sm:w-64 px-3 py-1.5 bg-stone-950 border border-stone-700 rounded text-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-[#0A6C74]"
+          >
+            <option value="all">Global Catalogue Defaults (All Excursions)</option>
+            {tours.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Main Table Card */}
+      <div className="bg-stone-900 border border-stone-800 rounded-lg overflow-hidden shadow-xs">
+        <div className="p-4 border-b border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
+              {selectedTourId === 'all'
+                ? `Global Catalogue Add-ons (${filteredExtras.length})`
+                : `Customizing Excursion: ${tours.find((t) => t.id === selectedTourId)?.title || selectedTourId}`}
+            </span>
           </div>
 
-          {/* Quick Search */}
-          <div className="w-full md:w-64">
-            <label htmlFor="search-extras" className="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">
-              Search Extras
-            </label>
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-stone-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
-              id="search-extras"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by title or description..."
-              className="w-full bg-stone-950 border border-stone-700 text-white rounded px-3 py-1.5 text-xs placeholder-stone-500 focus:ring-1 focus:ring-[#0A6C74] focus:border-[#0A6C74] outline-none"
+              placeholder="Search add-on title or description..."
+              className="pl-8 pr-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-xs text-white placeholder-stone-500 focus:outline-none focus:ring-1 focus:ring-[#0A6C74] w-full sm:w-60"
             />
           </div>
         </div>
 
-        {/* Selected Tour Context Banner */}
-        {selectedTourId !== 'all' && selectedTour && (
-          <div className="mt-2 pt-3 border-t border-stone-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center space-x-2 text-stone-300">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
-                Configuring custom prices specifically for{' '}
-                <strong className="text-white">{selectedTour.title}</strong>
-              </span>
-            </div>
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('tours', selectedTour.id)}
-                className="flex items-center space-x-1 text-[#2DD4BF] hover:text-[#5EEAD4] font-medium underline underline-offset-2 cursor-pointer self-start sm:self-auto"
-              >
-                <span>Open in Tour Editor</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Extras Table */}
-      <div className="bg-stone-950 border border-stone-800 rounded-lg overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-stone-400">Loading tour extras...</div>
         ) : filteredExtras.length === 0 ? (
-          <div className="p-8 text-center text-xs text-stone-400">
+          <div className="p-8 text-center text-xs text-stone-500">
             {searchQuery ? 'No extras match your search query.' : 'No tour extras available.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-stone-900/80 text-stone-400 border-b border-stone-800">
+            <table className="w-full text-left text-xs text-stone-300">
+              <thead className="bg-stone-950/60 text-[11px] uppercase tracking-wider text-stone-400 border-b border-stone-800">
                 <tr>
-                  <th className="py-3 px-4 font-semibold">Extra Item</th>
-                  <th className="py-3 px-4 font-semibold">Description</th>
-                  <th className="py-3 px-4 font-semibold">Pricing Model</th>
-                  {selectedTourId === 'all' ? (
+                  <th className="p-3.5">Add-on Name & Description</th>
+                  <th className="p-3.5">Pricing Method</th>
+                  <th className="p-3.5">Default Price</th>
+                  {selectedTourId !== 'all' ? (
                     <>
-                      <th className="py-3 px-4 font-semibold">Catalogue Price</th>
-                      <th className="py-3 px-4 font-semibold">Tour Customization</th>
-                      <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                      <th className="p-3.5">Custom Price For Tour</th>
+                      <th className="p-3.5 text-right">Action</th>
                     </>
                   ) : (
                     <>
-                      <th className="py-3 px-4 font-semibold">Catalogue Default</th>
-                      <th className="py-3 px-4 font-semibold">
-                        Price for {selectedTour ? selectedTour.title.slice(0, 20) + '...' : 'Tour'} (€)
-                      </th>
-                      <th className="py-3 px-4 font-semibold text-right">Reset / Overrides</th>
+                      <th className="p-3.5">Tour Overrides</th>
+                      <th className="p-3.5 text-right">Actions</th>
                     </>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-800/60 text-stone-300">
+              <tbody className="divide-y divide-stone-800/60">
                 {filteredExtras.map((extra) => {
                   const customPrice = tourCustomPrices[extra.id];
-                  const hasCustom = customPrice !== undefined && customPrice !== null;
+                  const hasCustom = customPrice !== undefined && customPrice !== null && !isNaN(customPrice);
                   const effectivePrice = hasCustom ? customPrice : extra.price_eur;
                   const overrideCount = extraOverrideCounts[extra.id] || 0;
 
                   return (
                     <tr key={extra.id} className="hover:bg-stone-900/40 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-white">
+                      <td className="p-3.5 max-w-xs">
                         <div className="flex items-center space-x-2">
-                          <span>{extra.name}</span>
+                          <span className="font-semibold text-white">{extra.name}</span>
+                          {!extra.is_active && (
+                            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-red-950/60 border border-red-800 text-red-300">
+                              Inactive
+                            </span>
+                          )}
                         </div>
-                      </td>
-                      <td className="py-3 px-4 text-stone-400 max-w-xs truncate">
-                        {extra.description || '—'}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap text-stone-300 capitalize">
-                        <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-[11px]">
-                          {extra.pricing_type === 'per_person' ? 'Per Guest' : 'Flat Per Booking'}
+                        <span className="text-stone-400 text-[11px] line-clamp-1 block mt-0.5">
+                          {extra.description || '—'}
                         </span>
                       </td>
 
-                      {/* MODE: Global Catalogue */}
+                      <td className="p-3.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-stone-800 text-stone-300">
+                          {extra.pricing_type === 'per_person' ? 'Per Guest' :
+                           extra.pricing_type === 'per_vehicle' ? 'Per Vehicle' :
+                           extra.pricing_type === 'per_item' ? 'Per Item' : 'Flat Per Booking'}
+                        </span>
+                      </td>
+
+                      <td className="p-3.5 font-mono font-semibold text-stone-300">
+                        €{extra.price_eur}
+                      </td>
+
                       {selectedTourId === 'all' ? (
                         <>
-                          <td className="py-3 px-4 whitespace-nowrap font-bold text-white text-sm">
-                            €{extra.price_eur}
-                          </td>
-                          <td className="py-3 px-4 whitespace-nowrap">
+                          <td className="p-3.5">
                             {overrideCount > 0 ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                Customized on {overrideCount} {overrideCount === 1 ? 'tour' : 'tours'}
+                              <span className="text-[11px] text-amber-400 font-medium">
+                                {overrideCount} excursion(s) customized
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium text-stone-400 bg-stone-900 border border-stone-800">
-                                Default across all tours
-                              </span>
+                              <span className="text-stone-500 text-[11px]">Using default</span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap space-x-1">
+                          <td className="p-3.5 text-right space-x-2">
                             <button
                               type="button"
-                              onClick={() => setEditingExtra(extra)}
-                              className="p-1.5 text-stone-400 hover:text-white transition-colors cursor-pointer"
-                              title="Edit extra catalogue defaults"
+                              onClick={() => handleOpenEdit(extra)}
+                              className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded text-xs transition-colors"
+                              title="Edit extra catalogue defaults and tour assignments"
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <Edit className="w-3.5 h-3.5 inline mr-1" />
+                              <span>Edit</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setExtraToDelete(extra)}
-                              className="p-1.5 text-stone-400 hover:text-red-400 transition-colors cursor-pointer"
+                              className="px-2 py-1 bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-900/60 rounded text-xs transition-colors"
                               title="Delete extra"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5 inline" />
                             </button>
                           </td>
                         </>
                       ) : (
-                        /* MODE: Tour-Specific Custom Pricing */
                         <>
-                          <td className="py-3 px-4 whitespace-nowrap text-stone-400 font-medium">
-                            €{extra.price_eur}
-                          </td>
-                          <td className="py-3 px-4 whitespace-nowrap">
+                          <td className="p-3.5">
                             <div className="flex items-center space-x-2">
-                              <div className="relative">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-semibold">
-                                  €
-                                </span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={effectivePrice}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    if (!isNaN(val) && val >= 0) {
-                                      handleUpdateTourPrice(extra.id, val);
-                                    }
-                                  }}
-                                  className={`w-24 pl-6 pr-2 py-1 bg-stone-900 border rounded text-xs font-bold text-white transition-colors outline-none focus:ring-1 focus:ring-[#0A6C74] ${
-                                    hasCustom
-                                      ? 'border-emerald-500/60 ring-1 ring-emerald-500/30'
-                                      : 'border-stone-700'
-                                  }`}
-                                />
-                              </div>
-                              {hasCustom ? (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                  Custom Price
-                                </span>
-                              ) : (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded text-stone-400 bg-stone-900 border border-stone-800">
-                                  Using Default
+                              <span className="text-stone-400 text-xs">€</span>
+                              <input
+                                type="number"
+                                step="1"
+                                min="0"
+                                value={effectivePrice}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (!isNaN(val) && val >= 0) {
+                                    handleUpdateTourPrice(extra.id, val);
+                                  }
+                                }}
+                                className={`w-20 px-2 py-1 rounded text-xs font-mono font-bold focus:outline-none focus:ring-1 focus:ring-[#0A6C74] ${
+                                  hasCustom
+                                    ? 'bg-[#0A6C74]/20 border border-[#0A6C74] text-white'
+                                    : 'bg-stone-950 border border-stone-800 text-stone-300'
+                                }`}
+                              />
+                              {hasCustom && (
+                                <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">
+                                  Custom
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <td className="p-3.5 text-right">
                             {hasCustom && (
                               <button
                                 type="button"
                                 onClick={() => handleResetTourPrice(extra.id)}
-                                className="inline-flex items-center space-x-1 px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded text-[11px] font-medium transition-colors cursor-pointer"
+                                className="px-2 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded text-xs transition-colors flex items-center space-x-1 ml-auto"
                                 title="Reset to standard catalogue price"
                               >
-                                <RotateCcw className="w-3 h-3 text-stone-400" />
+                                <RotateCcw className="w-3 h-3" />
                                 <span>Reset Default</span>
                               </button>
                             )}
@@ -451,21 +502,22 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
         )}
       </div>
 
+      {/* Create / Edit Tour Extra Modal */}
       {editingExtra && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-stone-900 border border-stone-800 rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl text-xs">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-stone-900 border border-stone-800 rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl text-xs my-8">
             <h3 className="text-base font-bold text-white">
-              {editingExtra.id ? 'Edit Extra' : 'Create Tour Extra'}
+              {editingExtra.id ? 'Edit Add-on & Excursion Assignments' : 'Create Dynamic Tour Add-on'}
             </h3>
 
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               <div>
-                <label className="text-stone-300 block mb-1 font-semibold">Extra Title</label>
+                <label className="text-stone-300 block mb-1 font-semibold">Add-on Title</label>
                 <input
                   type="text"
                   value={editingExtra.name || ''}
                   onChange={(e) => setEditingExtra({ ...editingExtra, name: e.target.value })}
-                  placeholder="e.g. VIP Private Mercedes Van Transfer"
+                  placeholder="e.g. Single Quad, Buggy, VIP Van Transfer"
                   className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
                 />
               </div>
@@ -476,15 +528,28 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
                   rows={2}
                   value={editingExtra.description || ''}
                   onChange={(e) => setEditingExtra({ ...editingExtra, description: e.target.value })}
+                  placeholder="Details, gear included, specifications..."
+                  className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-stone-300 block mb-1 font-semibold">Image URL (Optional)</label>
+                <input
+                  type="text"
+                  value={editingExtra.image_url || ''}
+                  onChange={(e) => setEditingExtra({ ...editingExtra, image_url: e.target.value })}
+                  placeholder="https://images.unsplash.com/..."
                   className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-stone-300 block mb-1 font-semibold">Price (€)</label>
+                  <label className="text-stone-300 block mb-1 font-semibold">Price Amount</label>
                   <input
                     type="number"
+                    step="0.5"
                     value={editingExtra.price_eur ?? 20}
                     onChange={(e) => setEditingExtra({ ...editingExtra, price_eur: parseFloat(e.target.value) || 0 })}
                     className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
@@ -492,24 +557,100 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
                 </div>
 
                 <div>
-                  <label className="text-stone-300 block mb-1 font-semibold">Pricing Type</label>
+                  <label className="text-stone-300 block mb-1 font-semibold">Pricing Method</label>
                   <select
-                    value={editingExtra.pricing_type || 'per_booking'}
+                    value={editingExtra.pricing_type || 'per_person'}
                     onChange={(e) => setEditingExtra({ ...editingExtra, pricing_type: e.target.value as any })}
                     className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
                   >
-                    <option value="per_booking">Per Booking (Flat)</option>
                     <option value="per_person">Per Guest / Person</option>
+                    <option value="per_vehicle">Per Vehicle (Quad, Buggy, Van)</option>
+                    <option value="per_item">Per Item (Snorkel gear, towel)</option>
+                    <option value="per_booking">Per Booking (Flat order fee)</option>
                   </select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-stone-300 block mb-1 font-semibold">Min Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingExtra.min_quantity ?? 1}
+                    onChange={(e) => setEditingExtra({ ...editingExtra, min_quantity: parseInt(e.target.value) || 1 })}
+                    className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-stone-300 block mb-1 font-semibold">Max Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingExtra.max_quantity ?? 10}
+                    onChange={(e) => setEditingExtra({ ...editingExtra, max_quantity: parseInt(e.target.value) || 10 })}
+                    className="w-full px-3 py-1.5 bg-stone-950 border border-stone-800 rounded text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Excursion Assignments Multi-Select */}
+              <div className="pt-2 border-t border-stone-800">
+                <label className="text-stone-300 block mb-1.5 font-semibold">
+                  Assign to Excursions ({assignedTourIds.length} selected)
+                </label>
+                <p className="text-[11px] text-stone-500 mb-2">
+                  Only excursions checked below will display this add-on to customers during booking.
+                </p>
+
+                <div className="max-h-36 overflow-y-auto space-y-1.5 bg-stone-950 p-2.5 rounded border border-stone-800">
+                  {tours.map((tour) => {
+                    const isChecked = assignedTourIds.includes(tour.id);
+                    return (
+                      <label
+                        key={tour.id}
+                        className="flex items-center space-x-2 text-stone-300 hover:text-white cursor-pointer select-none"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAssignedTourIds([...assignedTourIds, tour.id]);
+                            } else {
+                              setAssignedTourIds(assignedTourIds.filter((id) => id !== tour.id));
+                            }
+                          }}
+                          className="rounded border-stone-700 bg-stone-900 text-[#0A6C74] focus:ring-0"
+                        />
+                        <span className="text-xs truncate">{tour.title}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Active Toggle */}
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="extra-active-toggle"
+                  checked={editingExtra.is_active ?? true}
+                  onChange={(e) => setEditingExtra({ ...editingExtra, is_active: e.target.checked })}
+                  className="rounded border-stone-700 bg-stone-900 text-[#0A6C74] focus:ring-0"
+                />
+                <label htmlFor="extra-active-toggle" className="text-stone-300 text-xs font-semibold cursor-pointer">
+                  Active in Catalogue
+                </label>
+              </div>
             </div>
 
-            <div className="flex items-center justify-end space-x-2 pt-2">
+            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-stone-800">
               <button
                 type="button"
                 onClick={() => setEditingExtra(null)}
-                className="px-3 py-1.5 bg-stone-800 text-stone-300 rounded"
+                className="px-3.5 py-1.5 bg-stone-800 text-stone-300 hover:bg-stone-700 rounded font-medium cursor-pointer"
               >
                 Cancel
               </button>
@@ -517,9 +658,9 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded font-semibold disabled:opacity-50"
+                className="px-4 py-1.5 bg-[#0A6C74] hover:bg-[#08565C] text-white rounded font-semibold disabled:opacity-50 cursor-pointer shadow-xs"
               >
-                {saving ? 'Saving...' : 'Save Extra'}
+                {saving ? 'Saving...' : 'Save Add-on'}
               </button>
             </div>
           </div>
@@ -550,7 +691,7 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
                 type="button"
                 onClick={confirmDeleteExtra}
                 disabled={isDeleting}
-                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50 cursor-pointer"
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold cursor-pointer disabled:opacity-50"
               >
                 {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>

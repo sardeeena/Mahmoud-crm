@@ -86,19 +86,26 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
   // Dynamic database-backed pickup locations & extras
   const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>(STANDARD_PICKUP_LOCATIONS);
-  const [availableExtras, setAvailableExtras] = useState<BookingExtra[]>(GLOBAL_BOOKING_EXTRAS);
+  const [availableExtras, setAvailableExtras] = useState<BookingExtra[]>([]);
+  const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let isMounted = true;
     async function loadEntities() {
+      if (!currentTour) return;
       try {
         const [locs, exts] = await Promise.all([
-          getPublishedPickupLocations(),
-          getPublishedTourExtras(currentTour?.slug || currentTour?.id),
+          getPublishedPickupLocations(currentTour.destination || currentTour.id),
+          getPublishedTourExtras(currentTour.id || currentTour.slug),
         ]);
         if (isMounted) {
-          if (locs.length > 0) setPickupLocations(locs);
-          if (exts.length > 0) setAvailableExtras(exts);
+          setPickupLocations(locs);
+          if (locs.length > 0 && !locs.some((l) => l.id === pickupLocationId)) {
+            setPickupLocationId(locs[0].id);
+          }
+          setAvailableExtras(exts);
+          // Deselect any extras not assigned to this tour
+          setSelectedExtraIds((prev) => prev.filter((id) => exts.some((e) => e.id === id)));
         }
       } catch (err) {
         console.warn('Could not load dynamic booking locations/extras:', err);
@@ -118,7 +125,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       isMounted = false;
       window.removeEventListener('rse_data_updated', handleUpdate);
     };
-  }, [currentTour?.slug, currentTour?.id]);
+  }, [currentTour?.slug, currentTour?.id, currentTour?.destination]);
 
   // Synchronize draft to sessionStorage
   useEffect(() => {
@@ -129,10 +136,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       date,
       guests,
       pickupLocationId,
-      hotelName,
-      roomNumber,
+      hotelName: hotelName || customer.hotelName || '',
+      roomNumber: roomNumber || customer.roomNumber || '',
       selectedExtraIds,
-      customer,
+      customer: {
+        ...customer,
+        hotelName: customer.hotelName || hotelName || '',
+        roomNumber: customer.roomNumber || roomNumber || '',
+      },
       paymentMethod,
       termsAccepted,
     };
@@ -176,15 +187,40 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       tour: currentTour,
       guests,
       pickupLocation: selectedPickup,
-      selectedExtras: selectedExtras.map((e) => ({ extra: e, quantity: 1 })),
+      selectedExtras: selectedExtras.map((e) => ({
+        extra: e,
+        quantity: extraQuantities[e.id] || 1,
+      })),
       currency,
     });
-  }, [currentTour, tours, guests, selectedPickup, selectedExtras, currency]);
+  }, [currentTour, tours, guests, selectedPickup, selectedExtras, extraQuantities, currency]);
 
   const handleToggleExtra = (extraId: string) => {
     setSelectedExtraIds((prev) =>
       prev.includes(extraId) ? prev.filter((id) => id !== extraId) : [...prev, extraId]
     );
+  };
+
+  const handleUpdateQuantity = (extraId: string, quantity: number) => {
+    setExtraQuantities((prev) => ({
+      ...prev,
+      [extraId]: quantity,
+    }));
+  };
+
+  const handleHotelNameChange = (name: string) => {
+    setHotelName(name);
+    setCustomer((prev) => ({ ...prev, hotelName: name }));
+  };
+
+  const handleCustomerChange = (newCustomer: CustomerInfo) => {
+    setCustomer(newCustomer);
+    if (newCustomer.hotelName && newCustomer.hotelName !== hotelName) {
+      setHotelName(newCustomer.hotelName);
+    }
+    if (newCustomer.roomNumber && newCustomer.roomNumber !== roomNumber) {
+      setRoomNumber(newCustomer.roomNumber);
+    }
   };
 
   const handleConfirmBooking = async () => {
@@ -193,6 +229,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
     try {
       const ref = generateBookingReference();
+      const payingGuests = (guests.adults || 1) + (guests.children || 0);
+      const effectiveHotel = customer.hotelName || hotelName || '';
+      const effectiveRoom = customer.roomNumber || roomNumber || '';
 
       const newBooking: Booking = {
         bookingId: `b-${Date.now()}`,
@@ -210,18 +249,28 @@ export const BookingPage: React.FC<BookingPageProps> = ({
           locationName: selectedPickup.name,
           area: selectedPickup.area,
           feeEur: selectedPickup.feeEurPerPerson,
-          hotelName,
-          roomNumber,
+          hotelName: effectiveHotel,
+          roomNumber: effectiveRoom,
         },
-        extras: selectedExtras.map((e) => ({
-          extraId: e.id,
-          name: e.name,
-          priceEur: e.priceEur,
-          pricingType: e.pricingType,
-          quantity: 1,
-          amountEur: e.priceEur,
-        })),
-        customer,
+        extras: selectedExtras.map((e) => {
+          const qty = extraQuantities[e.id] || 1;
+          const amountEur = e.pricingType === 'per_person'
+            ? e.priceEur * payingGuests * qty
+            : e.priceEur * qty;
+          return {
+            extraId: e.id,
+            name: e.name,
+            priceEur: e.priceEur,
+            pricingType: e.pricingType,
+            quantity: qty,
+            amountEur,
+          };
+        }),
+        customer: {
+          ...customer,
+          hotelName: effectiveHotel,
+          roomNumber: effectiveRoom,
+        },
         pricing,
         paymentMethod,
         paymentStatus: 'pending',
@@ -235,9 +284,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       notificationService.sendBookingConfirmation(newBooking);
       showToast('Reservation submitted successfully!', 'success');
       onBookingSuccess(newBooking);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save booking:', err);
-      showToast('An error occurred while confirming your reservation. Please try again.', 'error');
+      showToast(err.message || 'An error occurred while confirming your reservation. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -352,7 +401,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                     selectedPickupId={pickupLocationId}
                     onSelectPickup={(loc) => setPickupLocationId(loc.id)}
                     hotelName={hotelName}
-                    onHotelNameChange={setHotelName}
+                    onHotelNameChange={handleHotelNameChange}
                     currency={currency}
                     locations={pickupLocations}
                     onNext={() => setCurrentStep(3)}
@@ -367,6 +416,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                     onToggleExtra={handleToggleExtra}
                     currency={currency}
                     extras={availableExtras}
+                    extraQuantities={extraQuantities}
+                    onUpdateQuantity={handleUpdateQuantity}
                     onNext={() => setCurrentStep(4)}
                     onBack={() => setCurrentStep(2)}
                   />
@@ -376,7 +427,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                 {currentStep === 4 && (
                   <StepCustomerInfo
                     customer={customer}
-                    onCustomerChange={setCustomer}
+                    onCustomerChange={handleCustomerChange}
                     onNext={() => setCurrentStep(5)}
                     onBack={() => setCurrentStep(3)}
                     onNavigateLogin={() => onNavigate('login')}

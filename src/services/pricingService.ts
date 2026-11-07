@@ -94,7 +94,7 @@ export function calculateBookingPrice({
     pickupSubtotalEur = perPersonPortion + flatPortion;
   }
 
-  // 5. Extras Calculation (Handles per_person and per_booking)
+  // 5. Extras Calculation (Handles per_person, per_vehicle, per_item, and per_booking)
   let extrasSubtotalEur = 0;
   const extrasBreakdown: BookingPricing['extrasBreakdown'] = [];
 
@@ -105,8 +105,11 @@ export function calculateBookingPrice({
     if (extra.pricingType === 'per_person') {
       // Per person extra applies to paying passengers (adults + children)
       amountEur = extra.priceEur * payingPassengers * qty;
+    } else if (extra.pricingType === 'per_vehicle' || extra.pricingType === 'per_item') {
+      // Per vehicle or per item multiplies directly by vehicle/item quantity
+      amountEur = extra.priceEur * qty;
     } else {
-      // Per booking extra is a flat fee per order
+      // Flat per booking
       amountEur = extra.priceEur * qty;
     }
 
@@ -115,6 +118,8 @@ export function calculateBookingPrice({
       extraId: extra.id,
       name: extra.name,
       amountEur,
+      unitPriceEur: extra.priceEur,
+      totalPriceEur: amountEur,
       pricingType: extra.pricingType,
       quantity: qty,
     });

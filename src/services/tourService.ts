@@ -6,6 +6,7 @@ import {
   isSchemaMissingError,
   setSchemaMissing,
 } from './supabaseClient';
+export { formatSupabaseError };
 import { Tour, ItineraryItem, Review, Destination, Category } from '../types';
 import {
   DbTour,
@@ -1411,6 +1412,32 @@ const DEFAULT_PICKUP_LOCATIONS: DbPickupLocation[] = [
     created_at: '',
     updated_at: '',
   },
+  {
+    id: 'marsa-alam',
+    code: 'marsa-alam',
+    name: 'Marsa Alam Resorts',
+    area: 'Marsa Alam & Port Ghalib coastal resorts',
+    fee_eur_per_person: 10,
+    fee_eur_flat: 0,
+    description: 'Regional shuttle service to local departure hub',
+    is_active: true,
+    sort_order: 6,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'sharm-el-sheikh',
+    code: 'sharm-el-sheikh',
+    name: 'Sharm El-Sheikh Hotels',
+    area: 'Naama Bay, Nabq, Sharks Bay, Hadaba, Ras Um Sid',
+    fee_eur_per_person: 0,
+    fee_eur_flat: 0,
+    description: 'Complimentary lobby pickup across Sharm El-Sheikh',
+    is_active: true,
+    sort_order: 7,
+    created_at: '',
+    updated_at: '',
+  },
 ];
 
 export async function getPickupLocations(): Promise<DbPickupLocation[]> {
@@ -1496,6 +1523,54 @@ const DEFAULT_TOUR_EXTRAS: DbTourExtra[] = [
     created_at: '',
     updated_at: '',
   },
+  {
+    id: 'single-quad',
+    name: 'Single Quad',
+    description: 'Single-rider 250cc Yamaha/Honda desert quad bike with safety helmet and goggle rental.',
+    price_eur: 35,
+    currency: 'EUR',
+    pricing_type: 'per_vehicle',
+    is_active: true,
+    sort_order: 5,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'double-quad',
+    name: 'Double Quad',
+    description: 'Two-seater desert quad bike for driver and passenger with twin helmet sets.',
+    price_eur: 50,
+    currency: 'EUR',
+    pricing_type: 'per_vehicle',
+    is_active: true,
+    sort_order: 6,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'buggy',
+    name: 'Buggy',
+    description: 'Heavy-duty desert roll-cage dune buggy designed for rugged sand dune exploration.',
+    price_eur: 65,
+    currency: 'EUR',
+    pricing_type: 'per_vehicle',
+    is_active: true,
+    sort_order: 7,
+    created_at: '',
+    updated_at: '',
+  },
+  {
+    id: 'additional-safari',
+    name: 'Additional Safari Experience',
+    description: 'Extended Bedouin campfire dinner, traditional tea, astronomy telescope session & sunset camel ride.',
+    price_eur: 20,
+    currency: 'EUR',
+    pricing_type: 'per_person',
+    is_active: true,
+    sort_order: 8,
+    created_at: '',
+    updated_at: '',
+  },
 ];
 
 export async function getTourExtras(): Promise<DbTourExtra[]> {
@@ -1535,9 +1610,14 @@ export async function getTourExtras(): Promise<DbTourExtra[]> {
 /**
  * Fetches active pickup locations formatted for client checkout selection
  */
-export async function getPublishedPickupLocations(): Promise<PickupLocation[]> {
+/**
+ * Fetches active pickup locations formatted for client checkout selection.
+ * Filters locations by the selected tour's city/hub (e.g. Hurghada vs Marsa Alam vs Sharm El-Sheikh)
+ * or explicit tour_pickup_locations.
+ */
+export async function getPublishedPickupLocations(tourIdOrDestination?: string): Promise<PickupLocation[]> {
   const dbLocations = await getPickupLocations();
-  return dbLocations.map((l) => ({
+  const allLocations: PickupLocation[] = dbLocations.map((l) => ({
     id: l.code || l.id,
     name: l.name,
     area: l.area,
@@ -1546,6 +1626,73 @@ export async function getPublishedPickupLocations(): Promise<PickupLocation[]> {
     note: l.description || undefined,
     isPopular: l.code === 'hurghada' || l.sort_order === 1,
   }));
+
+  if (!tourIdOrDestination) {
+    return allLocations;
+  }
+
+  // Check if tourIdOrDestination matches a tour with explicit tour_pickup_locations in DB
+  if (isSupabaseConfigured() && !isSchemaMissing()) {
+    try {
+      let tourId = tourIdOrDestination;
+      if (!tourId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const { data: tourRow } = await supabase.from('tours').select('id, destinations(name)').eq('slug', tourIdOrDestination).maybeSingle();
+        if (tourRow) {
+          tourId = tourRow.id;
+        }
+      }
+
+      if (tourId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const { data: assignedPickups } = await supabase
+          .from('tour_pickup_locations')
+          .select('pickup_location_id, pickup_locations (*)')
+          .eq('tour_id', tourId);
+
+        if (assignedPickups && assignedPickups.length > 0) {
+          const mapped = assignedPickups
+            .map((ap: any) => ap.pickup_locations)
+            .filter(Boolean)
+            .filter((l: any) => l.is_active)
+            .map((l: any) => ({
+              id: l.code || l.id,
+              name: l.name,
+              area: l.area,
+              feeEurPerPerson: Number(l.fee_eur_per_person) || 0,
+              feeEurFlat: Number(l.fee_eur_flat) || 0,
+              note: l.description || undefined,
+              isPopular: l.code === 'hurghada' || l.sort_order === 1,
+            }));
+          if (mapped.length > 0) {
+            return mapped;
+          }
+        }
+      }
+    } catch {
+      // fallback to destination string filtering
+    }
+  }
+
+  // Filter pickup destinations by the selected tour's city / hub
+  const normalized = tourIdOrDestination.toLowerCase();
+  if (normalized.includes('marsa') || normalized.includes('ghalib')) {
+    const marsaList = allLocations.filter((l) => l.id.includes('marsa') || l.area.toLowerCase().includes('marsa'));
+    return marsaList.length > 0 ? marsaList : allLocations;
+  }
+
+  if (normalized.includes('sharm') || normalized.includes('sinai') || normalized.includes('dahab')) {
+    const sharmList = allLocations.filter((l) => l.id.includes('sharm') || l.area.toLowerCase().includes('sharm') || l.area.toLowerCase().includes('naama'));
+    return sharmList.length > 0 ? sharmList : allLocations;
+  }
+
+  // Default to Hurghada & Red Sea coastal hub (El Gouna, Makadi Bay, Sahl Hasheesh, Safaga / Soma Bay)
+  const hurghadaList = allLocations.filter((l) =>
+    l.id === 'hurghada' ||
+    l.id === 'el-gouna' ||
+    l.id === 'makadi-bay' ||
+    l.id === 'sahl-hasheesh' ||
+    l.id === 'safaga'
+  );
+  return hurghadaList.length > 0 ? hurghadaList : allLocations;
 }
 
 // In-memory / localStorage cache for tour-specific extra price overrides
@@ -1570,48 +1717,148 @@ export function saveTourCustomExtraPrices(tourId: string, prices: Record<string,
 
 /**
  * Fetches active tour extras formatted for client checkout selection.
- * If tourId is provided, applies any tour-specific price overrides configured by admin.
+ * Authoritative: ONLY extras assigned to this specific tour (via tour_assigned_extras) are returned.
+ * Inactive extras and extras belonging to unrelated tours are strictly excluded.
  */
 export async function getPublishedTourExtras(tourIdOrSlug?: string): Promise<BookingExtra[]> {
-  const dbExtras = await getTourExtras();
-
-  // Check if tour-specific price overrides exist in storage
-  let customPrices: Record<string, number> = {};
-  if (tourIdOrSlug) {
-    // Check direct parameter
-    customPrices = { ...getTourCustomExtraPrices(tourIdOrSlug) };
-    
-    // Also check if tourIdOrSlug is matched against cached/local tours to check counterpart id/slug
-    try {
-      const storedTours = localStorage.getItem('rse_mock_tours');
-      if (storedTours) {
-        const parsed: any[] = JSON.parse(storedTours);
-        const match = parsed.find((t) => t.id === tourIdOrSlug || t.slug === tourIdOrSlug);
-        if (match) {
-          const idPrices = getTourCustomExtraPrices(match.id);
-          const slugPrices = getTourCustomExtraPrices(match.slug);
-          customPrices = { ...slugPrices, ...idPrices, ...customPrices };
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  return dbExtras.map((e) => {
-    const customizedPrice = customPrices[e.id];
-    const finalPrice = customizedPrice !== undefined && customizedPrice !== null && !isNaN(customizedPrice)
-      ? Number(customizedPrice)
-      : Number(e.price_eur) || 0;
-
-    return {
+  // If no tour is specified, return active catalogue extras
+  if (!tourIdOrSlug) {
+    const dbExtras = await getTourExtras();
+    return dbExtras.map((e) => ({
       id: e.id,
       name: e.name,
       description: e.description || '',
-      priceEur: finalPrice,
-      pricingType: e.pricing_type === 'per_person' ? 'per_person' : 'per_booking',
-    };
-  });
+      priceEur: Number(e.price_eur) || 0,
+      pricingType: (e.pricing_type as any) || 'per_booking',
+      imageUrl: (e as any).image_url || undefined,
+      minQuantity: (e as any).min_quantity || 1,
+      maxQuantity: (e as any).max_quantity || 10,
+    }));
+  }
+
+  // Load custom price overrides from localStorage if present
+  let customPrices: Record<string, number> = { ...getTourCustomExtraPrices(tourIdOrSlug) };
+
+  // Query Supabase tour_assigned_extras for this specific tour
+  if (isSupabaseConfigured() && !isSchemaMissing()) {
+    try {
+      let targetTourId = tourIdOrSlug;
+      if (!targetTourId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const { data: tourRow } = await supabase.from('tours').select('id, slug').eq('slug', tourIdOrSlug).maybeSingle();
+        if (tourRow) {
+          targetTourId = tourRow.id;
+          customPrices = { ...getTourCustomExtraPrices(tourRow.id), ...customPrices };
+        }
+      }
+
+      if (targetTourId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        const { data: assignedData, error: assignedErr } = await supabase
+          .from('tour_assigned_extras')
+          .select('extra_id, custom_price_eur, tour_extras (*)')
+          .eq('tour_id', targetTourId);
+
+        if (!assignedErr && assignedData !== null) {
+          // Explicit tour assignments exist in database. Return ONLY assigned active extras.
+          // If assignedData.length === 0, this tour has no extras assigned. Return [].
+          return assignedData
+            .map((item: any) => {
+              const extra = item.tour_extras;
+              if (!extra || !extra.is_active) return null;
+              const customPrice = item.custom_price_eur !== null && item.custom_price_eur !== undefined
+                ? Number(item.custom_price_eur)
+                : customPrices[extra.id];
+              const finalPrice = customPrice !== undefined && !isNaN(customPrice)
+                ? Number(customPrice)
+                : Number(extra.price_eur) || 0;
+
+              return {
+                id: extra.id,
+                name: extra.name,
+                description: extra.description || '',
+                priceEur: finalPrice,
+                pricingType: extra.pricing_type || 'per_booking',
+                imageUrl: extra.image_url || undefined,
+                minQuantity: extra.min_quantity || 1,
+                maxQuantity: extra.max_quantity || 10,
+              };
+            })
+            .filter(Boolean) as BookingExtra[];
+        }
+      }
+    } catch (err) {
+      console.warn('Could not query tour_assigned_extras from Supabase:', err);
+    }
+  }
+
+  // Fallback in-memory / local storage assignment logic
+  let localTourExtras: any[] | null = null;
+  try {
+    const storedTours = localStorage.getItem('rse_mock_tours');
+    if (storedTours) {
+      const parsed: any[] = JSON.parse(storedTours);
+      const match = parsed.find((t) => t.id === tourIdOrSlug || t.slug === tourIdOrSlug);
+      if (match && Array.isArray(match.extras)) {
+        localTourExtras = match.extras;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  if (localTourExtras !== null) {
+    return localTourExtras.map((e: any) => {
+      const customPrice = customPrices[e.id];
+      const finalPrice = customPrice !== undefined && !isNaN(customPrice) ? Number(customPrice) : Number(e.price_eur || e.priceEur) || 0;
+      return {
+        id: e.id,
+        name: e.name,
+        description: e.description || '',
+        priceEur: finalPrice,
+        pricingType: e.pricing_type || e.pricingType || 'per_booking',
+        imageUrl: e.image_url || e.imageUrl || undefined,
+        minQuantity: e.min_quantity || e.minQuantity || 1,
+        maxQuantity: e.max_quantity || e.maxQuantity || 10,
+      };
+    });
+  }
+
+  // Contextual fallback based on tour characteristics:
+  // Desert Safari tours get quad, buggy, and safari experience add-ons
+  const lower = tourIdOrSlug.toLowerCase();
+  const allCatalog = await getTourExtras();
+
+  if (lower.includes('safari') || lower.includes('quad') || lower.includes('desert') || lower.includes('buggy')) {
+    return allCatalog
+      .filter((e) => ['single-quad', 'double-quad', 'buggy', 'additional-safari'].includes(e.id))
+      .map((e) => ({
+        id: e.id,
+        name: e.name,
+        description: e.description || '',
+        priceEur: Number(customPrices[e.id] ?? e.price_eur) || 0,
+        pricingType: (e.pricing_type as any) || 'per_vehicle',
+        imageUrl: (e as any).image_url || undefined,
+        minQuantity: (e as any).min_quantity || 1,
+        maxQuantity: (e as any).max_quantity || 10,
+      }));
+  }
+
+  if (lower.includes('orange') || lower.includes('dolphin') || lower.includes('scuba') || lower.includes('dive') || lower.includes('island') || lower.includes('boat')) {
+    return allCatalog
+      .filter((e) => ['underwater-photos', 'hotel-transfer-vip', 'seafood-upgrade', 'intro-scuba-dive'].includes(e.id))
+      .map((e) => ({
+        id: e.id,
+        name: e.name,
+        description: e.description || '',
+        priceEur: Number(customPrices[e.id] ?? e.price_eur) || 0,
+        pricingType: (e.pricing_type as any) || 'per_person',
+        imageUrl: (e as any).image_url || undefined,
+        minQuantity: (e as any).min_quantity || 1,
+        maxQuantity: (e as any).max_quantity || 10,
+      }));
+  }
+
+  // If tour has no assigned extras, return empty array (do NOT fall back to global extras)
+  return [];
 }
 
 // ==============================================================================

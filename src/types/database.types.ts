@@ -12,7 +12,7 @@ export type TourType = 'Shared' | 'Private';
 export type DurationCategory = 'Half Day' | 'Full Day' | 'Multi Day';
 export type TourDifficulty = 'Easy' | 'Moderate' | 'Adventurous';
 export type VideoProvider = 'youtube' | 'vimeo' | 'storage' | 'direct';
-export type ExtraPricingType = 'per_person' | 'per_booking' | 'per_adult' | 'per_child';
+export type ExtraPricingType = 'per_person' | 'per_booking' | 'per_adult' | 'per_child' | 'per_vehicle' | 'per_item';
 export type AvailabilityStatus = 'available' | 'unavailable' | 'sold_out';
 export type BookingStatus = 'pending' | 'confirmed' | 'cancellation_requested' | 'cancelled' | 'completed' | 'no_show';
 export type PaymentStatus = 'pending' | 'paid' | 'partially_paid' | 'refunded' | 'failed';
@@ -645,6 +645,9 @@ export interface Database {
           pricing_type: ExtraPricingType;
           is_active: boolean;
           sort_order: number;
+          image_url?: string | null;
+          min_quantity?: number;
+          max_quantity?: number;
           created_at: string;
           updated_at: string;
         };
@@ -657,6 +660,9 @@ export interface Database {
           pricing_type?: ExtraPricingType;
           is_active?: boolean;
           sort_order?: number;
+          image_url?: string | null;
+          min_quantity?: number;
+          max_quantity?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -669,6 +675,9 @@ export interface Database {
           pricing_type?: ExtraPricingType;
           is_active?: boolean;
           sort_order?: number;
+          image_url?: string | null;
+          min_quantity?: number;
+          max_quantity?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -678,14 +687,17 @@ export interface Database {
         Row: {
           tour_id: string;
           extra_id: string;
+          custom_price_eur?: number | null;
         };
         Insert: {
           tour_id: string;
           extra_id: string;
+          custom_price_eur?: number | null;
         };
         Update: {
           tour_id?: string;
           extra_id?: string;
+          custom_price_eur?: number | null;
         };
         Relationships: [
           {

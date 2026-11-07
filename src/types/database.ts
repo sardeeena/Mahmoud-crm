@@ -181,9 +181,12 @@ export interface DbTourExtra {
   description: string | null;
   price_eur: number;
   currency: string;
-  pricing_type: 'per_person' | 'per_booking' | 'per_adult' | 'per_child';
+  pricing_type: 'per_person' | 'per_booking' | 'per_adult' | 'per_child' | 'per_vehicle' | 'per_item';
   is_active: boolean;
   sort_order: number;
+  image_url?: string | null;
+  min_quantity?: number;
+  max_quantity?: number;
   created_at: string;
   updated_at: string;
 }

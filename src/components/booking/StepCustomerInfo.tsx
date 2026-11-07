@@ -300,6 +300,25 @@ export const StepCustomerInfo: React.FC<StepCustomerInfoProps> = ({
 
         </div>
 
+        {/* Hotel / Accommodation Name for Lobby Pickup */}
+        <div>
+          <label htmlFor="customer-hotel-name" className="block text-xs font-bold text-stone-800 mb-1 flex items-center">
+            <Building className="w-3.5 h-3.5 mr-1 text-[#0A6C74]" />
+            Hotel / Accommodation Name
+          </label>
+          <input
+            id="customer-hotel-name"
+            type="text"
+            value={customer.hotelName || ''}
+            onChange={(e) => handleChange('hotelName', e.target.value)}
+            placeholder="e.g. Steigenberger ALDAU Beach Hotel, Desert Rose Resort, etc."
+            className="w-full px-3.5 py-2.5 rounded border border-stone-300 text-xs sm:text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-[#0A6C74]"
+          />
+          <span className="text-[10px] text-stone-500 mt-1 block">
+            Our private/group transfer driver meets you directly in your hotel reception lobby.
+          </span>
+        </div>
+
         {/* Country of Residence & Room Number */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

@@ -125,8 +125,24 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
         </div>
 
         {/* Printable Official Voucher Card */}
-        <div className="bg-white border border-[#E8E3DA] rounded-sm p-6 sm:p-8 space-y-6 shadow-xs print:border-none print:shadow-none print:p-0">
+        <div id="printable-ticket" className="bg-white border border-[#E8E3DA] rounded-sm p-6 sm:p-8 space-y-6 shadow-xs">
           
+          {/* Print-Only Official Company Header */}
+          <div className="hidden print:flex items-center justify-between border-b-2 border-[#0A6C74] pb-4 mb-4">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-[#0E1B2A] uppercase">
+                Awesome Adventure Tours
+              </h1>
+              <p className="text-xs text-stone-600">
+                Official Excursion Ticket & Hotel Pickup Voucher • Red Sea, Egypt
+              </p>
+            </div>
+            <div className="text-right text-xs text-stone-700">
+              <p className="font-mono font-bold text-sm text-[#0A6C74]">REF: {booking.bookingReference}</p>
+              <p className="text-[11px] text-stone-500">24/7 Support: +20 151 5212741</p>
+            </div>
+          </div>
+
           <div className="flex items-start justify-between border-b border-stone-200 pb-4">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#0A6C74] block">
@@ -183,20 +199,20 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
             </div>
 
             <div className="p-3.5 bg-stone-50 border border-stone-200 rounded space-y-1">
-              <span className="text-[10px] uppercase font-bold text-stone-400 block">Pickup Location</span>
-              <span className="font-bold text-stone-900 text-sm">
-                {booking.pickup.hotelName || booking.pickup.locationName}
+              <span className="text-[10px] uppercase font-bold text-stone-400 block">Hotel / Pickup Point</span>
+              <span className="font-bold text-stone-900 text-sm block">
+                {booking.pickup.hotelName || booking.customer.hotelName || booking.pickup.locationName}
               </span>
               <span className="text-[11px] text-stone-500 block">
-                Region: {booking.pickup.area}
-                {booking.pickup.roomNumber && ` (Room ${booking.pickup.roomNumber})`}
+                Transfer Zone: {booking.pickup.area}
+                {(booking.pickup.roomNumber || booking.customer.roomNumber) && ` (Room ${booking.pickup.roomNumber || booking.customer.roomNumber})`}
               </span>
             </div>
 
             <div className="p-3.5 bg-stone-50 border border-stone-200 rounded space-y-1">
               <span className="text-[10px] uppercase font-bold text-stone-400 block">Payment Terms</span>
               <span className="font-bold text-stone-900 text-sm">
-                Pay on Hotel Pickup
+                {booking.paymentMethod === 'pay_online' ? 'Paid Online' : 'Pay on Hotel Pickup'}
               </span>
               <span className="text-[11px] text-stone-500 block">
                 Amount payable: <strong className="text-emerald-700">{booking.pricing.formattedTotal}</strong>
@@ -208,13 +224,18 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
           {booking.extras && booking.extras.length > 0 && (
             <div className="pt-2 border-t border-stone-200">
               <span className="text-[10px] uppercase font-bold text-stone-400 block mb-2">
-                Included Booking Upgrades
+                Included Booking Upgrades & Add-ons
               </span>
-              <div className="space-y-1 text-xs">
+              <div className="space-y-1.5 text-xs">
                 {booking.extras.map((ex) => (
-                  <div key={ex.extraId} className="flex justify-between items-center text-stone-700">
-                    <span>• {ex.name}</span>
-                    <span className="font-semibold text-stone-900">€{ex.priceEur.toFixed(2)}</span>
+                  <div key={ex.extraId} className="flex justify-between items-center text-stone-700 bg-stone-50 px-2.5 py-1.5 rounded border border-stone-200/60">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-stone-900">• {ex.name}</span>
+                      <span className="text-[10px] text-stone-500">
+                        ({ex.quantity || 1}x @ €{ex.priceEur.toFixed(2)}{ex.pricingType === 'per_person' ? '/pers' : ''})
+                      </span>
+                    </div>
+                    <span className="font-bold text-stone-900">€{(ex.amountEur || (ex.priceEur * (ex.quantity || 1))).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -248,6 +269,9 @@ export const BookingConfirmationPage: React.FC<BookingConfirmationPageProps> = (
               </li>
               <li>
                 <strong>Meeting point:</strong> Please wait in your main hotel lobby 10 minutes before the pickup time.
+              </li>
+              <li>
+                <strong>Emergency Helpline:</strong> Contact our 24/7 excursion dispatch desk at +20 151 5212741.
               </li>
             </ul>
           </div>

@@ -388,3 +388,64 @@ html.dark .skeleton-card-wave::after,
     opacity: 0.8 !important;
   }
 }
+
+/* ==============================================================================
+   DEDICATED TICKET-ONLY PRINT MEDIA STYLES
+   ============================================================================== */
+@media print {
+  /* Hide all site chrome: header nav, footer, banners, actions, buttons, floating bars */
+  body * {
+    visibility: hidden !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Display strictly the dedicated ticket container and its children */
+  #printable-ticket,
+  #printable-ticket * {
+    visibility: visible !important;
+  }
+
+  #printable-ticket {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    display: block !important;
+  }
+
+  /* High fidelity print color rendering */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide interactive controls inside the ticket */
+  .no-print,
+  button,
+  .print-hide {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  @page {
+    margin: 1.2cm;
+    size: A4 portrait;
+  }
+}
+

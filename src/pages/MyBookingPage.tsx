@@ -305,8 +305,24 @@ export const MyBookingPage: React.FC<MyBookingPageProps> = ({
             </div>
 
             {/* Excursion Voucher Card */}
-            <div className="bg-white border border-[#E8E3DA] rounded-sm p-6 sm:p-8 space-y-6 shadow-xs">
+            <div id="printable-ticket" className="bg-white border border-[#E8E3DA] rounded-sm p-6 sm:p-8 space-y-6 shadow-xs">
               
+              {/* Print-Only Official Company Header */}
+              <div className="hidden print:flex items-center justify-between border-b-2 border-[#0A6C74] pb-4 mb-4">
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight text-[#0E1B2A] uppercase">
+                    Awesome Adventure Tours
+                  </h1>
+                  <p className="text-xs text-stone-600">
+                    Official Excursion Ticket & Hotel Pickup Voucher • Red Sea, Egypt
+                  </p>
+                </div>
+                <div className="text-right text-xs text-stone-700">
+                  <p className="font-mono font-bold text-sm text-[#0A6C74]">REF: {booking.bookingReference}</p>
+                  <p className="text-[11px] text-stone-500">24/7 Support: +20 151 5212741</p>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-stone-200">
                 <div className="flex items-center space-x-3.5">
                   <img

@@ -21,9 +21,14 @@ export interface BookingExtra {
   name: string;
   description: string;
   priceEur: number;
-  pricingType: 'per_person' | 'per_booking';
+  pricingType: 'per_person' | 'per_booking' | 'per_vehicle' | 'per_item';
   quantity?: number;
   category?: string;
+  imageUrl?: string;
+  minQuantity?: number;
+  maxQuantity?: number;
+  currency?: string;
+  assignedTourIds?: string[];
 }
 
 export interface CustomerInfo {
@@ -54,7 +59,7 @@ export interface BookingPricing {
     amountEur: number;
     unitPriceEur?: number;
     totalPriceEur?: number;
-    pricingType: 'per_person' | 'per_booking';
+    pricingType: 'per_person' | 'per_booking' | 'per_vehicle' | 'per_item';
     quantity: number;
   }>;
   discountEur: number;
@@ -107,7 +112,7 @@ export interface Booking {
     extraId: string;
     name: string;
     priceEur: number;
-    pricingType: 'per_person' | 'per_booking';
+    pricingType: 'per_person' | 'per_booking' | 'per_vehicle' | 'per_item';
     quantity: number;
     amountEur: number;
   }>;

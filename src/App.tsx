@@ -1161,6 +1161,15 @@ function MainApp() {
             categories={liveCategories}
           />
 
+          {/* Destinations Section */}
+          <DestinationsSection
+            destinations={liveDestinations}
+            isLoading={loadingDestinations}
+            error={destinationsError}
+            onRetry={refreshPublishedDestinations}
+            onSelectDestination={handleSelectHomeDestination}
+          />
+
           {/* Popular Tours Section with Skeleton Loading */}
           <PopularTours
             tours={liveTours.slice(0, 8)}
@@ -1178,15 +1187,6 @@ function MainApp() {
             error={categoriesError}
             onRetry={refreshPublishedCategories}
             onSelectCategory={handleSelectHomeCategory}
-          />
-
-          {/* Destinations */}
-          <DestinationsSection
-            destinations={liveDestinations}
-            isLoading={loadingDestinations}
-            error={destinationsError}
-            onRetry={refreshPublishedDestinations}
-            onSelectDestination={handleSelectHomeDestination}
           />
 
           {/* Why Choose Us Trust Pillars */}
