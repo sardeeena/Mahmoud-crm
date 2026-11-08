@@ -1608,6 +1608,40 @@ export async function getTourExtras(): Promise<DbTourExtra[]> {
 }
 
 /**
+ * Lists ALL tour extras (both active and inactive) for administrative CRUD and sorting.
+ */
+export async function adminListTourExtras(): Promise<DbTourExtra[]> {
+  if (!isSupabaseConfigured() || isSchemaMissing()) {
+    return DEFAULT_TOUR_EXTRAS;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tour_extras')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (isSchemaMissingError(error)) {
+        setSchemaMissing(true);
+        return DEFAULT_TOUR_EXTRAS;
+      }
+      console.error('Failed to query admin tour extras from Supabase:', formatSupabaseError(error));
+      return DEFAULT_TOUR_EXTRAS;
+    }
+    return (data || []) as DbTourExtra[];
+  } catch (err) {
+    if (isSchemaMissingError(err)) {
+      setSchemaMissing(true);
+      return DEFAULT_TOUR_EXTRAS;
+    }
+    console.error('Admin tour extras query exception:', err);
+    return DEFAULT_TOUR_EXTRAS;
+  }
+}
+
+/**
  * Fetches active pickup locations formatted for client checkout selection
  */
 /**
@@ -1713,6 +1747,84 @@ export function saveTourCustomExtraPrices(tourId: string, prices: Record<string,
   } catch (err) {
     console.warn('Failed to save tour custom extra prices to localStorage:', err);
   }
+}
+
+/**
+ * Loads tour-specific extra price overrides directly from Supabase tour_assigned_extras.
+ * Guarantees that prices configured in admin are visible across all devices and sessions.
+ */
+export async function fetchTourCustomExtraPricesFromDb(tourId: string): Promise<Record<string, number>> {
+  if (isSupabaseConfigured() && !isSchemaMissing()) {
+    try {
+      const { data, error } = await supabase
+        .from('tour_assigned_extras')
+        .select('extra_id, custom_price_eur')
+        .eq('tour_id', tourId)
+        .not('custom_price_eur', 'is', null);
+
+      if (!error && data) {
+        const dbPrices: Record<string, number> = {};
+        data.forEach((r: any) => {
+          if (r.custom_price_eur !== null && r.custom_price_eur !== undefined) {
+            dbPrices[r.extra_id] = Number(r.custom_price_eur);
+          }
+        });
+        saveTourCustomExtraPrices(tourId, dbPrices);
+        return dbPrices;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch tour custom extra prices from Supabase:', err);
+    }
+  }
+  return getTourCustomExtraPrices(tourId);
+}
+
+/**
+ * Persists a tour-specific custom price override directly into Supabase tour_assigned_extras.
+ */
+export async function persistTourCustomExtraPriceToDb(
+  tourId: string,
+  extraId: string,
+  priceEur: number | null
+): Promise<{ success: boolean; error?: string }> {
+  // Update local memory cache immediately
+  const current = getTourCustomExtraPrices(tourId);
+  if (priceEur === null) {
+    delete current[extraId];
+  } else {
+    current[extraId] = priceEur;
+  }
+  saveTourCustomExtraPrices(tourId, current);
+
+  if (isSupabaseConfigured() && !isSchemaMissing()) {
+    try {
+      if (priceEur === null) {
+        const { error } = await supabase
+          .from('tour_assigned_extras')
+          .update({ custom_price_eur: null })
+          .eq('tour_id', tourId)
+          .eq('extra_id', extraId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('tour_assigned_extras')
+          .upsert({
+            tour_id: tourId,
+            extra_id: extraId,
+            custom_price_eur: priceEur,
+          });
+        if (error) throw error;
+      }
+      notifyCatalogueDataChanged('extras');
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to persist custom extra price to Supabase:', err);
+      return { success: false, error: formatSupabaseError(err) };
+    }
+  }
+
+  notifyCatalogueDataChanged('extras');
+  return { success: true };
 }
 
 /**

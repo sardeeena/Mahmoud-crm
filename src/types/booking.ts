@@ -16,12 +16,20 @@ export interface PickupLocation {
   isPopular?: boolean;
 }
 
+export type ExtraPricingType = 
+  | 'per_person' 
+  | 'per_booking' 
+  | 'per_adult' 
+  | 'per_child' 
+  | 'per_vehicle' 
+  | 'per_item';
+
 export interface BookingExtra {
   id: string;
   name: string;
   description: string;
   priceEur: number;
-  pricingType: 'per_person' | 'per_booking' | 'per_vehicle' | 'per_item';
+  pricingType: ExtraPricingType;
   quantity?: number;
   category?: string;
   imageUrl?: string;
@@ -59,7 +67,7 @@ export interface BookingPricing {
     amountEur: number;
     unitPriceEur?: number;
     totalPriceEur?: number;
-    pricingType: 'per_person' | 'per_booking' | 'per_vehicle' | 'per_item';
+    pricingType: ExtraPricingType;
     quantity: number;
   }>;
   discountEur: number;
@@ -112,7 +120,7 @@ export interface Booking {
     extraId: string;
     name: string;
     priceEur: number;
-    pricingType: 'per_person' | 'per_booking' | 'per_vehicle' | 'per_item';
+    pricingType: ExtraPricingType;
     quantity: number;
     amountEur: number;
   }>;

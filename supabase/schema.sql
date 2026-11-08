@@ -401,6 +401,8 @@ CREATE TABLE IF NOT EXISTS public.tour_assigned_extras (
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
     extra_id UUID NOT NULL REFERENCES public.tour_extras(id) ON DELETE CASCADE,
     custom_price_eur NUMERIC(10,2),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INT NOT NULL DEFAULT 0,
     PRIMARY KEY (tour_id, extra_id)
 );
 

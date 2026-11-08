@@ -89,7 +89,7 @@ function saveLocalAssets(items: StorageFileItem[]) {
   }
 }
 
-export const ALLOWED_STORAGE_FOLDERS = ['tours', 'destinations', 'vessels', 'guides', 'reviews', 'blog'] as const;
+export const ALLOWED_STORAGE_FOLDERS = ['tours', 'destinations', 'vessels', 'guides', 'reviews', 'blog', 'extras'] as const;
 export type AllowedStorageFolder = typeof ALLOWED_STORAGE_FOLDERS[number];
 
 /**

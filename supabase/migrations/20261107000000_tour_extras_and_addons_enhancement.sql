@@ -24,8 +24,10 @@ BEGIN
     ALTER TABLE public.tour_extras ADD COLUMN IF NOT EXISTS min_quantity INT NOT NULL DEFAULT 1;
     ALTER TABLE public.tour_extras ADD COLUMN IF NOT EXISTS max_quantity INT NOT NULL DEFAULT 10;
 
-    -- Add custom_price_eur to tour_assigned_extras for tour-specific pricing persistence
+    -- Add custom_price_eur, is_active, and sort_order to tour_assigned_extras for tour-specific pricing persistence
     ALTER TABLE public.tour_assigned_extras ADD COLUMN IF NOT EXISTS custom_price_eur NUMERIC(10,2);
+    ALTER TABLE public.tour_assigned_extras ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+    ALTER TABLE public.tour_assigned_extras ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
 
     -- Add description & currency to booking_extras for immutable snapshots
     ALTER TABLE public.booking_extras ADD COLUMN IF NOT EXISTS description TEXT;
@@ -320,11 +322,30 @@ BEGIN
                 END IF;
             END IF;
 
+            -- Validate requested quantity against database min/max quantity limits
+            IF v_extra_record.min_quantity IS NOT NULL AND v_extra_qty < v_extra_record.min_quantity THEN
+                RETURN jsonb_build_object(
+                    'success', false,
+                    'error', 'Selected add-on "' || v_extra_record.name || '" requires a minimum quantity of ' || v_extra_record.min_quantity || '.'
+                );
+            END IF;
+
+            IF v_extra_record.max_quantity IS NOT NULL AND v_extra_qty > v_extra_record.max_quantity THEN
+                RETURN jsonb_build_object(
+                    'success', false,
+                    'error', 'Selected add-on "' || v_extra_record.name || '" exceeds maximum allowed quantity of ' || v_extra_record.max_quantity || '.'
+                );
+            END IF;
+
             v_extra_unit_price := v_extra_record.effective_price;
 
-            -- Dynamic Pricing Methods: per_person, per_vehicle, per_item, per_booking
+            -- Dynamic Pricing Methods: per_person, per_adult, per_child, per_vehicle, per_item, per_booking
             IF v_extra_record.pricing_type = 'per_person' THEN
                 v_extra_line_total := v_extra_unit_price * v_total_guests * v_extra_qty;
+            ELSIF v_extra_record.pricing_type = 'per_adult' THEN
+                v_extra_line_total := v_extra_unit_price * p_adult_count * v_extra_qty;
+            ELSIF v_extra_record.pricing_type = 'per_child' THEN
+                v_extra_line_total := v_extra_unit_price * COALESCE(p_child_count, 0) * v_extra_qty;
             ELSIF v_extra_record.pricing_type IN ('per_vehicle', 'per_item') THEN
                 -- Per vehicle or item pricing calculates directly by unit quantity
                 v_extra_line_total := v_extra_unit_price * v_extra_qty;
@@ -432,6 +453,10 @@ BEGIN
 
                 IF v_extra_record.pricing_type = 'per_person' THEN
                     v_extra_line_total := v_extra_unit_price * v_total_guests * v_extra_qty;
+                ELSIF v_extra_record.pricing_type = 'per_adult' THEN
+                    v_extra_line_total := v_extra_unit_price * p_adult_count * v_extra_qty;
+                ELSIF v_extra_record.pricing_type = 'per_child' THEN
+                    v_extra_line_total := v_extra_unit_price * COALESCE(p_child_count, 0) * v_extra_qty;
                 ELSIF v_extra_record.pricing_type IN ('per_vehicle', 'per_item') THEN
                     v_extra_line_total := v_extra_unit_price * v_extra_qty;
                 ELSE

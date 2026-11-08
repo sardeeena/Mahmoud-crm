@@ -256,6 +256,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({
           const qty = extraQuantities[e.id] || 1;
           const amountEur = e.pricingType === 'per_person'
             ? e.priceEur * payingGuests * qty
+            : e.pricingType === 'per_adult'
+            ? e.priceEur * (guests.adults || 1) * qty
+            : e.pricingType === 'per_child'
+            ? e.priceEur * (guests.children || 0) * qty
             : e.priceEur * qty;
           return {
             extraId: e.id,

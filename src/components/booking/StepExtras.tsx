@@ -33,6 +33,10 @@ export const StepExtras: React.FC<StepExtrasProps> = ({
     switch (type) {
       case 'per_person':
         return 'Per Guest';
+      case 'per_adult':
+        return 'Per Adult';
+      case 'per_child':
+        return 'Per Child';
       case 'per_vehicle':
         return 'Per Vehicle';
       case 'per_item':

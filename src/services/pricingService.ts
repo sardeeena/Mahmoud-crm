@@ -105,6 +105,10 @@ export function calculateBookingPrice({
     if (extra.pricingType === 'per_person') {
       // Per person extra applies to paying passengers (adults + children)
       amountEur = extra.priceEur * payingPassengers * qty;
+    } else if (extra.pricingType === 'per_adult') {
+      amountEur = extra.priceEur * adults * qty;
+    } else if (extra.pricingType === 'per_child') {
+      amountEur = extra.priceEur * children * qty;
     } else if (extra.pricingType === 'per_vehicle' || extra.pricingType === 'per_item') {
       // Per vehicle or per item multiplies directly by vehicle/item quantity
       amountEur = extra.priceEur * qty;
