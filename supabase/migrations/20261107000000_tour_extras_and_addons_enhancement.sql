@@ -20,31 +20,25 @@ BEGIN
     CHECK (pricing_type IN ('per_person', 'per_booking', 'per_vehicle', 'per_item', 'per_adult', 'per_child'));
 
     -- Add extra dynamic columns if not present
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tour_extras' AND column_name = 'image_url') THEN
-        ALTER TABLE public.tour_extras ADD COLUMN image_url TEXT;
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tour_extras' AND column_name = 'min_quantity') THEN
-        ALTER TABLE public.tour_extras ADD COLUMN min_quantity INT NOT NULL DEFAULT 1;
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tour_extras' AND column_name = 'max_quantity') THEN
-        ALTER TABLE public.tour_extras ADD COLUMN max_quantity INT NOT NULL DEFAULT 10;
-    END IF;
+    ALTER TABLE public.tour_extras ADD COLUMN IF NOT EXISTS image_url TEXT;
+    ALTER TABLE public.tour_extras ADD COLUMN IF NOT EXISTS min_quantity INT NOT NULL DEFAULT 1;
+    ALTER TABLE public.tour_extras ADD COLUMN IF NOT EXISTS max_quantity INT NOT NULL DEFAULT 10;
 
     -- Add custom_price_eur to tour_assigned_extras for tour-specific pricing persistence
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tour_assigned_extras' AND column_name = 'custom_price_eur') THEN
-        ALTER TABLE public.tour_assigned_extras ADD COLUMN custom_price_eur NUMERIC(10,2);
-    END IF;
+    ALTER TABLE public.tour_assigned_extras ADD COLUMN IF NOT EXISTS custom_price_eur NUMERIC(10,2);
 
     -- Add description & currency to booking_extras for immutable snapshots
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'booking_extras' AND column_name = 'description') THEN
-        ALTER TABLE public.booking_extras ADD COLUMN description TEXT;
-    END IF;
+    ALTER TABLE public.booking_extras ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE public.booking_extras ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'EUR';
 
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'booking_extras' AND column_name = 'currency') THEN
-        ALTER TABLE public.booking_extras ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR';
-    END IF;
+    -- Ensure booking_passengers supports both is_lead and is_lead_passenger for full backward and forward compatibility
+    ALTER TABLE public.booking_passengers ADD COLUMN IF NOT EXISTS is_lead BOOLEAN DEFAULT FALSE;
+    ALTER TABLE public.booking_passengers ADD COLUMN IF NOT EXISTS is_lead_passenger BOOLEAN DEFAULT FALSE;
+
+    -- Sync is_lead from is_lead_passenger if existing records exist
+    UPDATE public.booking_passengers
+    SET is_lead = is_lead_passenger
+    WHERE is_lead IS NULL OR (is_lead = FALSE AND is_lead_passenger = TRUE);
 END $$;
 
 -- 2. SEED INITIAL DYNAMIC ADD-ON CATALOG EXAMPLES
@@ -148,7 +142,7 @@ CREATE OR REPLACE FUNCTION public.create_booking_atomic(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = public, auth, pg_temp
 AS $$
 DECLARE
     v_tour RECORD;
@@ -170,8 +164,8 @@ DECLARE
     v_extra_line_total NUMERIC(10,2);
     v_extra_valid BOOLEAN;
     v_current_user_id UUID := auth.uid();
-    v_initial_status public.booking_status := 'pending';
-    v_initial_payment_status public.payment_status := 'pending';
+    v_initial_status TEXT := 'pending';
+    v_initial_payment_status TEXT := 'pending';
     v_default_capacity INT;
     v_existing_dup RECORD;
     v_dedup_hash TEXT;
@@ -464,33 +458,34 @@ BEGIN
 
     -- 13. Persist Passenger Manifest
     INSERT INTO public.booking_passengers (
-        booking_id, full_name, passenger_type, is_lead
+        booking_id, full_name, passenger_type, is_lead_passenger, is_lead
     )
     VALUES (
         v_booking_id,
         TRIM(p_customer_first_name || ' ' || p_customer_last_name),
         'adult',
+        TRUE,
         TRUE
     );
 
     IF p_adult_count > 1 THEN
         FOR i IN 2..p_adult_count LOOP
-            INSERT INTO public.booking_passengers (booking_id, full_name, passenger_type, is_lead)
-            VALUES (v_booking_id, 'Adult Guest ' || i || ' (' || TRIM(p_customer_last_name) || ')', 'adult', FALSE);
+            INSERT INTO public.booking_passengers (booking_id, full_name, passenger_type, is_lead_passenger, is_lead)
+            VALUES (v_booking_id, 'Adult Guest ' || i || ' (' || TRIM(p_customer_last_name) || ')', 'adult', FALSE, FALSE);
         END LOOP;
     END IF;
 
     IF p_child_count > 0 THEN
         FOR i IN 1..p_child_count LOOP
-            INSERT INTO public.booking_passengers (booking_id, full_name, passenger_type, is_lead)
-            VALUES (v_booking_id, 'Child Guest ' || i || ' (' || TRIM(p_customer_last_name) || ')', 'child', FALSE);
+            INSERT INTO public.booking_passengers (booking_id, full_name, passenger_type, is_lead_passenger, is_lead)
+            VALUES (v_booking_id, 'Child Guest ' || i || ' (' || TRIM(p_customer_last_name) || ')', 'child', FALSE, FALSE);
         END LOOP;
     END IF;
 
     IF p_infant_count > 0 THEN
         FOR i IN 1..p_infant_count LOOP
-            INSERT INTO public.booking_passengers (booking_id, full_name, passenger_type, is_lead)
-            VALUES (v_booking_id, 'Infant Guest ' || i || ' (' || TRIM(p_customer_last_name) || ')', 'infant', FALSE);
+            INSERT INTO public.booking_passengers (booking_id, full_name, passenger_type, is_lead_passenger, is_lead)
+            VALUES (v_booking_id, 'Infant Guest ' || i || ' (' || TRIM(p_customer_last_name) || ')', 'infant', FALSE, FALSE);
         END LOOP;
     END IF;
 
@@ -498,22 +493,28 @@ BEGIN
     UPDATE public.tour_availability
     SET booked_count = booked_count + v_total_guests,
         status = CASE 
-            WHEN (booked_count + v_total_guests) >= max_capacity THEN 'sold_out'::public.availability_status
-            ELSE 'available'::public.availability_status
+            WHEN (booked_count + v_total_guests) >= max_capacity THEN 'sold_out'
+            ELSE 'available'
         END,
         updated_at = NOW()
     WHERE id = v_avail.id;
 
     -- 15. Audit Log Entry
-    INSERT INTO public.booking_timeline (
-        booking_id, title, description, type, created_at
+    INSERT INTO public.audit_logs (
+        action, entity_type, entity_id, new_data
     )
     VALUES (
-        v_booking_id,
-        'Reservation Created (Atomic)',
-        'Guest booking created for ' || v_total_guests || ' traveler(s) on ' || TO_CHAR(p_booking_date, 'YYYY-MM-DD') || '. Hotel: ' || COALESCE(p_customer_hotel, 'TBA') || '. Total: €' || TO_CHAR(v_final_total, 'FM999990.00'),
-        'creation',
-        NOW()
+        'BOOKING_CREATED_ONLINE',
+        'booking',
+        v_booking_id::TEXT,
+        jsonb_build_object(
+            'reference', v_booking_ref,
+            'tourId', v_tour.id,
+            'date', p_booking_date,
+            'guests', v_total_guests,
+            'total', v_final_total,
+            'hotel', COALESCE(p_customer_hotel, 'TBA')
+        )
     );
 
     -- 16. Return Authoritative Response Payload
@@ -531,3 +532,7 @@ BEGIN
     );
 END;
 $$;
+
+-- 4. PERMISSIONS & ROLE GRANTS
+REVOKE ALL ON FUNCTION public.create_booking_atomic FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_booking_atomic TO anon, authenticated, service_role;

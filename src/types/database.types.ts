@@ -908,10 +908,12 @@ export interface Database {
           booking_id: string;
           extra_id: string | null;
           name: string;
+          description: string | null;
           quantity: number;
           unit_price: number;
           total_price: number;
           pricing_type: string;
+          currency: string;
           created_at: string;
         };
         Insert: {
@@ -919,10 +921,12 @@ export interface Database {
           booking_id: string;
           extra_id?: string | null;
           name: string;
+          description?: string | null;
           quantity?: number;
           unit_price: number;
           total_price: number;
           pricing_type?: string;
+          currency?: string;
           created_at?: string;
         };
         Update: {
@@ -930,10 +934,12 @@ export interface Database {
           booking_id?: string;
           extra_id?: string | null;
           name?: string;
+          description?: string | null;
           quantity?: number;
           unit_price?: number;
           total_price?: number;
           pricing_type?: string;
+          currency?: string;
           created_at?: string;
         };
         Relationships: [
@@ -1459,6 +1465,7 @@ export interface Database {
           passport_or_id_number: string | null;
           passenger_type: 'adult' | 'child' | 'infant';
           is_lead_passenger: boolean;
+          is_lead?: boolean;
           created_at: string;
         };
         Insert: {
@@ -1469,6 +1476,7 @@ export interface Database {
           passport_or_id_number?: string | null;
           passenger_type?: 'adult' | 'child' | 'infant';
           is_lead_passenger?: boolean;
+          is_lead?: boolean;
           created_at?: string;
         };
         Update: {
@@ -1479,6 +1487,7 @@ export interface Database {
           passport_or_id_number?: string | null;
           passenger_type?: 'adult' | 'child' | 'infant';
           is_lead_passenger?: boolean;
+          is_lead?: boolean;
           created_at?: string;
         };
         Relationships: [];

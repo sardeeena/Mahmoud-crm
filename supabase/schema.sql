@@ -376,9 +376,12 @@ CREATE TABLE IF NOT EXISTS public.tour_extras (
     description TEXT,
     price_eur NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     currency TEXT NOT NULL DEFAULT 'EUR',
-    pricing_type TEXT NOT NULL DEFAULT 'per_booking' CHECK (pricing_type IN ('per_person', 'per_booking', 'per_adult', 'per_child')),
+    pricing_type TEXT NOT NULL DEFAULT 'per_booking' CHECK (pricing_type IN ('per_person', 'per_booking', 'per_vehicle', 'per_item', 'per_adult', 'per_child')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INT NOT NULL DEFAULT 0,
+    image_url TEXT,
+    min_quantity INT NOT NULL DEFAULT 1,
+    max_quantity INT NOT NULL DEFAULT 10,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -397,6 +400,7 @@ CREATE TRIGGER trigger_tour_extras_updated_at
 CREATE TABLE IF NOT EXISTS public.tour_assigned_extras (
     tour_id UUID NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
     extra_id UUID NOT NULL REFERENCES public.tour_extras(id) ON DELETE CASCADE,
+    custom_price_eur NUMERIC(10,2),
     PRIMARY KEY (tour_id, extra_id)
 );
 
@@ -509,10 +513,12 @@ CREATE TABLE IF NOT EXISTS public.booking_extras (
     booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
     extra_id UUID REFERENCES public.tour_extras(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
+    description TEXT,
     quantity INT NOT NULL DEFAULT 1,
     unit_price NUMERIC(10,2) NOT NULL,
     total_price NUMERIC(10,2) NOT NULL,
     pricing_type TEXT NOT NULL DEFAULT 'per_booking',
+    currency TEXT NOT NULL DEFAULT 'EUR',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -819,6 +825,7 @@ CREATE TABLE IF NOT EXISTS public.booking_passengers (
     passport_or_id_number TEXT,
     passenger_type TEXT NOT NULL DEFAULT 'adult' CHECK (passenger_type IN ('adult', 'child', 'infant')),
     is_lead_passenger BOOLEAN NOT NULL DEFAULT FALSE,
+    is_lead BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
