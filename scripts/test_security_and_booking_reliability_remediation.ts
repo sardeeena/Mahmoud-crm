@@ -162,8 +162,31 @@ assert(
 );
 
 assert(
+  !adminExtrasCode.includes("await supabase.from('tour_assigned_extras').delete().eq('extra_id', savedExtraId)"),
+  'AdminExtrasList.tsx has zero non-atomic delete-then-insert fallback'
+);
+
+assert(
   tourServiceCode.includes("supabase.rpc('replace_tour_extra_assignments_atomic'"),
   'tourService.ts updateTour uses replace_tour_extra_assignments_atomic RPC for atomic updates'
+);
+
+assert(
+  !tourServiceCode.includes("await supabase.from('tour_assigned_extras').delete().eq('tour_id', tourId)"),
+  'tourService.ts updateTour has zero non-atomic delete-then-insert fallback'
+);
+
+// Disambiguation of function overloads (Fix SQLSTATE 42725)
+assert(
+  migrationSql.includes('DROP FUNCTION IF EXISTS public.create_booking_atomic('),
+  'Safely retires legacy 17-parameter create_booking_atomic overload to resolve SQLSTATE 42725'
+);
+
+assert(
+  migrationSql.includes('REVOKE ALL ON FUNCTION public.create_booking_atomic(') &&
+  migrationSql.includes('GRANT EXECUTE ON FUNCTION public.create_booking_atomic(') &&
+  migrationSql.includes('TO anon, authenticated, service_role;'),
+  'REVOKE and GRANT statements specify explicit 18-parameter signature to prevent ambiguous overload errors'
 );
 
 // -----------------------------------------------------------------------------

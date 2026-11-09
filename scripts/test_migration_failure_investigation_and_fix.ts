@@ -130,9 +130,14 @@ async function runAudit() {
   // 8. Audit Permissions and Role Grants
   console.log(`\n8. Permissions & Execution Grants:`);
   assert(
-    migrationContent.includes('REVOKE ALL ON FUNCTION public.create_booking_atomic FROM PUBLIC;') &&
-    migrationContent.includes('GRANT EXECUTE ON FUNCTION public.create_booking_atomic TO anon, authenticated, service_role;'),
-    'create_booking_atomic function execution granted to anon, authenticated, and service_role'
+    migrationContent.includes('DROP FUNCTION IF EXISTS public.create_booking_atomic('),
+    'Safely retires legacy 17-parameter create_booking_atomic overload to prevent SQLSTATE 42725'
+  );
+  assert(
+    migrationContent.includes('REVOKE ALL ON FUNCTION public.create_booking_atomic(') &&
+    migrationContent.includes('GRANT EXECUTE ON FUNCTION public.create_booking_atomic(') &&
+    migrationContent.includes('TO anon, authenticated, service_role;'),
+    'create_booking_atomic grants use explicit 18-parameter function signature for anon, authenticated, and service_role'
   );
 
   // 9. Client Application Compatibility Check

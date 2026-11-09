@@ -415,18 +415,8 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
         });
 
         if (rpcErr) {
-          console.warn('replace_extra_tour_assignments_atomic RPC error, using fallback:', rpcErr);
-          // Fallback if RPC is not yet provisioned
-          await supabase.from('tour_assigned_extras').delete().eq('extra_id', savedExtraId);
-          if (assignedTourIds.length > 0) {
-            const links = assignedTourIds.map((tid) => ({
-              tour_id: tid,
-              extra_id: savedExtraId!,
-              custom_price_eur: assignedTourPrices[tid] !== undefined ? assignedTourPrices[tid] : null,
-            }));
-            const { error: linkErr } = await supabase.from('tour_assigned_extras').insert(links);
-            if (linkErr) throw linkErr;
-          }
+          console.error('replace_extra_tour_assignments_atomic RPC error:', rpcErr);
+          throw new Error(`Failed to update excursion assignments atomically: ${rpcErr.message || 'Database error'}. Existing assignments have been preserved.`);
         }
       }
 

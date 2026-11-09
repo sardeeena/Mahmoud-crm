@@ -18,6 +18,14 @@ ON public.bookings(idempotency_key)
 WHERE idempotency_key IS NOT NULL;
 
 -- 2. REPLACEMENT CREATE_BOOKING_ATOMIC WITH STRICT VALIDATION & GENUINE IDEMPOTENCY
+-- Safely retire legacy 17-parameter overload to prevent function overload ambiguity (SQLSTATE 42725)
+DROP FUNCTION IF EXISTS public.create_booking_atomic(
+    TEXT, DATE, INT, INT, INT,
+    TEXT, TEXT, TEXT, TEXT, TEXT,
+    TEXT, TEXT, TEXT, JSONB, TEXT,
+    TEXT, TEXT
+);
+
 CREATE OR REPLACE FUNCTION public.create_booking_atomic(
     p_tour_identifier TEXT,
     p_booking_date DATE,
@@ -671,8 +679,20 @@ END;
 $$;
 
 -- 4. PERMISSIONS & ROLE GRANTS
-REVOKE ALL ON FUNCTION public.create_booking_atomic FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_booking_atomic TO anon, authenticated, service_role;
+-- Unambiguous grants using exact function identity signature (18 parameters)
+REVOKE ALL ON FUNCTION public.create_booking_atomic(
+    TEXT, DATE, INT, INT, INT,
+    TEXT, TEXT, TEXT, TEXT, TEXT,
+    TEXT, TEXT, TEXT, JSONB, TEXT,
+    TEXT, TEXT, TEXT
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.create_booking_atomic(
+    TEXT, DATE, INT, INT, INT,
+    TEXT, TEXT, TEXT, TEXT, TEXT,
+    TEXT, TEXT, TEXT, JSONB, TEXT,
+    TEXT, TEXT, TEXT
+) TO anon, authenticated, service_role;
 
 REVOKE ALL ON FUNCTION public.replace_extra_tour_assignments_atomic(UUID, JSONB) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.replace_extra_tour_assignments_atomic(UUID, JSONB) TO authenticated, service_role;

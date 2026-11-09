@@ -996,17 +996,7 @@ async function syncTourRelations(tourId: string, payload: AdminTourPayload): Pro
 
       if (assignErr) {
         console.error('Failed to update tour extra assignments atomically via RPC:', assignErr);
-        // Fallback to transactional single-batch if RPC is unavailable in legacy environment
-        await supabase.from('tour_assigned_extras').delete().eq('tour_id', tourId);
-        if (assignments.length > 0) {
-          await supabase.from('tour_assigned_extras').insert(
-            assignments.map((a) => ({
-              tour_id: tourId,
-              extra_id: a.extra_id,
-              custom_price_eur: a.custom_price_eur,
-            }))
-          );
-        }
+        throw new Error(`Failed to update tour add-on assignments atomically: ${assignErr.message || 'Database error'}. Existing assignments were preserved.`);
       }
     }
   }
