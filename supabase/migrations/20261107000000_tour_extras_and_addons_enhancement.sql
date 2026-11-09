@@ -37,11 +37,14 @@ BEGIN
     ALTER TABLE public.booking_passengers ADD COLUMN IF NOT EXISTS is_lead BOOLEAN DEFAULT FALSE;
     ALTER TABLE public.booking_passengers ADD COLUMN IF NOT EXISTS is_lead_passenger BOOLEAN DEFAULT FALSE;
 
-    -- Sync is_lead from is_lead_passenger if existing records exist
-    UPDATE public.booking_passengers
-    SET is_lead = is_lead_passenger
-    WHERE is_lead IS NULL OR (is_lead = FALSE AND is_lead_passenger = TRUE);
+    -- Add idempotency_key to public.bookings for genuine request deduplication
+    ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
 END $$;
+
+-- Create unique index on bookings idempotency_key for true request deduplication
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_idempotency_key 
+ON public.bookings(idempotency_key) 
+WHERE idempotency_key IS NOT NULL;
 
 -- 2. SEED INITIAL DYNAMIC ADD-ON CATALOG EXAMPLES
 INSERT INTO public.tour_extras (id, name, description, price_eur, currency, pricing_type, is_active, sort_order, image_url, min_quantity, max_quantity)
@@ -139,7 +142,8 @@ CREATE OR REPLACE FUNCTION public.create_booking_atomic(
     p_extras JSONB DEFAULT '[]'::jsonb,
     p_coupon_code TEXT DEFAULT NULL,
     p_payment_method TEXT DEFAULT 'pay_at_pickup',
-    p_special_requests TEXT DEFAULT NULL
+    p_special_requests TEXT DEFAULT NULL,
+    p_idempotency_key TEXT DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -170,9 +174,8 @@ DECLARE
     v_initial_payment_status TEXT := 'pending';
     v_default_capacity INT;
     v_existing_dup RECORD;
-    v_dedup_hash TEXT;
 BEGIN
-    -- 1. Input Sanitization & Validation
+    -- 1. Input Sanitization & Strict Passenger Count Validation
     IF p_tour_identifier IS NULL OR TRIM(p_tour_identifier) = '' THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid tour specified for reservation.');
     END IF;
@@ -181,8 +184,19 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Departure date must be today or a future date.');
     END IF;
 
-    IF p_adult_count IS NULL OR p_adult_count < 1 THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Reservations must include at least 1 adult guest.');
+    -- Adult count: positive integer between 1 and 100
+    IF p_adult_count IS NULL OR p_adult_count < 1 OR p_adult_count > 100 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Reservations must include at least 1 adult guest (maximum 100).');
+    END IF;
+
+    -- Child count: non-negative integer between 0 and 100
+    IF p_child_count IS NOT NULL AND (p_child_count < 0 OR p_child_count > 100) THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Child guest count must be a non-negative integer (0 to 100).');
+    END IF;
+
+    -- Infant count: non-negative integer between 0 and 50
+    IF p_infant_count IS NOT NULL AND (p_infant_count < 0 OR p_infant_count > 50) THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Infant guest count must be a non-negative integer (0 to 50).');
     END IF;
 
     IF TRIM(p_customer_first_name) = '' OR TRIM(p_customer_last_name) = '' OR TRIM(p_customer_email) = '' THEN
@@ -202,36 +216,29 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'The requested excursion is either unavailable or unpublished.');
     END IF;
 
-    -- 3. Idempotency Check (Duplicate submission protection within 5 minutes)
-    v_dedup_hash := MD5(
-        v_tour.id::TEXT || '|' ||
-        p_booking_date::TEXT || '|' ||
-        LOWER(TRIM(p_customer_email)) || '|' ||
-        p_adult_count::TEXT || '|' ||
-        COALESCE(p_child_count, 0)::TEXT
-    );
+    -- 3. Genuine Request Idempotency Check
+    -- If an idempotency key is provided, returning the original booking prevents duplicates
+    -- and ensures network retries return identical booking confirmation.
+    -- Distinct bookings with different idempotency keys are allowed even on the same date.
+    IF p_idempotency_key IS NOT NULL AND TRIM(p_idempotency_key) <> '' THEN
+        SELECT * INTO v_existing_dup
+        FROM public.bookings
+        WHERE idempotency_key = TRIM(p_idempotency_key)
+        LIMIT 1;
 
-    SELECT * INTO v_existing_dup
-    FROM public.bookings
-    WHERE tour_id = v_tour.id
-      AND booking_date = p_booking_date
-      AND LOWER(TRIM(p_customer_email)) = (SELECT LOWER(TRIM(email)) FROM public.customers WHERE id = bookings.customer_id)
-      AND created_at > (NOW() - INTERVAL '5 minutes')
-      AND status NOT IN ('cancelled', 'cancellation_requested')
-    ORDER BY created_at DESC
-    LIMIT 1;
-
-    IF FOUND THEN
-        RETURN jsonb_build_object(
-            'success', true,
-            'bookingId', v_existing_dup.id,
-            'bookingReference', v_existing_dup.booking_reference,
-            'status', v_existing_dup.status,
-            'paymentStatus', v_existing_dup.payment_status,
-            'totalEur', v_existing_dup.total,
-            'bookingDate', p_booking_date,
-            'isDuplicate', true
-        );
+        IF FOUND THEN
+            RETURN jsonb_build_object(
+                'success', true,
+                'bookingId', v_existing_dup.id,
+                'bookingReference', v_existing_dup.booking_reference,
+                'status', v_existing_dup.status,
+                'paymentStatus', v_existing_dup.payment_status,
+                'totalEur', v_existing_dup.total,
+                'bookingDate', v_existing_dup.booking_date,
+                'isDuplicate', true,
+                'message', 'Idempotent replay: original booking returned.'
+            );
+        END IF;
     END IF;
 
     -- 4. Atomic Capacity & Concurrency Lock
@@ -280,49 +287,53 @@ BEGIN
     END IF;
 
     -- 7. Tour-Specific Extras Validation & Pricing
-    -- Enforces that ONLY extras assigned to this tour (or in active catalog) can be purchased
+    -- Strict Enforcement: Every selected add-on MUST have an explicit ACTIVE assignment to this specific tour in tour_assigned_extras.
+    -- General catalog extras are NOT automatically bookable without explicit active tour assignment.
     IF p_extras IS NOT NULL AND jsonb_typeof(p_extras) = 'array' AND jsonb_array_length(p_extras) > 0 THEN
         FOR v_extra_item IN SELECT * FROM jsonb_array_elements(p_extras)
         LOOP
-            v_extra_qty := GREATEST(1, COALESCE((v_extra_item->>'quantity')::INT, 1));
+            v_extra_qty := COALESCE((v_extra_item->>'quantity')::INT, 1);
             
-            -- Query extra joined with tour_assigned_extras for this specific tour
-            IF (v_extra_item->>'id') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
-                SELECT te.*, COALESCE(tae.custom_price_eur, te.price_eur) AS effective_price,
-                       (CASE WHEN tae.tour_id IS NOT NULL THEN TRUE ELSE FALSE END) AS is_assigned
-                INTO v_extra_record
-                FROM public.tour_extras te
-                LEFT JOIN public.tour_assigned_extras tae ON tae.extra_id = te.id AND tae.tour_id = v_tour.id
-                WHERE te.id = (v_extra_item->>'id')::UUID
-                  AND te.is_active = TRUE;
-            ELSE
-                SELECT te.*, COALESCE(tae.custom_price_eur, te.price_eur) AS effective_price,
-                       (CASE WHEN tae.tour_id IS NOT NULL THEN TRUE ELSE FALSE END) AS is_assigned
-                INTO v_extra_record
-                FROM public.tour_extras te
-                LEFT JOIN public.tour_assigned_extras tae ON tae.extra_id = te.id AND tae.tour_id = v_tour.id
-                WHERE (te.name = (v_extra_item->>'name') OR te.id::TEXT = (v_extra_item->>'id'))
-                  AND te.is_active = TRUE;
-            END IF;
+            -- Query extra strictly INNER JOINED with tour_assigned_extras for THIS specific tour (v_tour.id)
+            SELECT te.id, te.name, te.pricing_type, te.min_quantity, te.max_quantity, te.currency,
+                   te.is_active AS catalog_is_active,
+                   tae.is_active AS assignment_is_active,
+                   COALESCE(tae.custom_price_eur, te.price_eur) AS effective_price
+            INTO v_extra_record
+            FROM public.tour_extras te
+            INNER JOIN public.tour_assigned_extras tae 
+                ON tae.extra_id = te.id AND tae.tour_id = v_tour.id
+            WHERE (
+                (v_extra_item->>'id' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND te.id = (v_extra_item->>'id')::UUID)
+                OR te.id::TEXT = (v_extra_item->>'id')
+                OR te.name = (v_extra_item->>'name')
+            )
+            LIMIT 1;
 
+            -- Case 1, 2, 3, 5: If not assigned to this tour, or tour has zero assignments, or assigned to other tour
             IF NOT FOUND THEN
                 RETURN jsonb_build_object(
                     'success', false,
-                    'error', 'Selected add-on "' || COALESCE(v_extra_item->>'name', 'Unknown') || '" is not active or recognized.'
+                    'error', 'Selected add-on "' || COALESCE(v_extra_item->>'name', 'Unknown') || '" is not assigned or available for excursion "' || v_tour.title || '".'
                 );
             END IF;
 
-            -- Check if tour has explicit assigned extras configured
-            IF EXISTS (SELECT 1 FROM public.tour_assigned_extras WHERE tour_id = v_tour.id) THEN
-                IF NOT v_extra_record.is_assigned THEN
-                    RETURN jsonb_build_object(
-                        'success', false,
-                        'error', 'Selected add-on "' || v_extra_record.name || '" is not available for excursion "' || v_tour.title || '".'
-                    );
-                END IF;
+            -- Case 4: Catalog inactive OR assignment inactive
+            IF NOT v_extra_record.catalog_is_active THEN
+                RETURN jsonb_build_object(
+                    'success', false,
+                    'error', 'Selected add-on "' || v_extra_record.name || '" is currently deactivated in the catalog.'
+                );
             END IF;
 
-            -- Validate requested quantity against database min/max quantity limits
+            IF NOT v_extra_record.assignment_is_active THEN
+                RETURN jsonb_build_object(
+                    'success', false,
+                    'error', 'Selected add-on "' || v_extra_record.name || '" is deactivated for excursion "' || v_tour.title || '".'
+                );
+            END IF;
+
+            -- Case 6 & 7: Quantity below minimum or above maximum
             IF v_extra_record.min_quantity IS NOT NULL AND v_extra_qty < v_extra_record.min_quantity THEN
                 RETURN jsonb_build_object(
                     'success', false,
@@ -337,11 +348,13 @@ BEGIN
                 );
             END IF;
 
+            -- Case 8: Never trust browser price! Always use v_extra_record.effective_price from DB
             v_extra_unit_price := v_extra_record.effective_price;
 
             -- Dynamic Pricing Methods: per_person, per_adult, per_child, per_vehicle, per_item, per_booking
             IF v_extra_record.pricing_type = 'per_person' THEN
-                v_extra_line_total := v_extra_unit_price * v_total_guests * v_extra_qty;
+                -- Per person extra applies to paying passengers (adults + children)
+                v_extra_line_total := v_extra_unit_price * (p_adult_count + COALESCE(p_child_count, 0)) * v_extra_qty;
             ELSIF v_extra_record.pricing_type = 'per_adult' THEN
                 v_extra_line_total := v_extra_unit_price * p_adult_count * v_extra_qty;
             ELSIF v_extra_record.pricing_type = 'per_child' THEN
@@ -411,22 +424,47 @@ BEGIN
     -- 10. Generate Authoritative Unpredictable Booking Reference
     v_booking_ref := 'RST-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-' || UPPER(SUBSTRING(MD5(gen_random_uuid()::TEXT) FROM 1 FOR 6));
 
-    -- 11. Insert Authoritative Booking Record
-    INSERT INTO public.bookings (
-        booking_reference, user_id, tour_id, customer_id, booking_date, status, payment_status,
-        payment_method, adult_count, child_count, infant_count, pickup_location_id,
-        pickup_hotel_name, pickup_room_number, subtotal, extras_total, discount, total,
-        currency, special_requests
-    )
-    VALUES (
-        v_booking_ref, v_current_user_id, v_tour.id, v_customer_id, p_booking_date, v_initial_status,
-        v_initial_payment_status, p_payment_method, p_adult_count,
-        COALESCE(p_child_count, 0), COALESCE(p_infant_count, 0),
-        (CASE WHEN p_pickup_location_id IS NOT NULL AND p_pickup_location_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN p_pickup_location_id::UUID ELSE NULL END),
-        p_customer_hotel, p_pickup_room_number, v_subtotal, v_extras_total, v_discount, v_final_total,
-        'EUR', p_special_requests
-    )
-    RETURNING id INTO v_booking_id;
+    -- 11. Insert Authoritative Booking Record with Idempotency Key & Concurrency Protection
+    BEGIN
+        INSERT INTO public.bookings (
+            booking_reference, user_id, tour_id, customer_id, booking_date, status, payment_status,
+            payment_method, adult_count, child_count, infant_count, pickup_location_id,
+            pickup_hotel_name, pickup_room_number, subtotal, extras_total, discount, total,
+            currency, special_requests, idempotency_key
+        )
+        VALUES (
+            v_booking_ref, v_current_user_id, v_tour.id, v_customer_id, p_booking_date, v_initial_status,
+            v_initial_payment_status, p_payment_method, p_adult_count,
+            COALESCE(p_child_count, 0), COALESCE(p_infant_count, 0),
+            (CASE WHEN p_pickup_location_id IS NOT NULL AND p_pickup_location_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN p_pickup_location_id::UUID ELSE NULL END),
+            p_customer_hotel, p_pickup_room_number, v_subtotal, v_extras_total, v_discount, v_final_total,
+            'EUR', p_special_requests, NULLIF(TRIM(p_idempotency_key), '')
+        )
+        RETURNING id INTO v_booking_id;
+    EXCEPTION WHEN unique_violation THEN
+        -- Concurrently committed duplicate request with exact same idempotency_key
+        IF p_idempotency_key IS NOT NULL AND TRIM(p_idempotency_key) <> '' THEN
+            SELECT * INTO v_existing_dup
+            FROM public.bookings
+            WHERE idempotency_key = TRIM(p_idempotency_key)
+            LIMIT 1;
+
+            IF FOUND THEN
+                RETURN jsonb_build_object(
+                    'success', true,
+                    'bookingId', v_existing_dup.id,
+                    'bookingReference', v_existing_dup.booking_reference,
+                    'status', v_existing_dup.status,
+                    'paymentStatus', v_existing_dup.payment_status,
+                    'totalEur', v_existing_dup.total,
+                    'bookingDate', v_existing_dup.booking_date,
+                    'isDuplicate', true,
+                    'message', 'Idempotent replay: concurrent request resolved.'
+                );
+            END IF;
+        END IF;
+        RAISE;
+    END;
 
     -- 12. Persist Immutable Booking Extras Snapshot
     IF p_extras IS NOT NULL AND jsonb_typeof(p_extras) = 'array' AND jsonb_array_length(p_extras) > 0 THEN
@@ -438,21 +476,21 @@ BEGIN
                 SELECT te.*, COALESCE(tae.custom_price_eur, te.price_eur) AS effective_price
                 INTO v_extra_record 
                 FROM public.tour_extras te
-                LEFT JOIN public.tour_assigned_extras tae ON tae.extra_id = te.id AND tae.tour_id = v_tour.id
+                INNER JOIN public.tour_assigned_extras tae ON tae.extra_id = te.id AND tae.tour_id = v_tour.id
                 WHERE te.id = (v_extra_item->>'id')::UUID;
             ELSE
                 SELECT te.*, COALESCE(tae.custom_price_eur, te.price_eur) AS effective_price
                 INTO v_extra_record 
                 FROM public.tour_extras te
-                LEFT JOIN public.tour_assigned_extras tae ON tae.extra_id = te.id AND tae.tour_id = v_tour.id
-                WHERE te.name = (v_extra_item->>'name');
+                INNER JOIN public.tour_assigned_extras tae ON tae.extra_id = te.id AND tae.tour_id = v_tour.id
+                WHERE (te.name = (v_extra_item->>'name') OR te.id::TEXT = (v_extra_item->>'id'));
             END IF;
 
             IF FOUND THEN
                 v_extra_unit_price := v_extra_record.effective_price;
 
                 IF v_extra_record.pricing_type = 'per_person' THEN
-                    v_extra_line_total := v_extra_unit_price * v_total_guests * v_extra_qty;
+                    v_extra_line_total := v_extra_unit_price * (p_adult_count + COALESCE(p_child_count, 0)) * v_extra_qty;
                 ELSIF v_extra_record.pricing_type = 'per_adult' THEN
                     v_extra_line_total := v_extra_unit_price * p_adult_count * v_extra_qty;
                 ELSIF v_extra_record.pricing_type = 'per_child' THEN
@@ -558,6 +596,211 @@ BEGIN
 END;
 $$;
 
--- 4. PERMISSIONS & ROLE GRANTS
+-- 4. ATOMIC TOUR ASSIGNMENT MANAGEMENT FUNCTIONS
+-- Atomically replaces all tour assignments for an add-on in a single transaction.
+-- Pre-validates all tour IDs and custom prices BEFORE deleting, and rolls back if any error occurs.
+CREATE OR REPLACE FUNCTION public.replace_extra_tour_assignments_atomic(
+    p_extra_id UUID,
+    p_assignments JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+    v_item JSONB;
+    v_tour_id UUID;
+    v_custom_price NUMERIC(10,2);
+    v_is_active BOOLEAN;
+    v_sort_order INT;
+    v_is_authorized BOOLEAN := FALSE;
+BEGIN
+    -- Authorization check: Requires admin privileges
+    IF auth.role() = 'service_role' THEN
+        v_is_authorized := TRUE;
+    ELSE
+        BEGIN
+            v_is_authorized := public.is_admin();
+        EXCEPTION WHEN OTHERS THEN
+            v_is_authorized := FALSE;
+        END;
+    END IF;
+
+    IF NOT v_is_authorized THEN
+        RAISE EXCEPTION 'Access denied: Administrator privileges required to manage tour assignments.'
+            USING ERRCODE = '42501';
+    END IF;
+
+    -- Validate target extra exists
+    IF NOT EXISTS (SELECT 1 FROM public.tour_extras WHERE id = p_extra_id) THEN
+        RAISE EXCEPTION 'Invalid add-on: Target add-on ID % does not exist.', p_extra_id
+            USING ERRCODE = '23503';
+    END IF;
+
+    -- Pre-validate all assignment items BEFORE deleting existing assignments
+    IF p_assignments IS NOT NULL AND jsonb_typeof(p_assignments) = 'array' THEN
+        FOR v_item IN SELECT * FROM jsonb_array_elements(p_assignments)
+        LOOP
+            IF (v_item->>'tour_id') IS NULL OR NOT (v_item->>'tour_id' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') THEN
+                RAISE EXCEPTION 'Invalid tour ID: % is not a valid UUID.', COALESCE(v_item->>'tour_id', 'null')
+                    USING ERRCODE = '22P02';
+            END IF;
+
+            v_tour_id := (v_item->>'tour_id')::UUID;
+            IF NOT EXISTS (SELECT 1 FROM public.tours WHERE id = v_tour_id) THEN
+                RAISE EXCEPTION 'Invalid tour: Tour ID % does not exist.', v_tour_id
+                    USING ERRCODE = '23503';
+            END IF;
+
+            IF v_item->>'custom_price_eur' IS NOT NULL AND TRIM(v_item->>'custom_price_eur') <> '' THEN
+                BEGIN
+                    v_custom_price := (v_item->>'custom_price_eur')::NUMERIC;
+                EXCEPTION WHEN OTHERS THEN
+                    RAISE EXCEPTION 'Invalid custom price: "%" must be a valid numeric amount.', v_item->>'custom_price_eur'
+                        USING ERRCODE = '22P02';
+                END;
+
+                IF v_custom_price < 0 THEN
+                    RAISE EXCEPTION 'Invalid custom price: % cannot be negative.', v_custom_price
+                        USING ERRCODE = '23514';
+                END IF;
+            END IF;
+        END LOOP;
+    END IF;
+
+    -- Atomic Replace: Delete existing assignments for this extra
+    DELETE FROM public.tour_assigned_extras
+    WHERE extra_id = p_extra_id;
+
+    -- Insert new validated assignments
+    IF p_assignments IS NOT NULL AND jsonb_typeof(p_assignments) = 'array' THEN
+        FOR v_item IN SELECT * FROM jsonb_array_elements(p_assignments)
+        LOOP
+            v_tour_id := (v_item->>'tour_id')::UUID;
+            v_custom_price := NULL;
+            IF v_item->>'custom_price_eur' IS NOT NULL AND TRIM(v_item->>'custom_price_eur') <> '' THEN
+                v_custom_price := (v_item->>'custom_price_eur')::NUMERIC;
+            END IF;
+            v_is_active := COALESCE((v_item->>'is_active')::BOOLEAN, TRUE);
+            v_sort_order := COALESCE((v_item->>'sort_order')::INT, 0);
+
+            INSERT INTO public.tour_assigned_extras (tour_id, extra_id, custom_price_eur, is_active, sort_order, created_at)
+            VALUES (v_tour_id, p_extra_id, v_custom_price, v_is_active, v_sort_order, NOW());
+        END LOOP;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'extraId', p_extra_id,
+        'assignedCount', COALESCE(jsonb_array_length(p_assignments), 0),
+        'message', 'Tour assignments updated atomically.'
+    );
+END;
+$$;
+
+-- Atomically replaces all extra assignments for a specific tour in a single transaction.
+CREATE OR REPLACE FUNCTION public.replace_tour_extra_assignments_atomic(
+    p_tour_id UUID,
+    p_assignments JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+    v_item JSONB;
+    v_extra_id UUID;
+    v_custom_price NUMERIC(10,2);
+    v_is_active BOOLEAN;
+    v_sort_order INT;
+    v_is_authorized BOOLEAN := FALSE;
+BEGIN
+    IF auth.role() = 'service_role' THEN
+        v_is_authorized := TRUE;
+    ELSE
+        BEGIN
+            v_is_authorized := public.is_admin();
+        EXCEPTION WHEN OTHERS THEN
+            v_is_authorized := FALSE;
+        END;
+    END IF;
+
+    IF NOT v_is_authorized THEN
+        RAISE EXCEPTION 'Access denied: Administrator privileges required to manage tour assignments.'
+            USING ERRCODE = '42501';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM public.tours WHERE id = p_tour_id) THEN
+        RAISE EXCEPTION 'Invalid tour: Tour ID % does not exist.', p_tour_id
+            USING ERRCODE = '23503';
+    END IF;
+
+    IF p_assignments IS NOT NULL AND jsonb_typeof(p_assignments) = 'array' THEN
+        FOR v_item IN SELECT * FROM jsonb_array_elements(p_assignments)
+        LOOP
+            IF (v_item->>'extra_id') IS NULL OR NOT (v_item->>'extra_id' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') THEN
+                RAISE EXCEPTION 'Invalid add-on ID: % is not a valid UUID.', COALESCE(v_item->>'extra_id', 'null')
+                    USING ERRCODE = '22P02';
+            END IF;
+
+            v_extra_id := (v_item->>'extra_id')::UUID;
+            IF NOT EXISTS (SELECT 1 FROM public.tour_extras WHERE id = v_extra_id) THEN
+                RAISE EXCEPTION 'Invalid add-on: Add-on ID % does not exist.', v_extra_id
+                    USING ERRCODE = '23503';
+            END IF;
+
+            IF v_item->>'custom_price_eur' IS NOT NULL AND TRIM(v_item->>'custom_price_eur') <> '' THEN
+                BEGIN
+                    v_custom_price := (v_item->>'custom_price_eur')::NUMERIC;
+                EXCEPTION WHEN OTHERS THEN
+                    RAISE EXCEPTION 'Invalid custom price: "%" must be a valid numeric amount.', v_item->>'custom_price_eur'
+                        USING ERRCODE = '22P02';
+                END;
+
+                IF v_custom_price < 0 THEN
+                    RAISE EXCEPTION 'Invalid custom price: % cannot be negative.', v_custom_price
+                        USING ERRCODE = '23514';
+                END IF;
+            END IF;
+        END LOOP;
+    END IF;
+
+    DELETE FROM public.tour_assigned_extras
+    WHERE tour_id = p_tour_id;
+
+    IF p_assignments IS NOT NULL AND jsonb_typeof(p_assignments) = 'array' THEN
+        FOR v_item IN SELECT * FROM jsonb_array_elements(p_assignments)
+        LOOP
+            v_extra_id := (v_item->>'extra_id')::UUID;
+            v_custom_price := NULL;
+            IF v_item->>'custom_price_eur' IS NOT NULL AND TRIM(v_item->>'custom_price_eur') <> '' THEN
+                v_custom_price := (v_item->>'custom_price_eur')::NUMERIC;
+            END IF;
+            v_is_active := COALESCE((v_item->>'is_active')::BOOLEAN, TRUE);
+            v_sort_order := COALESCE((v_item->>'sort_order')::INT, 0);
+
+            INSERT INTO public.tour_assigned_extras (tour_id, extra_id, custom_price_eur, is_active, sort_order, created_at)
+            VALUES (p_tour_id, v_extra_id, v_custom_price, v_is_active, v_sort_order, NOW());
+        END LOOP;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'tourId', p_tour_id,
+        'assignedCount', COALESCE(jsonb_array_length(p_assignments), 0),
+        'message', 'Tour assignments updated atomically.'
+    );
+END;
+$$;
+
+-- 5. PERMISSIONS & ROLE GRANTS
 REVOKE ALL ON FUNCTION public.create_booking_atomic FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_booking_atomic TO anon, authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.replace_extra_tour_assignments_atomic(UUID, JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.replace_extra_tour_assignments_atomic(UUID, JSONB) TO authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.replace_tour_extra_assignments_atomic(UUID, JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.replace_tour_extra_assignments_atomic(UUID, JSONB) TO authenticated, service_role;

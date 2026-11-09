@@ -236,6 +236,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       const newBooking: Booking = {
         bookingId: `b-${Date.now()}`,
         bookingReference: ref,
+        idempotencyKey: `idem_${ref}_${currentTour.id}_${date}_${customer.email.trim().toLowerCase()}`,
         tourId: currentTour.id,
         tourSlug: currentTour.slug,
         tourTitle: currentTour.title,

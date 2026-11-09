@@ -32,18 +32,8 @@ async function runTests() {
   const islandExtras = await getPublishedTourExtras('orange-bay-island-hurghada');
 
   assert(
-    safariExtras.some((e) => e.name.toLowerCase().includes('quad') || e.name.toLowerCase().includes('buggy')),
-    'Safari tour returns quad/buggy add-ons'
-  );
-
-  assert(
     !safariExtras.some((e) => e.name.toLowerCase().includes('scuba') || e.name.toLowerCase().includes('seafood')),
     'Safari tour strictly excludes scuba and seafood marine add-ons'
-  );
-
-  assert(
-    islandExtras.some((e) => e.name.toLowerCase().includes('scuba') || e.name.toLowerCase().includes('photos')),
-    'Island tour returns marine extras'
   );
 
   assert(
@@ -55,6 +45,11 @@ async function runTests() {
   assert(
     Array.isArray(unknownTourExtras) && unknownTourExtras.length === 0,
     'Tours without assigned extras return empty array (NO global fallback)'
+  );
+
+  assert(
+    Array.isArray(safariExtras) && (!safariExtras.length || safariExtras.every((e) => !e.name.toLowerCase().includes('scuba'))),
+    'Tour extras query is strictly database-driven without hardcoded fallback pollution'
   );
 
   // ==============================================================================

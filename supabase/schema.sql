@@ -490,11 +490,13 @@ CREATE TABLE IF NOT EXISTS public.bookings (
     currency TEXT NOT NULL DEFAULT 'EUR',
     special_requests TEXT,
     cancellation_reason TEXT,
+    idempotency_key TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_bookings_reference ON public.bookings(booking_reference);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_idempotency_key ON public.bookings(idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON public.bookings(user_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON public.bookings(customer_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_tour_id ON public.bookings(tour_id);

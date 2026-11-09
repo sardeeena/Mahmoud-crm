@@ -85,12 +85,35 @@ class SupabaseBookingRepository implements IBookingRepository {
       throw new Error(validation.error || 'Invalid booking details provided.');
     }
 
-    // Validate passenger counts
+    // Validate passenger counts with integer and range discipline
     if (booking.guests.adults < 1) {
       throw new Error('At least one adult passenger is required.');
     }
     if ((booking.guests.children || 0) < 0 || (booking.guests.infants || 0) < 0) {
       throw new Error('Passenger counts cannot be negative.');
+    }
+
+    const adults = booking.guests?.adults;
+    const children = booking.guests?.children ?? 0;
+    const infants = booking.guests?.infants ?? 0;
+
+    if (typeof adults !== 'number' || !Number.isInteger(adults) || adults < 1) {
+      throw new Error('Reservations require at least 1 adult passenger (positive whole number).');
+    }
+    if (adults > 100) {
+      throw new Error('Maximum allowed adult passenger quantity per reservation is 100.');
+    }
+    if (typeof children !== 'number' || !Number.isInteger(children) || children < 0) {
+      throw new Error('Child passenger count must be a non-negative whole number (0 or greater).');
+    }
+    if (children > 100) {
+      throw new Error('Maximum allowed child passenger quantity per reservation is 100.');
+    }
+    if (typeof infants !== 'number' || !Number.isInteger(infants) || infants < 0) {
+      throw new Error('Infant passenger count must be a non-negative whole number (0 or greater).');
+    }
+    if (infants > 50) {
+      throw new Error('Maximum allowed infant passenger quantity per reservation is 50.');
     }
 
     // Validate booking date is not in the past
@@ -101,37 +124,40 @@ class SupabaseBookingRepository implements IBookingRepository {
       throw new Error('Excursion departure date cannot be in the past.');
     }
 
-    // Double-click / retry submission lock
-    const dedupeKey = `${booking.tourId}_${booking.date}_${booking.customer.email.toLowerCase()}`;
+    // Genuine request idempotency token: unique per booking submission intent
+    const idempotencyKey = booking.idempotencyKey || 
+      `req_${booking.bookingReference || ''}_${booking.tourId}_${booking.date}_${booking.customer.email.toLowerCase()}`;
+    booking.idempotencyKey = idempotencyKey;
+    const dedupeKey = idempotencyKey;
+
     if (SupabaseBookingRepository.inFlightRefs.has(dedupeKey)) {
-      throw new Error('A reservation request for this excursion is currently being processed. Please wait.');
+      throw new Error('A reservation request with this transaction key is currently being processed. Please wait.');
     }
     SupabaseBookingRepository.inFlightRefs.add(dedupeKey);
 
     const limit = bookingRateLimiter.check();
     if (limit.isLocked) {
-      SupabaseBookingRepository.inFlightRefs.delete(dedupeKey);
+      SupabaseBookingRepository.inFlightRefs.delete(idempotencyKey);
       throw new Error(`Too many reservation requests submitted. Please wait ${limit.remainingSeconds} seconds before trying again.`);
     }
 
-    const totalPartySize = (booking.guests.adults || 1) + (booking.guests.children || 0) + (booking.guests.infants || 0);
     const bookingDateStr = booking.date ? booking.date.split('T')[0] : '';
 
     if (!isSupabaseConfigured()) {
-      SupabaseBookingRepository.inFlightRefs.delete(dedupeKey);
+      SupabaseBookingRepository.inFlightRefs.delete(idempotencyKey);
       throw new Error('Reservation database service is currently unconfigured or unavailable. Please contact the booking desk directly.');
     }
 
     try {
       // 1. Authoritative Primary Path: create_booking_atomic RPC
       // Executes single PostgreSQL transaction with row-level capacity lock, server-side pricing,
-      // passenger manifest creation, extras persistence, and audit logging.
+      // passenger manifest creation, extras persistence, genuine request idempotency, and audit logging.
       const { data: atomicRes, error: rpcErr } = await supabase.rpc('create_booking_atomic', {
         p_tour_identifier: booking.tourId || booking.tourSlug || '',
         p_booking_date: bookingDateStr,
-        p_adult_count: booking.guests.adults,
-        p_child_count: booking.guests.children || 0,
-        p_infant_count: booking.guests.infants || 0,
+        p_adult_count: adults,
+        p_child_count: children,
+        p_infant_count: infants,
         p_customer_first_name: booking.customer.firstName.trim(),
         p_customer_last_name: booking.customer.lastName.trim(),
         p_customer_email: booking.customer.email.trim().toLowerCase(),
@@ -147,6 +173,7 @@ class SupabaseBookingRepository implements IBookingRepository {
         })),
         p_payment_method: booking.paymentMethod || 'pay_at_pickup',
         p_special_requests: booking.customer.specialRequests || null,
+        p_idempotency_key: idempotencyKey,
       });
 
       if (!rpcErr && atomicRes && typeof atomicRes === 'object') {

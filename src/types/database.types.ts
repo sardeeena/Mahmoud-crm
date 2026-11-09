@@ -825,6 +825,7 @@ export interface Database {
           currency: string;
           special_requests: string | null;
           cancellation_reason: string | null;
+          idempotency_key: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -850,6 +851,7 @@ export interface Database {
           currency?: string;
           special_requests?: string | null;
           cancellation_reason?: string | null;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -875,6 +877,7 @@ export interface Database {
           currency?: string;
           special_requests?: string | null;
           cancellation_reason?: string | null;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
         };

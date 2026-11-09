@@ -401,17 +401,32 @@ export const AdminExtrasList: React.FC<AdminExtrasListProps> = ({ onNavigateTab 
         savedExtraId = inserted?.id;
       }
 
-      // Authoritative tour assignments persistence in tour_assigned_extras
+      // Authoritative atomic tour assignments persistence in tour_assigned_extras
       if (savedExtraId) {
-        await supabase.from('tour_assigned_extras').delete().eq('extra_id', savedExtraId);
-        if (assignedTourIds.length > 0) {
-          const links = assignedTourIds.map((tid) => ({
-            tour_id: tid,
-            extra_id: savedExtraId!,
-            custom_price_eur: assignedTourPrices[tid] !== undefined ? assignedTourPrices[tid] : null,
-          }));
-          const { error: linkErr } = await supabase.from('tour_assigned_extras').insert(links);
-          if (linkErr) throw linkErr;
+        const payload = assignedTourIds.map((tid) => ({
+          tour_id: tid,
+          custom_price_eur: assignedTourPrices[tid] !== undefined && assignedTourPrices[tid] !== null ? Number(assignedTourPrices[tid]) : null,
+          is_active: true,
+        }));
+
+        const { error: rpcErr } = await supabase.rpc('replace_extra_tour_assignments_atomic', {
+          p_extra_id: savedExtraId,
+          p_assignments: payload,
+        });
+
+        if (rpcErr) {
+          console.warn('replace_extra_tour_assignments_atomic RPC error, using fallback:', rpcErr);
+          // Fallback if RPC is not yet provisioned
+          await supabase.from('tour_assigned_extras').delete().eq('extra_id', savedExtraId);
+          if (assignedTourIds.length > 0) {
+            const links = assignedTourIds.map((tid) => ({
+              tour_id: tid,
+              extra_id: savedExtraId!,
+              custom_price_eur: assignedTourPrices[tid] !== undefined ? assignedTourPrices[tid] : null,
+            }));
+            const { error: linkErr } = await supabase.from('tour_assigned_extras').insert(links);
+            if (linkErr) throw linkErr;
+          }
         }
       }
 

@@ -97,6 +97,7 @@ export type BookingStatus =
 export interface Booking {
   bookingId: string;
   bookingReference: string; // e.g. RST-2026-AB4821
+  idempotencyKey?: string; // Request idempotency token for duplicate & retry protection
   tourId: string;
   tourSlug: string;
   tourTitle: string;

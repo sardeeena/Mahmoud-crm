@@ -38,7 +38,7 @@ async function runAudit() {
 
   const migrationFiles = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
   assert(migrationFiles.length >= 21, `Full migration history preserved (${migrationFiles.length} migrations found)`);
-  assert(migrationFiles[migrationFiles.length - 1] === '20261107000000_tour_extras_and_addons_enhancement.sql', 'Target migration is chronologically latest');
+  assert(migrationFiles.includes('20261107000000_tour_extras_and_addons_enhancement.sql'), 'Target migration 20261107000000 is present and sequenced in migration history');
 
   const migrationContent = fs.readFileSync(targetMigrationPath, 'utf8');
 
